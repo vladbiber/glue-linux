@@ -25,3 +25,11 @@ _None yet._
 - Rationale: The full logic stack (catalog → plan → executor) is done and tested; the only missing layer is the TUI. Writing curses code directly would make the installer's flow logic untestable, so the deepest next step is the wizard's brain as pure code: which screens exist for a given catalog, what each shows (ease/lightness/keybinds/screenshot path, dinit 'recommended' tag, the multi-select login notice), how choices constrain each other (minimal skips sessions, shell-choice screens appear only for mangowc/niri), and how the final Selection is assembled. This also clears the one piece of known debt (530-line test file) so the codebase is fully clean before the last layer.
 - Reviewer: All 154 tests pass (115 pre-existing preserved, 39 new ui_model tests well above the ≥20 threshold); every acceptance criterion is concretely verified by a passing test; ui_model.py has no curses/I/O imports; all files are ≤500 lines; executor split is lossless at 28+13=41 tests
 
+
+
+## task-004 — Build the curses view layer and `python -m wheatley_installer` entry point: pure line renderer (render.py) + thin curses driver (tui.py) + wired dry-run-capable main
+- Capability: 1. Installer shell — friendly, composable
+- Complexity: complex
+- Rationale: Every logic layer is done and tested (catalog → plan → executor → ui_model wizard brain, 154 tests). The single missing piece between this stack and a usable installer is the view: something must paint Screens, translate keystrokes into Wizard events, and wire Selection → resolve_plan → compile_steps → execute. Nothing else on the roadmap can be meaningfully verified end-to-end until the program is actually runnable, so this is the unambiguous depth-first next step — it completes capability 1 rather than starting anything new.
+- Reviewer: All 186 tests pass, architecture is clean, files are within limits, and all acceptance criteria are provably met.
+

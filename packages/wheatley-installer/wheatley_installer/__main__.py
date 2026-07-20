@@ -8,10 +8,12 @@ execute. Headless flags (--validate-catalog, --help) never touch curses.
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
 from wheatley_installer.catalog import CatalogError, load_catalog
+from wheatley_installer.disks import BlockDevice, DiskError, discover, plan_disk
 from wheatley_installer.executor import ExecutorError, compile_steps, execute
 from wheatley_installer.plan import PlanError, resolve_plan
 
@@ -44,7 +46,46 @@ def _build_parser() -> argparse.ArgumentParser:
         "--validate-catalog", action="store_true",
         help="headless: load and validate the catalog, print counts, and exit",
     )
+    parser.add_argument(
+        "--disk", metavar="PATH", default=None,
+        help="disk to partition/format/mount (e.g. /dev/sda); "
+             "WILL BE ERASED. Omit to install to an already-prepared --target",
+    )
+    parser.add_argument(
+        "--firmware", choices=("auto", "uefi", "bios"), default="auto",
+        help="boot firmware type (default: auto = detect /sys/firmware/efi)",
+    )
     return parser
+
+
+def detect_firmware(efi_dir_exists: bool) -> str:
+    """Pure helper: map /sys/firmware/efi presence to a firmware id."""
+    return "uefi" if efi_dir_exists else "bios"
+
+
+_DRY_RUN_DISK_BYTES = 32 * 1024 ** 3
+
+
+def _resolve_disk(path: str, *, dry_run: bool) -> BlockDevice:
+    """Find the BlockDevice for --disk. In dry-run, a path that is not a real
+    block device (or a machine without lsblk) yields a synthetic 32 GiB disk
+    so the step list can be previewed anywhere."""
+    try:
+        devices = discover()
+    except DiskError:
+        if not dry_run:
+            raise
+        devices = []
+    for device in devices:
+        if device.path == path:
+            return device
+    if dry_run:
+        return BlockDevice(
+            name=os.path.basename(path), path=path,
+            size_bytes=_DRY_RUN_DISK_BYTES, model="dry-run synthetic disk",
+            is_removable=False, has_mounted_partitions=False,
+        )
+    raise DiskError(f"No such disk: {path}")
 
 
 def _fail(message: str, code: int) -> int:
@@ -93,8 +134,22 @@ def main(argv=None) -> int:
     except PlanError as exc:
         return _fail(f"Plan error: {exc}", EXIT_INSTALL)
 
+    disk_plan = None
+    if args.disk is not None:
+        firmware = args.firmware
+        if firmware == "auto":
+            firmware = detect_firmware(os.path.exists("/sys/firmware/efi"))
+        try:
+            device = _resolve_disk(args.disk, dry_run=args.dry_run)
+            disk_plan = plan_disk(device, firmware)
+        except DiskError as exc:
+            return _fail(f"Disk error: {exc}", EXIT_INSTALL)
+
     try:
-        steps = compile_steps(plan, target=args.target, init_id=selection.init_id)
+        steps = compile_steps(
+            plan, target=args.target, init_id=selection.init_id,
+            disk_plan=disk_plan,
+        )
     except ExecutorError as exc:
         return _fail(f"Executor error: {exc}", EXIT_INSTALL)
 
@@ -104,7 +159,10 @@ def main(argv=None) -> int:
         execute(steps, dry_run=True)
         return EXIT_OK
 
-    print(f"About to install to {args.target}. This will modify the target system.")
+    if disk_plan is not None:
+        print(f"About to ERASE {disk_plan.device_path} and install to {args.target}.")
+    else:
+        print(f"About to install to {args.target}. This will modify the target system.")
     try:
         answer = input("Type 'yes' to begin the installation: ")
     except (EOFError, KeyboardInterrupt):

@@ -1,5 +1,5 @@
 {
-  "nextId": 5,
+  "nextId": 6,
   "tasks": [
     {
       "id": "task-001",
@@ -46,7 +46,7 @@
       "title": "Build the curses view layer and `python -m wheatley_installer` entry point: pure line renderer (render.py) + thin curses driver (tui.py) + wired dry-run-capable main",
       "capability": "1. Installer shell — friendly, composable",
       "complexity": "complex",
-      "status": "doing",
+      "status": "done",
       "files": [
         "packages/wheatley-installer/wheatley_installer/render.py",
         "packages/wheatley-installer/wheatley_installer/tui.py",
@@ -54,7 +54,23 @@
         "packages/wheatley-installer/tests/test_render.py",
         "packages/wheatley-installer/tests/test_main_headless.py"
       ],
-      "created": 1784567000291
+      "created": 1784567000291,
+      "completed": 1784567462770
+    },
+    {
+      "id": "task-005",
+      "title": "Build the disk & bootloader layer: pure lsblk parsing, UEFI/BIOS partition planning, and compile_steps integration (sgdisk/mkfs/mount → pacstrap → grub) with dry-run support",
+      "capability": "9. Disk, boot & identity (required for 'installs & boots')",
+      "complexity": "complex",
+      "status": "doing",
+      "files": [
+        "packages/wheatley-installer/wheatley_installer/disks.py",
+        "packages/wheatley-installer/wheatley_installer/executor.py",
+        "packages/wheatley-installer/wheatley_installer/__main__.py",
+        "packages/wheatley-installer/tests/test_disks.py",
+        "packages/wheatley-installer/tests/test_executor_disk.py"
+      ],
+      "created": 1784567596284
     }
   ]
 }

@@ -47,25 +47,44 @@ _SUPPORTED_INITS = frozenset({"dinit", "runit"})
 # Pure compiler
 # ---------------------------------------------------------------------------
 
-def compile_steps(plan: InstallPlan, *, target: str = "/mnt", init_id: str) -> List[Step]:
+def compile_steps(
+    plan: InstallPlan, *, target: str = "/mnt", init_id: str, disk_plan=None,
+) -> List[Step]:
     """Compile an InstallPlan into a deterministic ordered list of Steps.
 
     Pure function: same inputs always produce identical output; no I/O or
     subprocess access at any point.
     Raises ExecutorError for unsupported init_id.
+
+    disk_plan (a disks.DiskPlan, optional): when provided, disk-preparation
+    steps (partition, mkfs, mount) come FIRST, bootloader steps (grub) come
+    LAST, and grub (+ efibootmgr on UEFI) is added to the basestrap set.
     """
     if init_id not in _SUPPORTED_INITS:
         raise ExecutorError(
             f"Unsupported init_id: '{init_id}'; supported: {sorted(_SUPPORTED_INITS)}"
         )
 
+    # Deferred import: disks.py imports Step types from this module, so a
+    # top-level import here would be circular.
+    if disk_plan is not None:
+        from wheatley_installer.disks import (
+            bootloader_packages, bootloader_steps, disk_steps,
+        )
+
     t = target.rstrip("/")
     steps: List[Step] = []
 
+    # 0. Disk preparation (only when a DiskPlan is provided)
+    packages = plan.packages
+    if disk_plan is not None:
+        steps.extend(disk_steps(disk_plan, target=target))
+        packages = sorted(set(packages) | set(bootloader_packages(disk_plan)))
+
     # 1. Install all packages in a single basestrap call
-    n = len(plan.packages)
+    n = len(packages)
     steps.append(RunCommand(
-        argv=["basestrap", t] + plan.packages,
+        argv=["basestrap", t] + packages,
         description=f"Install {n} package{'s' if n != 1 else ''} with basestrap",
     ))
 
@@ -104,6 +123,10 @@ def compile_steps(plan: InstallPlan, *, target: str = "/mnt", init_id: str) -> L
             argv=argv,
             description=f"Enable service {svc} ({init_id})",
         ))
+
+    # 5. Bootloader (only when a DiskPlan is provided) — always last
+    if disk_plan is not None:
+        steps.extend(bootloader_steps(disk_plan, target=target))
 
     return steps
 

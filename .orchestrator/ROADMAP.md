@@ -53,3 +53,6 @@ custom packages (apeturewm, nvwm, branding). Amber palette #100A02/#A66900/#F1B0
 - [ ] XFCE — with ease/lightness/keybinds + screenshot.
 
 _The architect refines and orders these on the first cycle._
+
+- ### 9. Disk, boot & identity (required for 'installs & boots') — disk discovery + partitioning (UEFI/BIOS), mkfs/mount, GRUB install, hostname/user/password/locale/timezone screens
+- ### 10. Ship it — PKGBUILD ships the new Python installer (module + catalog + screenshots) as /usr/bin/wheatley-install, replacing the old whiptail script on the ISO
