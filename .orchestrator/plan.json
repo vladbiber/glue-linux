@@ -1,5 +1,5 @@
 {
-  "nextId": 3,
+  "nextId": 4,
   "tasks": [
     {
       "id": "task-001",
@@ -21,12 +21,25 @@
       "title": "Build the Selection model and plan resolver: pure logic that turns Catalog + user choices into a validated, deterministic InstallPlan",
       "capability": "1. Installer shell — friendly, composable",
       "complexity": "standard",
-      "status": "doing",
+      "status": "done",
       "files": [
         "packages/wheatley-installer/wheatley_installer/plan.py",
         "packages/wheatley-installer/tests/test_plan.py"
       ],
-      "created": 1784565122972
+      "created": 1784565122972,
+      "completed": 1784565478624
+    },
+    {
+      "id": "task-003",
+      "title": "Build the executor layer: pure InstallPlan→Step compiler plus a dry-run-capable runner (pacstrap, chroot file writes, init-specific service enabling)",
+      "capability": "1. Installer shell — friendly, composable",
+      "complexity": "standard",
+      "status": "doing",
+      "files": [
+        "packages/wheatley-installer/wheatley_installer/executor.py",
+        "packages/wheatley-installer/tests/test_executor.py"
+      ],
+      "created": 1784565574399
     }
   ]
 }
