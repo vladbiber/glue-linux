@@ -1,5 +1,5 @@
 {
-  "nextId": 4,
+  "nextId": 5,
   "tasks": [
     {
       "id": "task-001",
@@ -40,6 +40,21 @@
         "packages/wheatley-installer/tests/test_executor.py"
       ],
       "created": 1784565574399
+    },
+    {
+      "id": "task-004",
+      "title": "Build the curses view layer and `python -m wheatley_installer` entry point: pure line renderer (render.py) + thin curses driver (tui.py) + wired dry-run-capable main",
+      "capability": "1. Installer shell — friendly, composable",
+      "complexity": "complex",
+      "status": "doing",
+      "files": [
+        "packages/wheatley-installer/wheatley_installer/render.py",
+        "packages/wheatley-installer/wheatley_installer/tui.py",
+        "packages/wheatley-installer/wheatley_installer/__main__.py",
+        "packages/wheatley-installer/tests/test_render.py",
+        "packages/wheatley-installer/tests/test_main_headless.py"
+      ],
+      "created": 1784567000291
     }
   ]
 }
