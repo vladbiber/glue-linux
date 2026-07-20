@@ -1,0 +1,19 @@
+{
+  "nextId": 2,
+  "tasks": [
+    {
+      "id": "task-001",
+      "title": "Build the installer's catalog data model: catalog.json + stdlib validator + unit tests",
+      "capability": "1. Installer shell — friendly, composable",
+      "complexity": "standard",
+      "status": "doing",
+      "files": [
+        "packages/wheatley-installer/catalog/catalog.json",
+        "packages/wheatley-installer/wheatley_installer/__init__.py",
+        "packages/wheatley-installer/wheatley_installer/catalog.py",
+        "packages/wheatley-installer/tests/test_catalog.py"
+      ],
+      "created": 1784564754401
+    }
+  ]
+}

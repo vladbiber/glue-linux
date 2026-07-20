@@ -1,0 +1,254 @@
+{
+  "version": 1,
+  "kernels": [
+    {
+      "id": "linux-cachyos",
+      "name": "CachyOS Kernel",
+      "description": "Performance-optimized kernel with BORE scheduler and CachyOS patches. The default kernel for Wheatley Linux.",
+      "packages": ["linux-cachyos", "linux-cachyos-headers"],
+      "primary": true
+    },
+    {
+      "id": "linux-zen",
+      "name": "Zen Kernel",
+      "description": "Community-developed kernel tuned for desktop responsiveness. A solid secondary option.",
+      "packages": ["linux-zen", "linux-zen-headers"],
+      "primary": false
+    }
+  ],
+  "inits": [
+    {
+      "id": "dinit",
+      "name": "dinit",
+      "description": "Recommended init system for Wheatley Linux. Fast, simple, and dependency-tracking. Recommended for its clean design and quick boot times.",
+      "packages": ["dinit"],
+      "recommended": true
+    },
+    {
+      "id": "runit",
+      "name": "runit",
+      "description": "Minimalist init system with a proven track record. Familiar to Void Linux users.",
+      "packages": ["runit"],
+      "recommended": false
+    }
+  ],
+  "sessions": [
+    {
+      "id": "apeturewm",
+      "name": "ApertureWM",
+      "kind": "wm",
+      "description": "Aperture-themed custom window manager built for Wheatley Linux. Stacking WM with an amber aesthetic and minimal overhead.",
+      "ease": 3,
+      "lightness": 5,
+      "keybindings": [
+        {"keys": "Super+Return", "action": "Open terminal"},
+        {"keys": "Super+d", "action": "Open application launcher"},
+        {"keys": "Super+q", "action": "Close focused window"},
+        {"keys": "Super+h/j/k/l", "action": "Move focus left/down/up/right"},
+        {"keys": "Super+Shift+h/j/k/l", "action": "Move window left/down/up/right"},
+        {"keys": "Super+f", "action": "Toggle fullscreen"},
+        {"keys": "Super+Space", "action": "Toggle floating mode"}
+      ],
+      "screenshot": "screenshots/apeturewm.png",
+      "packages": ["apeturewm"],
+      "services": [],
+      "shell_choices": []
+    },
+    {
+      "id": "nvwm",
+      "name": "nvwm",
+      "kind": "wm",
+      "description": "Light and strong custom window manager. Minimal footprint, maximum control. Part of the Wheatley Linux custom package set.",
+      "ease": 3,
+      "lightness": 5,
+      "keybindings": [
+        {"keys": "Super+Return", "action": "Open terminal"},
+        {"keys": "Super+d", "action": "Open application launcher"},
+        {"keys": "Super+q", "action": "Close focused window"},
+        {"keys": "Super+h/j/k/l", "action": "Focus window left/down/up/right"},
+        {"keys": "Super+Shift+h/j/k/l", "action": "Swap window left/down/up/right"},
+        {"keys": "Super+f", "action": "Toggle fullscreen"},
+        {"keys": "Super+1-9", "action": "Switch to workspace 1-9"}
+      ],
+      "screenshot": "screenshots/nvwm.png",
+      "packages": ["nvwm"],
+      "services": [],
+      "shell_choices": []
+    },
+    {
+      "id": "mangowc",
+      "name": "MangoWC",
+      "kind": "wm",
+      "description": "User-friendly Wayland compositor. A smooth, modern tiling experience. Pair it with a shell/bar of your choice.",
+      "ease": 4,
+      "lightness": 4,
+      "keybindings": [
+        {"keys": "Super+Return", "action": "Open terminal"},
+        {"keys": "Super+d", "action": "Open application launcher"},
+        {"keys": "Super+q", "action": "Close focused window"},
+        {"keys": "Super+h/j/k/l", "action": "Move focus left/down/up/right"},
+        {"keys": "Super+Shift+h/j/k/l", "action": "Move window left/down/up/right"},
+        {"keys": "Super+f", "action": "Toggle fullscreen"},
+        {"keys": "Super+1-9", "action": "Switch to workspace 1-9"},
+        {"keys": "Super+Shift+1-9", "action": "Move window to workspace 1-9"}
+      ],
+      "screenshot": "screenshots/mangowc.png",
+      "packages": ["mangowc"],
+      "services": [],
+      "shell_choices": ["noctalia", "imperative-dots"]
+    },
+    {
+      "id": "niri",
+      "name": "Niri",
+      "kind": "wm",
+      "description": "User-friendly scrollable-tiling Wayland compositor. Windows tile into a horizontal strip you can scroll through. Pair it with a shell/bar of your choice.",
+      "ease": 4,
+      "lightness": 4,
+      "keybindings": [
+        {"keys": "Super+Return", "action": "Open terminal"},
+        {"keys": "Super+d", "action": "Open application launcher (fuzzel)"},
+        {"keys": "Super+q", "action": "Close focused window"},
+        {"keys": "Super+Left/Right", "action": "Focus column left/right"},
+        {"keys": "Super+Shift+Left/Right", "action": "Move column left/right"},
+        {"keys": "Super+f", "action": "Toggle fullscreen"},
+        {"keys": "Super+Shift+f", "action": "Toggle floating window"},
+        {"keys": "Super+1-9", "action": "Focus workspace 1-9"}
+      ],
+      "screenshot": "screenshots/niri.png",
+      "packages": ["niri"],
+      "services": [],
+      "shell_choices": ["noctalia", "imperative-dots"]
+    },
+    {
+      "id": "sway",
+      "name": "Sway",
+      "kind": "wm",
+      "description": "Minimal i3-compatible tiling Wayland compositor. No frills, pure keyboard-driven tiling. Great for those who know what they want.",
+      "ease": 3,
+      "lightness": 5,
+      "keybindings": [
+        {"keys": "Super+Return", "action": "Open terminal"},
+        {"keys": "Super+d", "action": "Open application launcher (dmenu/wofi)"},
+        {"keys": "Super+Shift+q", "action": "Close focused window"},
+        {"keys": "Super+h/j/k/l", "action": "Focus left/down/up/right"},
+        {"keys": "Super+Shift+h/j/k/l", "action": "Move window left/down/up/right"},
+        {"keys": "Super+f", "action": "Toggle fullscreen"},
+        {"keys": "Super+Shift+Space", "action": "Toggle floating"},
+        {"keys": "Super+1-9", "action": "Switch to workspace 1-9"},
+        {"keys": "Super+Shift+1-9", "action": "Move container to workspace 1-9"},
+        {"keys": "Super+Shift+e", "action": "Exit sway"}
+      ],
+      "screenshot": "screenshots/sway.png",
+      "packages": ["sway"],
+      "services": [],
+      "shell_choices": []
+    },
+    {
+      "id": "kde-plasma",
+      "name": "KDE Plasma",
+      "kind": "de",
+      "description": "Optional full desktop environment. Feature-rich and highly customizable. Included for those who prefer a traditional DE experience — note this is not the Wheatley way.",
+      "ease": 5,
+      "lightness": 2,
+      "keybindings": [
+        {"keys": "Ctrl+Alt+T", "action": "Open terminal (Konsole)"},
+        {"keys": "Super", "action": "Open application launcher"},
+        {"keys": "Alt+F4", "action": "Close window"},
+        {"keys": "Super+Left/Right", "action": "Snap window left/right"},
+        {"keys": "Super+Up", "action": "Maximize window"},
+        {"keys": "Super+Down", "action": "Minimize window"},
+        {"keys": "Alt+Tab", "action": "Switch windows"}
+      ],
+      "screenshot": "screenshots/kde-plasma.png",
+      "packages": ["plasma-meta", "dolphin", "konsole"],
+      "services": ["sddm"],
+      "shell_choices": []
+    },
+    {
+      "id": "xfce",
+      "name": "XFCE",
+      "kind": "de",
+      "description": "Optional full desktop environment. Lightweight and traditional. Included as a friendly fallback DE — considered optional extra on top of the core Wheatley experience.",
+      "ease": 5,
+      "lightness": 3,
+      "keybindings": [
+        {"keys": "Ctrl+Alt+T", "action": "Open terminal (xfce4-terminal)"},
+        {"keys": "Alt+F2", "action": "Open run dialog"},
+        {"keys": "Alt+F4", "action": "Close window"},
+        {"keys": "Super+d", "action": "Show desktop"},
+        {"keys": "Alt+Tab", "action": "Switch windows"},
+        {"keys": "Super+Left/Right", "action": "Tile window left/right"},
+        {"keys": "Print", "action": "Take screenshot"}
+      ],
+      "screenshot": "screenshots/xfce.png",
+      "packages": ["xfce4", "xfce4-goodies"],
+      "services": ["lightdm"],
+      "shell_choices": []
+    }
+  ],
+  "shells": [
+    {
+      "id": "noctalia",
+      "name": "Noctalia Shell",
+      "description": "Polished shell/bar designed for Wayland compositors like MangoWC and Niri. Clean amber-tinted aesthetic.",
+      "ease": 4,
+      "lightness": 4,
+      "keybindings": [
+        {"keys": "Super+b", "action": "Toggle bar visibility"},
+        {"keys": "Super+n", "action": "Open notification center"},
+        {"keys": "Super+m", "action": "Open media controls"},
+        {"keys": "Super+s", "action": "Open system settings panel"},
+        {"keys": "Super+Shift+b", "action": "Reload bar configuration"}
+      ],
+      "screenshot": "screenshots/noctalia.png",
+      "packages": ["noctalia-shell"]
+    },
+    {
+      "id": "imperative-dots",
+      "name": "ilyamiro Quickshell (imperative-dots)",
+      "description": "Portable Quickshell config v2.0.0 from github.com/ilyamiro/imperative-dots — supports Niri, MangoWM and other Wayland compositors. Feature-rich bar with widgets, blur, and animations.",
+      "ease": 3,
+      "lightness": 3,
+      "keybindings": [
+        {"keys": "Super+b", "action": "Toggle bar visibility"},
+        {"keys": "Super+n", "action": "Open notification popup"},
+        {"keys": "Super+Shift+n", "action": "Clear all notifications"},
+        {"keys": "Super+m", "action": "Toggle music widget"},
+        {"keys": "Super+Shift+s", "action": "Open screenshot/screen tools"}
+      ],
+      "screenshot": "screenshots/imperative-dots.png",
+      "packages": ["quickshell", "imperative-dots"]
+    }
+  ],
+  "support": [
+    {
+      "id": "bluetooth",
+      "name": "Bluetooth Support",
+      "description": "Installs Bluetooth stack (BlueZ) and a GUI manager (Blueman) for easy pairing and management.",
+      "packages": ["bluez", "bluez-utils", "blueman"],
+      "services": ["bluetoothd"],
+      "default": false
+    }
+  ],
+  "gaming": {
+    "name": "Gaming Mode",
+    "description": "Fully prepares the system for plug-and-play gaming. Installs Steam, Heroic Games Launcher, Proton-GE, Vulkan support, GameMode, MangoHud, and more. GPU drivers are auto-detected and installed.",
+    "packages": [
+      "steam",
+      "heroic-games-launcher-bin",
+      "proton-ge-custom-bin",
+      "vulkan-icd-loader",
+      "lib32-vulkan-icd-loader",
+      "gamemode",
+      "lib32-gamemode",
+      "mangohud",
+      "lib32-mangohud"
+    ],
+    "services": [],
+    "gpu_autodetect": true
+  },
+  "minimal": {
+    "name": "Minimal Install",
+    "description": "Bare system with no window manager or desktop environment preselected. You get a bootable base with the essentials — shell, network tools, and package manager — and build from there yourself."
+  }
+}

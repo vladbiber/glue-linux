@@ -1,0 +1,42 @@
+# task-001 — Build the installer's catalog data model: catalog.json + stdlib validator + unit tests
+
+- **Capability:** 1. Installer shell — friendly, composable
+- **Complexity:** standard
+- **Rationale:** Nothing is built yet. Every requirement (multi-WM select, ease/lightness/keybinds display, screenshots, kernel choice, dinit-recommended, bluetooth toggle, gaming mode, minimal path, per-WM bar/shell choice) is fundamentally DATA the installer renders and acts on. Building the single source-of-truth catalog first means the TUI, the package-install engine, and the service-enable engine are all thin consumers of one validated contract — the deepest possible foundation, not a shallow feature.
+- **Depth note:** This is the load-bearing core: one artifact that every later cycle deepens against. It adds zero speculative features — only the exact components the product goal names, encoded once with a validator and tests so later cycles cannot silently drift from the contract.
+
+## Files
+- `packages/wheatley-installer/catalog/catalog.json`
+- `packages/wheatley-installer/wheatley_installer/__init__.py`
+- `packages/wheatley-installer/wheatley_installer/catalog.py`
+- `packages/wheatley-installer/tests/test_catalog.py`
+
+## Contracts
+Python 3 STDLIB ONLY (json, pathlib, dataclasses, unittest — no pip packages, no pydantic). catalog.json top-level keys: {"version": 1, "kernels": [...], "inits": [...], "sessions": [...], "shells": [...], "support": [...], "gaming": {...}, "minimal": {...}}. Kernel entry: {id, name, description, packages: [str], primary: bool} — exactly one primary. Init entry: {id, name, description, packages: [str], recommended: bool} — dinit has recommended=true. Session entry (WM or DE): {id, name, kind: "wm"|"de", description, ease: int 1-5, lightness: int 1-5, keybindings: [{keys: str, action: str}] (>=5 entries), screenshot: str|null (relative path under catalog/screenshots/), packages: [str], services: [str], shell_choices: [str] (ids into "shells", empty list if N/A)}. Shell entry: {id, name, description, ease: int 1-5, lightness: int 1-5, keybindings: [{keys, action}] (>=5), screenshot: str|null, packages: [str]}. Support entry: {id, name, description, packages: [str], services: [str], default: bool}. gaming: {name, description, packages: [str], services: [str], gpu_autodetect: true}. minimal: {name, description}. catalog.py must expose: load_catalog(path: Path) -> Catalog (dataclasses mirroring the above) and raise CatalogError (custom exception) with a human-readable message on ANY violation: missing/unknown keys, wrong types, ease/lightness out of 1-5, <5 keybindings, duplicate ids, shell_choices referencing unknown shell id, zero-or-multiple primary kernels, no recommended init, unknown "kind". Keep every file under 500 lines (split catalog.json content prompts tersely if needed).
+
+## Brief
+Repo: /home/gentoobdw/wheatley-linux. Create the new Wheatley Linux installer's foundation inside packages/wheatley-installer/ (the existing files there — PKGBUILD and the old wheatley-install script — must be left untouched this cycle).
+
+1) Write packages/wheatley-installer/catalog/catalog.json following the contract in 'contracts' EXACTLY, with this REQUIRED content:
+- kernels: linux-cachyos (name 'CachyOS Kernel', primary=true, packages ['linux-cachyos','linux-cachyos-headers']), linux-zen (secondary, primary=false, packages ['linux-zen','linux-zen-headers']).
+- inits: dinit (recommended=true, description must contain the word 'recommended'), runit (recommended=false). Packages: dinit -> ['dinit'], runit -> ['runit'].
+- sessions (kind=wm): apeturewm (Aperture-themed custom WM, packages ['apeturewm'], ease 3, lightness 5), nvwm (light & strong custom WM, packages ['nvwm'], ease 3, lightness 5), mangowc (user-friendly, ease 4, lightness 4, packages ['mangowc'], shell_choices ['noctalia','imperative-dots']), niri (user-friendly scrollable-tiling, ease 4, lightness 4, packages ['niri'], shell_choices ['noctalia','imperative-dots']), sway (minimal Wayland, ease 3, lightness 5, packages ['sway']).
+- sessions (kind=de): kde-plasma (ease 5, lightness 2, packages ['plasma-meta','dolphin','konsole']), xfce (ease 5, lightness 3, packages ['xfce4','xfce4-goodies']). Their descriptions must make clear they are optional full desktop environments.
+- shells: noctalia (Noctalia shell for Mangowc/Niri, packages ['noctalia-shell']), imperative-dots (ilyamiro Quickshell config, note in description: portable QS config v2.0.0 from github.com/ilyamiro/imperative-dots supporting Niri/MangoWM; packages ['quickshell','imperative-dots']; screenshot path 'screenshots/imperative-dots.png' since ilyamiro previews/*.png will be copied there in a later cycle).
+- Every session and shell: >=5 real, sensible default keybindings (e.g. for sway/niri/mangowc use their actual documented defaults like 'Super+Return -> open terminal', 'Super+d -> app launcher'; for apeturewm/nvwm invent a sane consistent Super-based set since they are our own WMs; for KDE/XFCE list their stock shortcuts like 'Ctrl+Alt+T -> terminal (XFCE)'). Every session/shell gets a screenshot field: 'screenshots/<id>.png' (files land in a later cycle; the validator must NOT require the file to exist).
+- support: bluetooth entry (default=false, packages ['bluez','bluez-utils','blueman'], services ['bluetoothd']).
+- gaming: name 'Gaming Mode', gpu_autodetect true, packages ['steam','heroic-games-launcher-bin','proton-ge-custom-bin','vulkan-icd-loader','lib32-vulkan-icd-loader','gamemode','lib32-gamemode','mangohud','lib32-mangohud'], services [].
+- minimal: name 'Minimal install', description explaining: bare system, no WM/DE preselected.
+
+2) Write packages/wheatley-installer/wheatley_installer/catalog.py: dataclasses (Kernel, Init, Keybinding, Session, Shell, SupportToggle, Gaming, Minimal, Catalog), class CatalogError(Exception), and load_catalog(path) that parses + validates per the contract, raising CatalogError with messages that name the offending entry id and field. Also add a __main__ guard: `python3 -m wheatley_installer.catalog <path>` prints 'OK: <n> sessions, <n> shells, <n> kernels' or the CatalogError message and exits 1. Add an empty-ish __init__.py exposing load_catalog and CatalogError.
+
+3) Write packages/wheatley-installer/tests/test_catalog.py using unittest: (a) the shipped catalog.json loads successfully; (b) exactly one primary kernel and it is linux-cachyos; (c) dinit is recommended; (d) mangowc and niri each offer exactly shells {noctalia, imperative-dots}; (e) every session/shell has 1<=ease<=5, 1<=lightness<=5, >=5 keybindings, and a screenshot value; (f) mutated copies of the catalog (drop a required field, duplicate an id, ease=9, dangling shell_choices ref, two primary kernels) each raise CatalogError — build mutations in-memory from the loaded JSON dict, write to a temp file, assert the specific failure. No pytest — stdlib unittest only, runnable via `python3 -m unittest discover -s packages/wheatley-installer/tests -t packages/wheatley-installer`.
+
+Do NOT touch build.sh, the ISO profile, or the old wheatley-install script. Do not create documentation files.
+
+## Acceptance criteria
+1. `cd /home/gentoobdw/wheatley-linux && python3 -m unittest discover -s packages/wheatley-installer/tests -t packages/wheatley-installer -v` exits 0 with all tests passing, including at least 5 negative-validation tests that assert CatalogError is raised.
+2. `cd /home/gentoobdw/wheatley-linux/packages/wheatley-installer && python3 -m wheatley_installer.catalog catalog/catalog.json` prints an OK line reporting 7 sessions, 2 shells, 2 kernels and exits 0.
+3. catalog.json contains: sessions apeturewm, nvwm, mangowc, niri, sway (kind=wm) and kde-plasma, xfce (kind=de); kernels linux-cachyos (primary=true) and linux-zen (primary=false); init dinit with recommended=true; shells noctalia and imperative-dots; a bluetooth support toggle with bluez + blueman packages and bluetoothd service; a gaming section listing steam, heroic, proton-ge, vulkan loaders, gamemode, mangohud with gpu_autodetect=true.
+4. Every session and shell entry in catalog.json has ease and lightness integers within 1-5, at least 5 keybinding objects with non-empty keys/action strings, and a screenshot path string — verifiable by the shipped positive tests.
+5. No files outside packages/wheatley-installer/{catalog/,wheatley_installer/,tests/} are created or modified (git status shows changes only there), and every new file is under 500 lines.
