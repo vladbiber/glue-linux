@@ -29,8 +29,12 @@ _VALID_FIRMWARE = frozenset({"uefi", "bios"})
 
 _LSBLK_ARGV = [
     "lsblk", "--json", "-b",
-    "-o", "NAME,PATH,SIZE,TYPE,MODEL,RM,MOUNTPOINTS",
+    "-o", "NAME,PATH,SIZE,TYPE,MODEL,RM,MOUNTPOINTS,FSTYPE,PARTTYPE",
 ]
+
+# GPT partition-type GUID of an EFI System Partition (lsblk PARTTYPE).
+_ESP_GUID = "c12a7328-f81f-11d2-ba4b-00a0c93ec93b"
+MIN_ROOT_PART_BYTES = 8 * (1024 ** 3)
 
 # sgdisk type codes
 _TYPE_ESP = "ef00"
@@ -63,10 +67,23 @@ class PartitionSpec:
 
 
 @dataclass(frozen=True)
+class Partition:
+    """An EXISTING partition discovered via lsblk (not a planned one)."""
+    name: str            # e.g. nvme0n1p3
+    path: str            # e.g. /dev/nvme0n1p3
+    parent_path: str     # e.g. /dev/nvme0n1
+    size_bytes: int
+    fstype: str          # '' when unformatted
+    is_esp: bool         # GPT type is EFI System Partition
+    is_mounted: bool
+
+
+@dataclass(frozen=True)
 class DiskPlan:
     device_path: str
     firmware: str                          # 'uefi' or 'bios'
     partitions: Tuple[PartitionSpec, ...]  # ordered by partition number
+    mode: str = "erase"                    # 'erase' (repartition) | 'existing'
 
 
 # ---------------------------------------------------------------------------
@@ -157,9 +174,90 @@ def parse_lsblk(json_text: str) -> List[BlockDevice]:
     return devices
 
 
+def parse_lsblk_partitions(json_text: str) -> List[Partition]:
+    """Parse `lsblk --json -b` output into the flat list of EXISTING partitions
+    (type == 'part') across all disks. Raises DiskError on malformed JSON."""
+    try:
+        data = json.loads(json_text)
+    except ValueError as exc:
+        raise DiskError(f"lsblk output is not valid JSON: {exc}") from exc
+    entries = data.get("blockdevices")
+    if not isinstance(entries, list):
+        raise DiskError("lsblk JSON missing 'blockdevices' list")
+
+    parts: List[Partition] = []
+    for disk in entries:
+        if not isinstance(disk, dict) or disk.get("type") != "disk":
+            continue
+        for child in disk.get("children") or []:
+            if not isinstance(child, dict) or child.get("type") != "part":
+                continue
+            size = child.get("size")
+            if not isinstance(size, int):
+                continue
+            parttype = (child.get("parttype") or "").lower()
+            parts.append(Partition(
+                name=str(child.get("name", "")),
+                path=str(child.get("path", "")),
+                parent_path=str(disk.get("path", "")),
+                size_bytes=size,
+                fstype=str(child.get("fstype") or ""),
+                is_esp=parttype == _ESP_GUID,
+                is_mounted=_entry_mounted(child),
+            ))
+    return parts
+
+
 # ---------------------------------------------------------------------------
 # Pure planning
 # ---------------------------------------------------------------------------
+
+def plan_existing_partition(
+    root: Partition, firmware: str, partitions: List[Partition],
+) -> DiskPlan:
+    """Plan an install INTO an existing partition: format only that partition,
+    never touch the partition table. On UEFI, reuses the disk's existing EFI
+    System Partition (mounted at /boot/efi, NOT reformatted).
+
+    Raises DiskError when the root partition is mounted/too small, or when
+    firmware is uefi and the root's disk has no ESP (use manual mode to add one).
+    """
+    if firmware not in _VALID_FIRMWARE:
+        raise DiskError(
+            f"Unknown firmware: '{firmware}'; expected one of {sorted(_VALID_FIRMWARE)}"
+        )
+    if root.is_mounted:
+        raise DiskError(f"Partition {root.path} is mounted — refusing to format it")
+    if root.size_bytes < MIN_ROOT_PART_BYTES:
+        raise DiskError(
+            f"Partition {root.path} is too small for Wheatley "
+            f"(need at least 8 GiB)"
+        )
+
+    specs: List[PartitionSpec] = []
+    if firmware == "uefi":
+        esp = next(
+            (p for p in partitions
+             if p.is_esp and p.parent_path == root.parent_path), None,
+        )
+        if esp is None:
+            raise DiskError(
+                f"No EFI System Partition found on {root.parent_path} — "
+                "create one with 'Partition manually (cfdisk)' first"
+            )
+        specs.append(PartitionSpec(
+            number=1, path=esp.path, type_code=_TYPE_ESP, size="",
+            filesystem="", mountpoint="/boot/efi",  # reuse: no mkfs
+        ))
+    specs.append(PartitionSpec(
+        number=2, path=root.path, type_code=_TYPE_LINUX, size="",
+        filesystem="ext4", mountpoint="/",
+    ))
+    return DiskPlan(
+        device_path=root.parent_path, firmware=firmware,
+        partitions=tuple(specs), mode="existing",
+    )
+
 
 def plan_disk(device: BlockDevice, firmware: str) -> DiskPlan:
     """Plan a full-disk GPT layout for the given firmware type.
@@ -219,29 +317,33 @@ def disk_steps(disk_plan: DiskPlan, *, target: str = "/mnt") -> List[Step]:
     """
     t = target.rstrip("/")
     disk = disk_plan.device_path
-    steps: List[Step] = [RunCommand(
-        argv=["sgdisk", "--zap-all", disk],
-        description=f"Wipe partition table on {disk}",
-    )]
+    steps: List[Step] = []
 
-    for part in disk_plan.partitions:
+    # 'existing' mode never touches the partition table and never reformats
+    # the ESP — it only formats the chosen root partition.
+    if disk_plan.mode == "erase":
         steps.append(RunCommand(
-            argv=[
-                "sgdisk",
-                "-n", f"{part.number}:0:{part.size}",
-                "-t", f"{part.number}:{part.type_code}",
-                disk,
-            ],
-            description=(
-                f"Create partition {part.number} "
-                f"({part.type_code}) on {disk}"
-            ),
+            argv=["sgdisk", "--zap-all", disk],
+            description=f"Wipe partition table on {disk}",
         ))
+        for part in disk_plan.partitions:
+            steps.append(RunCommand(
+                argv=[
+                    "sgdisk",
+                    "-n", f"{part.number}:0:{part.size}",
+                    "-t", f"{part.number}:{part.type_code}",
+                    disk,
+                ],
+                description=(
+                    f"Create partition {part.number} "
+                    f"({part.type_code}) on {disk}"
+                ),
+            ))
 
     esp = next((p for p in disk_plan.partitions if p.mountpoint == "/boot/efi"), None)
     root = next(p for p in disk_plan.partitions if p.mountpoint == "/")
 
-    if esp is not None:
+    if esp is not None and disk_plan.mode == "erase":
         steps.append(RunCommand(
             argv=["mkfs.fat", "-F32", esp.path],
             description=f"Format {esp.path} as FAT32 (EFI System)",
@@ -304,9 +406,9 @@ def bootloader_packages(disk_plan: DiskPlan) -> List[str]:
 # Thin subprocess wrapper (the ONLY subprocess use in this module)
 # ---------------------------------------------------------------------------
 
-def discover() -> List[BlockDevice]:
-    """Run lsblk and parse its output. Raises DiskError if lsblk is missing
-    or fails. Never called at import time."""
+def _run_lsblk() -> str:
+    """Run lsblk and return its JSON stdout. Raises DiskError if lsblk is
+    missing or fails. Never called at import time."""
     import subprocess
     try:
         result = subprocess.run(
@@ -318,4 +420,14 @@ def discover() -> List[BlockDevice]:
         raise DiskError(
             f"lsblk failed (exit {exc.returncode}): {exc.stderr.strip()}"
         ) from exc
-    return parse_lsblk(result.stdout)
+    return result.stdout
+
+
+def discover() -> List[BlockDevice]:
+    """Discover whole disks via lsblk (see _run_lsblk for the error contract)."""
+    return parse_lsblk(_run_lsblk())
+
+
+def discover_partitions() -> List[Partition]:
+    """Discover existing partitions via lsblk (same error contract)."""
+    return parse_lsblk_partitions(_run_lsblk())

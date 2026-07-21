@@ -41,7 +41,11 @@ class WriteTargetFile:
 
 Step = Union[RunCommand, WriteTargetFile]
 
-_SUPPORTED_INITS = frozenset({"dinit", "runit"})
+_SUPPORTED_INITS = frozenset({"dinit", "runit", "openrc"})
+
+# A few services are named differently under OpenRC than under dinit/runit
+# (Artix ships e.g. bluez-openrc as /etc/init.d/bluetooth, not bluetoothd).
+_OPENRC_SERVICE_NAMES = {"bluetoothd": "bluetooth"}
 
 
 # ---------------------------------------------------------------------------
@@ -117,6 +121,14 @@ def compile_steps(
                 "ln", "-sf",
                 f"/etc/dinit.d/{svc}",
                 f"/etc/dinit.d/boot.d/{svc}",
+            ]
+        elif init_id == "openrc":
+            osvc = _OPENRC_SERVICE_NAMES.get(svc, svc)
+            argv = [
+                "artix-chroot", t,
+                "ln", "-sf",
+                f"/etc/init.d/{osvc}",
+                f"/etc/runlevels/default/{osvc}",
             ]
         else:  # runit
             argv = [

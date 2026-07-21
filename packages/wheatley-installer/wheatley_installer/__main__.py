@@ -13,7 +13,10 @@ import sys
 from pathlib import Path
 
 from wheatley_installer.catalog import CatalogError, load_catalog
-from wheatley_installer.disks import BlockDevice, DiskError, discover, plan_disk
+from wheatley_installer.disks import (
+    BlockDevice, DiskError, discover, discover_partitions,
+    plan_disk, plan_existing_partition,
+)
 from wheatley_installer.executor import ExecutorError, compile_steps, execute
 from wheatley_installer.identity import IdentityError, IdentitySpec, identity_steps
 from wheatley_installer.plan import PlanError, Selection, resolve_plan
@@ -159,6 +162,43 @@ def _fail(message: str, code: int) -> int:
     return code
 
 
+# -- TUI I/O hooks (the tui module itself never touches subprocess) ----------
+
+def _net_check() -> str:
+    """Best-effort connectivity check for the network screen."""
+    import subprocess
+    try:
+        ok = subprocess.run(
+            ["ping", "-c", "1", "-W", "2", "artixlinux.org"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5,
+        ).returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        ok = False
+    return "connected" if ok else "OFFLINE"
+
+
+def _open_net_tool() -> None:
+    """Run nmtui full-screen (curses is suspended by the tui driver)."""
+    import subprocess
+    try:
+        subprocess.call(["nmtui"])
+    except OSError:
+        pass  # nmtui missing: the notice already explains the situation
+
+
+def _repartition(disk_path):
+    """Run cfdisk on disk_path, then return the fresh partition list."""
+    import subprocess
+    try:
+        subprocess.call(["cfdisk", disk_path])
+    except OSError:
+        pass
+    try:
+        return discover_partitions()
+    except DiskError:
+        return None
+
+
 def _print_summary(plan) -> None:
     print(
         f"Install plan: {len(plan.packages)} packages, "
@@ -195,21 +235,27 @@ def main(argv=None) -> int:
         from wheatley_installer.tui import run_tui
 
         tui_disks = None
+        tui_partitions = None
         if args.disk is None:
             try:
                 tui_disks = discover() or None
+                tui_partitions = discover_partitions()
             except DiskError:
                 tui_disks = None  # no disk screen; install to prepared --target
         try:
             wizard_result = run_tui(
                 catalog,
                 disks=tui_disks,
+                partitions=tui_partitions,
                 ask_identity=args.username is None,
                 identity_defaults={
                     "hostname": args.hostname,
                     "locale": args.locale,
                     "timezone": args.timezone,
                 },
+                net_check=_net_check,
+                open_net_tool=_open_net_tool,
+                repartition=_repartition,
             )
         except KeyboardInterrupt:
             wizard_result = None
@@ -225,8 +271,29 @@ def main(argv=None) -> int:
     except PlanError as exc:
         return _fail(f"Plan error: {exc}", EXIT_INSTALL)
 
+    disk_mode = wizard_result.disk_mode if wizard_result is not None else "erase"
     disk_plan = None
-    if args.disk is not None:
+    if disk_mode != "erase" and wizard_result is not None \
+            and wizard_result.partition_path is not None:
+        # Install INTO an existing partition (chosen or made via cfdisk):
+        # only that partition is formatted; the table stays untouched.
+        firmware = args.firmware
+        if firmware == "auto":
+            firmware = detect_firmware(os.path.exists("/sys/firmware/efi"))
+        try:
+            parts = discover_partitions()
+            root = next(
+                (p for p in parts if p.path == wizard_result.partition_path),
+                None,
+            )
+            if root is None:
+                raise DiskError(
+                    f"Partition {wizard_result.partition_path} no longer exists"
+                )
+            disk_plan = plan_existing_partition(root, firmware, parts)
+        except DiskError as exc:
+            return _fail(f"Disk error: {exc}", EXIT_INSTALL)
+    elif args.disk is not None:
         firmware = args.firmware
         if firmware == "auto":
             firmware = detect_firmware(os.path.exists("/sys/firmware/efi"))

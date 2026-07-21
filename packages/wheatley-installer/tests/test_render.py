@@ -266,7 +266,8 @@ class TestFormSecrecy(unittest.TestCase):
 
     def _wizard_with_password(self):
         w = Wizard(_CATALOG, ask_identity=True)
-        w.next()                              # welcome -> mode
+        w.next()                              # welcome -> network
+        w.next()                              # network -> mode
         w.apply(Choose("minimal"))
         w.next()                              # -> kernel
         w.apply(Choose("linux-cachyos"))

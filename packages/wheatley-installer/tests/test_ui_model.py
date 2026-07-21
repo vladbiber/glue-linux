@@ -35,7 +35,8 @@ def _drive_happy_path(sessions=("mangowc", "niri"), shells=None,
                       bluetooth=True, gaming=True) -> Wizard:
     """Full custom-mode walk: cachyos, dinit, given sessions/shells."""
     w = _new_wizard()
-    w.next()  # welcome -> mode (custom preselected)
+    w.next()  # welcome -> network
+    w.next()  # network -> mode (custom preselected)
     w.next()  # mode -> kernel
     w.apply(Choose("linux-cachyos"))
     w.next()  # kernel -> init
@@ -71,6 +72,7 @@ class TestScreenSequence(unittest.TestCase):
     def test_full_custom_walk_visits_expected_keys(self):
         w = _new_wizard()
         visited = [w.current_screen().key]
+        w.next(); visited.append(w.current_screen().key)   # network
         w.next(); visited.append(w.current_screen().key)   # mode
         w.next(); visited.append(w.current_screen().key)   # kernel
         w.apply(Choose("linux-cachyos"))
@@ -87,13 +89,14 @@ class TestScreenSequence(unittest.TestCase):
         w.next(); visited.append(w.current_screen().key)   # gaming
         w.next(); visited.append(w.current_screen().key)   # summary
         self.assertEqual(visited, [
-            "welcome", "mode", "kernel", "init", "sessions",
+            "welcome", "network", "mode", "kernel", "init", "sessions",
             "shell:mangowc", "shell:niri", "support", "gaming", "summary",
         ])
 
     def test_mode_screen_preselects_custom(self):
         w = _new_wizard()
-        w.next()
+        w.next()  # -> network
+        w.next()  # -> mode
         screen = w.current_screen()
         self.assertEqual(screen.key, "mode")
         selected = [i.id for i in screen.items if i.selected]
@@ -108,7 +111,7 @@ class TestScreenSequence(unittest.TestCase):
 
     def test_shell_screens_only_for_shell_capable_sessions(self):
         w = _new_wizard()
-        w.next(); w.next()
+        w.next(); w.next(); w.next()  # welcome -> network -> mode -> kernel
         w.apply(Choose("linux-cachyos")); w.next()
         w.apply(Choose("dinit")); w.next()
         w.apply(Toggle("apeturewm"))
@@ -442,7 +445,8 @@ class TestMinimalMode(unittest.TestCase):
 
     def _drive_minimal(self) -> Wizard:
         w = _new_wizard()
-        w.next()  # welcome -> mode
+        w.next()  # welcome -> network
+        w.next()  # network -> mode
         w.apply(Choose("minimal"))
         w.next()  # mode -> kernel
         w.apply(Choose("linux-cachyos")); w.next()
@@ -490,3 +494,76 @@ class TestMinimalMode(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestDiskModeAndPartitionFlow(unittest.TestCase):
+    """diskmode screen: erase/existing/manual; partition screen for existing."""
+
+    class _Disk:
+        path = "/dev/vda"; name = "vda"; size_bytes = 64 * 1024 ** 3
+        model = ""; is_removable = False; has_mounted_partitions = False
+
+    class _Part:
+        def __init__(self, path, mounted=False, esp=False):
+            self.name = path.rsplit("/", 1)[-1]; self.path = path
+            self.parent_path = "/dev/vda"; self.size_bytes = 32 * 1024 ** 3
+            self.fstype = "ext4"; self.is_esp = esp; self.is_mounted = mounted
+
+    def _wizard_at_diskmode(self):
+        w = Wizard(_CATALOG, disks=[self._Disk()])
+        w.set_partitions([self._Part("/dev/vda2"),
+                          self._Part("/dev/vda1", esp=True),
+                          self._Part("/dev/vda3", mounted=True)])
+        _advance_to(w, "network")
+        w.next()
+        w.apply(Choose("minimal"))
+        w.next()
+        w.apply(Choose("linux-cachyos")); w.next()
+        w.apply(Choose("dinit")); w.next()
+        w.next()  # support -> diskmode
+        self.assertEqual(w.current_screen().key, "diskmode")
+        return w
+
+    def test_erase_default_goes_to_disk_screen(self):
+        w = self._wizard_at_diskmode()
+        w.next()
+        self.assertEqual(w.current_screen().key, "disk")
+
+    def test_existing_goes_to_partition_screen_filtering_esp_and_mounted(self):
+        w = self._wizard_at_diskmode()
+        w.apply(Choose("existing"))
+        w.next()
+        screen = w.current_screen()
+        self.assertEqual(screen.key, "partition")
+        self.assertEqual([i.id for i in screen.items], ["/dev/vda2"])
+
+    def test_existing_partition_lands_in_result(self):
+        w = self._wizard_at_diskmode()
+        w.apply(Choose("existing"))
+        w.next()
+        w.apply(Choose("/dev/vda2"))
+        w.next()  # partition -> summary
+        self.assertEqual(w.current_screen().key, "summary")
+        self.assertIn("/dev/vda2", w.current_screen().items[-1].label)
+        w.next()
+        result = w.to_result()
+        self.assertEqual(result.disk_mode, "existing")
+        self.assertEqual(result.partition_path, "/dev/vda2")
+
+    def test_manual_visits_disk_then_partition(self):
+        w = self._wizard_at_diskmode()
+        w.apply(Choose("manual"))
+        w.next()
+        self.assertEqual(w.current_screen().key, "disk")
+        w.apply(Choose("/dev/vda"))
+        w.next()
+        self.assertEqual(w.current_screen().key, "partition")
+
+    def test_network_screen_shows_injected_status(self):
+        w = Wizard(_CATALOG)
+        w.set_network_status("OFFLINE")
+        w.next()
+        screen = w.current_screen()
+        self.assertEqual(screen.key, "network")
+        self.assertIn("OFFLINE", screen.notice)
+        self.assertIn("nmtui", screen.notice)

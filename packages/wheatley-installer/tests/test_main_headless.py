@@ -28,7 +28,7 @@ class TestValidateCatalog(unittest.TestCase):
         result = _run_module("--validate-catalog")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("2 kernels", result.stdout)
-        self.assertIn("2 inits", result.stdout)
+        self.assertIn("3 inits", result.stdout)
         self.assertIn("7 sessions", result.stdout)
         self.assertIn("2 shells", result.stdout)
 

@@ -45,14 +45,17 @@ def _retype(wizard: Wizard, text: str) -> None:
 def _wizard_at_forms(disks=None) -> Wizard:
     """Minimal-mode wizard advanced to the disk screen (or first form)."""
     w = Wizard(_CATALOG, disks=disks, ask_identity=True)
-    w.next()                            # welcome -> mode
+    w.next()                            # welcome -> network
+    w.next()                            # network -> mode
     w.apply(Choose("minimal"))
     w.next()                            # mode -> kernel
     w.apply(Choose("linux-cachyos"))
     w.next()                            # kernel -> init
     w.apply(Choose("dinit"))
     w.next()                            # init -> support
-    w.next()                            # support -> disk (or form:hostname)
+    w.next()                            # support -> diskmode (or form:hostname)
+    if disks is not None:
+        w.next()                        # diskmode (erase preselected) -> disk
     return w
 
 

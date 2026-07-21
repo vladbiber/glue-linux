@@ -218,8 +218,23 @@ class TestCompileInitServices(unittest.TestCase):
     def test_unsupported_init_raises(self):
         plan = _plan_with_service("svc")
         with self.assertRaises(ExecutorError) as ctx:
-            compile_steps(plan, target="/mnt", init_id="openrc")
-        self.assertIn("openrc", str(ctx.exception))
+            compile_steps(plan, target="/mnt", init_id="systemd")
+        self.assertIn("systemd", str(ctx.exception))
+
+    def test_openrc_enable_uses_runlevels_symlink(self):
+        plan = _plan_with_service("greetd")
+        steps = compile_steps(plan, target="/mnt", init_id="openrc")
+        svc = [s for s in steps if isinstance(s, RunCommand) and "greetd" in " ".join(s.argv)][0]
+        self.assertIn("/etc/init.d/greetd", svc.argv)
+        self.assertIn("/etc/runlevels/default/greetd", svc.argv)
+
+    def test_openrc_bluetooth_service_is_renamed(self):
+        # Artix bluez-openrc ships /etc/init.d/bluetooth (not bluetoothd)
+        plan = _plan_with_service("bluetoothd")
+        steps = compile_steps(plan, target="/mnt", init_id="openrc")
+        svc = [s for s in steps if isinstance(s, RunCommand) and "bluetooth" in " ".join(s.argv)][0]
+        self.assertIn("/etc/init.d/bluetooth", svc.argv)
+        self.assertIn("/etc/runlevels/default/bluetooth", svc.argv)
 
     def test_dinit_description_names_init(self):
         plan = _plan_with_service("greetd")

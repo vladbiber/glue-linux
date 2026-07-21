@@ -15,117 +15,25 @@ to_result(): Selection, chosen device path (or None), IdentitySpec (or None).
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from typing import List, Optional
 
-from wheatley_installer.catalog import Catalog, Session, Shell
+from wheatley_installer.catalog import Catalog
 from wheatley_installer.plan import Selection
 from wheatley_installer.ui_forms import (
     FormField, build_identity_fields, disk_label, masked, submit_form,
+)
+# Re-exported for backwards compatibility: everything under ui_view used to
+# live in this module (render, tui and the tests import it from here).
+from wheatley_installer.ui_view import (  # noqa: F401
+    DE_SECTION, DISK_MANUAL_NOTICE, DISK_NOTICE, DISKMODE_NOTICE,
+    NETWORK_NOTICE_TEMPLATE, PARTITION_NOTICE, SESSIONS_NOTICE, WELCOME_NOTICE,
+    Choose, Item, Screen, SetFlag, Toggle, WizardResult,
+    partition_item, session_item, shell_item,
 )
 
 
 class ValidationError(Exception):
     """Raised when a wizard action is invalid for the current state."""
-
-
-# -- view dataclasses (immutable snapshots handed to the renderer) ----------
-
-DE_SECTION = "Desktop environments (optional)"
-
-SESSIONS_NOTICE = (
-    "You can select MULTIPLE window managers and desktops at once — "
-    "install several and pick which one to use at the login screen, "
-    "every time you log in."
-)
-
-WELCOME_NOTICE = (
-    "Welcome to Wheatley Linux! This wizard lets you compose your own "
-    "system: kernel, init system, window managers, and extras. "
-    "Nothing is touched until you confirm the summary at the end."
-)
-
-DISK_NOTICE = (
-    "Choose the disk to install Wheatley Linux on. "
-    "The selected disk will be COMPLETELY ERASED."
-)
-
-
-@dataclass(frozen=True)
-class Item:
-    id: str
-    label: str
-    description: str
-    ease: Optional[int] = None
-    lightness: Optional[int] = None
-    keybinds: Optional[str] = None
-    screenshot: Optional[str] = None
-    recommended: bool = False
-    selected: bool = False
-    section: Optional[str] = None
-
-
-@dataclass(frozen=True)
-class Screen:
-    key: str
-    title: str
-    kind: str  # 'info' | 'radio' | 'multi' | 'toggle' | 'form' | 'summary'
-    items: List[Item] = field(default_factory=list)
-    notice: Optional[str] = None
-    field: Optional[FormField] = None  # set only on kind == 'form' screens
-
-
-@dataclass(frozen=True)
-class WizardResult:
-    """Final wizard output. device_path/identity are None when their screens
-    were skipped (no disk list injected / ask_identity=False)."""
-    selection: Selection
-    device_path: Optional[str]
-    identity: Optional[object]  # identity.IdentitySpec when collected
-
-
-# -- events ------------------------------------------------------------------
-
-@dataclass(frozen=True)
-class Toggle:
-    item_id: str
-
-
-@dataclass(frozen=True)
-class Choose:
-    item_id: str
-
-
-@dataclass(frozen=True)
-class SetFlag:
-    value: bool
-
-
-# -- helpers -----------------------------------------------------------------
-
-def _format_keybinds(keybindings) -> Optional[str]:
-    if not keybindings:
-        return None
-    return "\n".join(f"{kb.keys} — {kb.action}" for kb in keybindings)
-
-
-def _session_item(session: Session, selected: bool) -> Item:
-    return Item(
-        id=session.id, label=session.name, description=session.description,
-        ease=session.ease, lightness=session.lightness,
-        keybinds=_format_keybinds(session.keybindings),
-        screenshot=session.screenshot, selected=selected,
-        section=DE_SECTION if session.kind == "de" else None,
-    )
-
-
-def _shell_item(shell: Shell, selected: bool) -> Item:
-    return Item(
-        id=shell.id, label=shell.name, description=shell.description,
-        ease=shell.ease, lightness=shell.lightness,
-        keybinds=_format_keybinds(shell.keybindings),
-        screenshot=shell.screenshot, selected=selected,
-    )
 
 
 # -- wizard --------------------------------------------------------------------
@@ -148,6 +56,10 @@ class Wizard:
                     raise ValidationError("Disk entries must have a device path")
         self._disks = disks
         self._device_path: Optional[str] = None
+        self._partitions: Optional[list] = None  # disks.Partition list
+        self._partition_path: Optional[str] = None
+        self._disk_mode: str = "erase"  # 'erase' | 'existing' | 'manual'
+        self._network_status: str = "checking..."
         try:
             self._forms = (
                 build_identity_fields(identity_defaults) if ask_identity else None
@@ -171,10 +83,30 @@ class Wizard:
         self._current_key: str = "welcome"
         self._finished: bool = False
 
+    # -- driver-injected state (I/O stays in the tui/__main__ layer) --------
+
+    def set_network_status(self, status: str) -> None:
+        """Driver injects the current connectivity status ('online'/'offline')."""
+        self._network_status = str(status)
+
+    def set_partitions(self, partitions) -> None:
+        """Driver injects (or refreshes, after cfdisk) the partition list."""
+        self._partitions = list(partitions)
+        if self._partition_path not in {p.path for p in self._partitions}:
+            self._partition_path = None  # dropped by a manual repartition
+
+    @property
+    def disk_mode(self) -> str:
+        return self._disk_mode
+
+    @property
+    def selected_disk_path(self) -> Optional[str]:
+        return self._device_path
+
     # -- navigation --------------------------------------------------------
 
     def _screen_keys(self) -> List[str]:
-        keys = ["welcome", "mode", "kernel", "init"]
+        keys = ["welcome", "network", "mode", "kernel", "init"]
         if self._mode == "custom":
             keys.append("sessions")
             keys.extend(
@@ -186,7 +118,11 @@ class Wizard:
         if self._mode == "custom":
             keys.append("gaming")
         if self._disks is not None:
-            keys.append("disk")
+            keys.append("diskmode")
+            if self._disk_mode in ("erase", "manual"):
+                keys.append("disk")
+            if self._disk_mode in ("existing", "manual"):
+                keys.append("partition")
         if self._forms is not None:
             keys.extend(f"form:{k}" for k in self._forms)
         keys.append("summary")
@@ -210,6 +146,14 @@ class Wizard:
                 raise ValidationError(f"Choose a shell/bar for {name} to continue.")
         if key == "disk" and self._device_path is None:
             raise ValidationError("Select a disk to continue.")
+        if key == "partition":
+            if not self._candidate_partitions():
+                raise ValidationError(
+                    "No suitable partitions found — go back and use "
+                    "'Partition manually (cfdisk)' to create one."
+                )
+            if self._partition_path is None:
+                raise ValidationError("Select a partition to continue.")
         if key.startswith("form:"):
             error, reset = submit_form(self._forms, key.split(":", 1)[1])
             if reset:
@@ -284,6 +228,10 @@ class Wizard:
             self._init_id = item_id
         elif key == "disk":
             self._device_path = item_id
+        elif key == "diskmode":
+            self._disk_mode = item_id
+        elif key == "partition":
+            self._partition_path = item_id
         elif key.startswith("shell:"):
             self._shell_choice[key.split(":", 1)[1]] = item_id
 
@@ -322,6 +270,15 @@ class Wizard:
         if key == "welcome":
             return Screen(key="welcome", title="Welcome to Wheatley Linux",
                           kind="info", items=[], notice=WELCOME_NOTICE)
+        if key == "network":
+            return Screen(
+                key="network", title="Network", kind="info", items=[],
+                notice=NETWORK_NOTICE_TEMPLATE.format(status=self._network_status),
+            )
+        if key == "diskmode":
+            return self._diskmode_screen()
+        if key == "partition":
+            return self._partition_screen()
         if key == "mode":
             return self._mode_screen()
         if key == "kernel":
@@ -343,12 +300,45 @@ class Wizard:
                      selected=self._device_path == d.path)
                 for d in self._disks
             ]
-            return Screen(key="disk", title="Installation disk", kind="radio",
-                          items=items, notice=DISK_NOTICE)
+            manual = self._disk_mode == "manual"
+            return Screen(key="disk",
+                          title="Disk to partition" if manual
+                          else "Installation disk",
+                          kind="radio", items=items,
+                          notice=DISK_MANUAL_NOTICE if manual else DISK_NOTICE)
         if key.startswith("form:"):
             form = self._forms[key.split(":", 1)[1]]
             return Screen(key=key, title=form.label, kind="form", field=form)
         return self._summary_screen()
+
+    def _diskmode_screen(self) -> Screen:
+        items = [
+            Item(id="erase", label="Erase a whole disk (guided)",
+                 description="Simplest: wipes the chosen disk and lets the "
+                             "installer lay out partitions automatically.",
+                 recommended=True, selected=self._disk_mode == "erase"),
+            Item(id="existing", label="Use an existing partition",
+                 description="Formats ONLY the partition you pick; everything "
+                             "else on the disk stays untouched.",
+                 selected=self._disk_mode == "existing"),
+            Item(id="manual", label="Partition manually (cfdisk)",
+                 description="Opens cfdisk on a disk of your choice to make "
+                             "room, then install into a partition you pick.",
+                 selected=self._disk_mode == "manual"),
+        ]
+        return Screen(key="diskmode", title="Storage", kind="radio",
+                      items=items, notice=DISKMODE_NOTICE)
+
+    def _candidate_partitions(self) -> list:
+        """Partitions eligible as an install target: not mounted, not an ESP."""
+        return [p for p in (self._partitions or [])
+                if not p.is_mounted and not p.is_esp]
+
+    def _partition_screen(self) -> Screen:
+        items = [partition_item(p, self._partition_path == p.path)
+                 for p in self._candidate_partitions()]
+        return Screen(key="partition", title="Installation partition",
+                      kind="radio", items=items, notice=PARTITION_NOTICE)
 
     def _mode_screen(self) -> Screen:
         minimal = self._catalog.minimal
@@ -393,7 +383,7 @@ class Wizard:
     def _sessions_screen(self) -> Screen:
         wms = [s for s in self._catalog.sessions if s.kind == "wm"]
         des = [s for s in self._catalog.sessions if s.kind == "de"]
-        items = [_session_item(s, s.id in self._session_ids)
+        items = [session_item(s, s.id in self._session_ids)
                  for s in wms + des]
         return Screen(key="sessions", title="Window managers & desktops",
                       kind="multi", items=items, notice=SESSIONS_NOTICE)
@@ -402,7 +392,7 @@ class Wizard:
         session = self._sessions_by_id[session_id]
         chosen = self._shell_choice.get(session_id)
         items = [
-            _shell_item(self._shells_by_id[shell_id], chosen == shell_id)
+            shell_item(self._shells_by_id[shell_id], chosen == shell_id)
             for shell_id in session.shell_choices
         ]
         return Screen(key=f"shell:{session_id}",
@@ -451,7 +441,13 @@ class Wizard:
             _add(f"summary:support:{tid}", f"Support: {toggle.name}")
         _add("summary:gaming", f"Gaming Mode: {'on' if self._gaming else 'off'}")
         if self._disks is not None:
-            _add("summary:disk", f"Disk: {self._device_path or '(none)'} — WILL BE ERASED")
+            if self._disk_mode == "erase":
+                _add("summary:disk",
+                     f"Disk: {self._device_path or '(none)'} — WILL BE ERASED")
+            else:
+                _add("summary:disk",
+                     f"Partition: {self._partition_path or '(none)'} — will be "
+                     "formatted (rest of the disk untouched)")
         if self._forms is not None:
             for fkey, form in self._forms.items():
                 if fkey == "password_confirm":
@@ -497,4 +493,5 @@ class Wizard:
             except IdentityError as exc:
                 raise ValidationError(str(exc))
         return WizardResult(selection=selection, device_path=self._device_path,
-                            identity=spec)
+                            identity=spec, disk_mode=self._disk_mode,
+                            partition_path=self._partition_path)

@@ -72,6 +72,14 @@ _BASELINE_FILES: List[PlannedFile] = [
     PlannedFile(path="/etc/skel/.zshrc", content=_ZSHRC_CONTENT, mode=0o644),
 ]
 
+# Maps a service name to the Artix package BASE that ships its init scripts;
+# the init-specific package is f"{base}-{init_id}" (Rule 10).
+_SERVICE_PKG_BASE = {
+    "greetd": "greetd",
+    "bluetoothd": "bluez",
+    "NetworkManager": "networkmanager",
+}
+
 
 # ---------------------------------------------------------------------------
 # Resolver
@@ -191,6 +199,19 @@ def resolve_plan(catalog: Catalog, selection: Selection) -> InstallPlan:
 
     # Rule 8: fastfetch always
     packages.add("fastfetch")
+
+    # Rule 9: the installed system always gets network connectivity
+    packages.add("networkmanager")
+    services.add("NetworkManager")
+
+    # Rule 10: every enabled service needs its init-specific service package
+    # (Artix ships service scripts separately: e.g. greetd-dinit, bluez-runit,
+    # networkmanager-openrc). Without these, enabling the service in the chroot
+    # points at files that do not exist.
+    for svc in sorted(services):
+        base = _SERVICE_PKG_BASE.get(svc)
+        if base is not None:
+            packages.add(f"{base}-{selection.init_id}")
 
     return InstallPlan(
         packages=sorted(packages),

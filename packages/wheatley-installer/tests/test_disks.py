@@ -307,3 +307,95 @@ class TestModulePurity(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# ---------------------------------------------------------------------------
+# Existing-partition mode (choose a partition / manual cfdisk flow)
+# ---------------------------------------------------------------------------
+
+from wheatley_installer.disks import (  # noqa: E402
+    Partition, disk_steps, parse_lsblk_partitions, plan_existing_partition,
+)
+from wheatley_installer.executor import RunCommand  # noqa: E402
+
+_ESP_GUID = "c12a7328-f81f-11d2-ba4b-00a0c93ec93b"
+
+_PARTS_FIXTURE = json.dumps({
+    "blockdevices": [
+        {
+            "name": "sda", "path": "/dev/sda", "size": 500 * _GIB,
+            "type": "disk", "mountpoints": [None],
+            "children": [
+                {"name": "sda1", "path": "/dev/sda1", "size": 512 * 1024 ** 2,
+                 "type": "part", "mountpoints": [None],
+                 "fstype": "vfat", "parttype": _ESP_GUID},
+                {"name": "sda2", "path": "/dev/sda2", "size": 100 * _GIB,
+                 "type": "part", "mountpoints": ["/"],
+                 "fstype": "ext4", "parttype": None},
+                {"name": "sda3", "path": "/dev/sda3", "size": 60 * _GIB,
+                 "type": "part", "mountpoints": [None],
+                 "fstype": None, "parttype": None},
+            ],
+        },
+    ]
+})
+
+
+def _parts():
+    return parse_lsblk_partitions(_PARTS_FIXTURE)
+
+
+class TestParsePartitions(unittest.TestCase):
+
+    def test_parses_children_with_esp_and_mount_flags(self):
+        parts = _parts()
+        self.assertEqual([p.path for p in parts],
+                         ["/dev/sda1", "/dev/sda2", "/dev/sda3"])
+        self.assertTrue(parts[0].is_esp)
+        self.assertTrue(parts[1].is_mounted)
+        self.assertFalse(parts[2].is_mounted)
+        self.assertEqual(parts[2].fstype, "")
+        self.assertEqual(parts[2].parent_path, "/dev/sda")
+
+
+class TestPlanExistingPartition(unittest.TestCase):
+
+    def test_uefi_reuses_esp_and_formats_only_root(self):
+        parts = _parts()
+        plan = plan_existing_partition(parts[2], "uefi", parts)
+        self.assertEqual(plan.mode, "existing")
+        esp = next(p for p in plan.partitions if p.mountpoint == "/boot/efi")
+        root = next(p for p in plan.partitions if p.mountpoint == "/")
+        self.assertEqual(esp.path, "/dev/sda1")
+        self.assertEqual(esp.filesystem, "")   # reuse — never reformatted
+        self.assertEqual(root.path, "/dev/sda3")
+        self.assertEqual(root.filesystem, "ext4")
+
+    def test_uefi_without_esp_raises(self):
+        parts = [p for p in _parts() if not p.is_esp]
+        with self.assertRaises(DiskError) as ctx:
+            plan_existing_partition(parts[-1], "uefi", parts)
+        self.assertIn("EFI System Partition", str(ctx.exception))
+
+    def test_mounted_partition_raises(self):
+        parts = _parts()
+        with self.assertRaises(DiskError):
+            plan_existing_partition(parts[1], "bios", parts)
+
+    def test_too_small_partition_raises(self):
+        small = Partition(name="sdb1", path="/dev/sdb1", parent_path="/dev/sdb",
+                          size_bytes=2 * _GIB, fstype="", is_esp=False,
+                          is_mounted=False)
+        with self.assertRaises(DiskError):
+            plan_existing_partition(small, "bios", [small])
+
+    def test_existing_steps_never_touch_partition_table(self):
+        parts = _parts()
+        plan = plan_existing_partition(parts[2], "uefi", parts)
+        steps = disk_steps(plan, target="/mnt")
+        argvs = [" ".join(s.argv) for s in steps if isinstance(s, RunCommand)]
+        self.assertFalse(any("sgdisk" in a for a in argvs))
+        self.assertFalse(any("mkfs.fat" in a for a in argvs))   # ESP untouched
+        self.assertTrue(any("mkfs.ext4 -F /dev/sda3" in a for a in argvs))
+        self.assertTrue(any(a.startswith("mount /dev/sda3 /mnt") for a in argvs))
+        self.assertTrue(any("mount /dev/sda1 /mnt/boot/efi" in a for a in argvs))

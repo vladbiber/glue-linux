@@ -47,6 +47,7 @@ def _make_catalog() -> Catalog:
         inits=[
             Init("dinit", "dinit", "desc", ["dinit"], recommended=True),
             Init("runit", "runit", "desc", ["runit"], recommended=False),
+            Init("openrc", "OpenRC", "desc", ["openrc"], recommended=False),
         ],
         sessions=[
             Session("wm-bare", "Bare WM", "wm", "desc", 3, 5, _KBS, None,
@@ -207,6 +208,27 @@ class TestHappyPath(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # Negative tests — each must raise PlanError
 # ---------------------------------------------------------------------------
+
+class TestNetworkAndInitServicePackages(unittest.TestCase):
+    """Rules 9 & 10: target always gets NetworkManager, and every enabled
+    service pulls its init-specific service package (greetd-dinit etc.)."""
+
+    def setUp(self):
+        self.catalog = _make_catalog()
+
+    def test_networkmanager_always_present(self):
+        sel = Selection("k-main", "dinit", [], {}, [], False, True)  # minimal
+        plan = resolve_plan(self.catalog, sel)
+        self.assertIn("networkmanager", plan.packages)
+        self.assertIn("NetworkManager", plan.services)
+
+    def test_init_service_packages_follow_selected_init(self):
+        for init_id in ("dinit", "runit", "openrc"):
+            sel = Selection("k-main", init_id, ["wm-bare"], {}, [], False, False)
+            plan = resolve_plan(self.catalog, sel)
+            self.assertIn(f"greetd-{init_id}", plan.packages, init_id)
+            self.assertIn(f"networkmanager-{init_id}", plan.packages, init_id)
+
 
 class TestNegative(unittest.TestCase):
 
