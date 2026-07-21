@@ -377,7 +377,19 @@ def main(argv=None) -> int:
         execute(steps, dry_run=True)
         return EXIT_OK
 
-    if disk_plan is not None:
+    # Last line of defense (normally unreachable: _ensure_root re-execs at
+    # startup) — never start real steps without root.
+    if os.geteuid() != 0:
+        return _fail(
+            "Installer is not running as root — the install cannot proceed. "
+            "Run it as: sudo wheatley-install", EXIT_INSTALL,
+        )
+
+    if disk_plan is not None and disk_plan.mode == "existing":
+        root_part = next(p for p in disk_plan.partitions if p.mountpoint == "/")
+        print(f"About to FORMAT {root_part.path} (rest of the disk untouched) "
+              f"and install to {args.target}.")
+    elif disk_plan is not None:
         print(f"About to ERASE {disk_plan.device_path} and install to {args.target}.")
     else:
         print(f"About to install to {args.target}. This will modify the target system.")

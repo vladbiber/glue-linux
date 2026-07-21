@@ -63,13 +63,13 @@ class TestPositive(unittest.TestCase):
 
     def test_expected_session_ids(self):
         ids = {s.id for s in self.catalog.sessions}
-        expected = {"apeturewm", "nvwm", "mangowc", "niri", "sway", "kde-plasma", "xfce"}
+        expected = {"apeturewm", "nvwm", "atomwm", "mangowc", "niri", "sway", "kde-plasma", "xfce"}
         self.assertEqual(ids, expected)
 
     def test_session_kinds(self):
         wms = {s.id for s in self.catalog.sessions if s.kind == "wm"}
         des = {s.id for s in self.catalog.sessions if s.kind == "de"}
-        self.assertEqual(wms, {"apeturewm", "nvwm", "mangowc", "niri", "sway"})
+        self.assertEqual(wms, {"apeturewm", "nvwm", "atomwm", "mangowc", "niri", "sway"})
         self.assertEqual(des, {"kde-plasma", "xfce"})
 
     def test_mangowc_shell_choices(self):
@@ -152,8 +152,8 @@ class TestPositive(unittest.TestCase):
         self.assertTrue(m.name)
         self.assertTrue(m.description)
 
-    def test_seven_sessions_two_shells_two_kernels(self):
-        self.assertEqual(len(self.catalog.sessions), 7)
+    def test_eight_sessions_two_shells_two_kernels(self):
+        self.assertEqual(len(self.catalog.sessions), 8)
         self.assertEqual(len(self.catalog.shells), 2)
         self.assertEqual(len(self.catalog.kernels), 2)
 

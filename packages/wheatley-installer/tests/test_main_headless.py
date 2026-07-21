@@ -29,7 +29,7 @@ class TestValidateCatalog(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("2 kernels", result.stdout)
         self.assertIn("3 inits", result.stdout)
-        self.assertIn("7 sessions", result.stdout)
+        self.assertIn("8 sessions", result.stdout)
         self.assertIn("2 shells", result.stdout)
 
     def test_explicit_catalog_path_matches_default(self):

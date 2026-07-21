@@ -141,6 +141,47 @@
    "shell_choices": []
   },
   {
+   "id": "atomwm",
+   "name": "atomwm",
+   "kind": "wm",
+   "description": "The lightest window manager in the world: raw X11 protocol, zero malloc, ~150 KB of RAM. Monocle (one window at a time), blocking 0% CPU loop. For minimalists.",
+   "ease": 2,
+   "lightness": 5,
+   "keybindings": [
+    {
+     "keys": "Super+q",
+     "action": "Open terminal (st)"
+    },
+    {
+     "keys": "Super+Space",
+     "action": "Open application launcher"
+    },
+    {
+     "keys": "Super+c",
+     "action": "Close focused window"
+    },
+    {
+     "keys": "Super+Tab",
+     "action": "Next window"
+    },
+    {
+     "keys": "Super+w",
+     "action": "Previous window"
+    },
+    {
+     "keys": "Super+Shift+q",
+     "action": "Quit atomwm"
+    }
+   ],
+   "screenshot": "screenshots/atomwm.png",
+   "packages": [
+    "atomwm",
+    "st-wheatley"
+   ],
+   "services": [],
+   "shell_choices": []
+  },
+  {
    "id": "mangowc",
    "name": "MangoWC",
    "kind": "wm",
