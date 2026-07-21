@@ -168,6 +168,33 @@ class TestFindCatalog(unittest.TestCase):
                 if old is not None:
                     os.environ["WHEATLEY_CATALOG"] = old
 
+    def test_root_prefix_yields_absolute_path_regardless_of_cwd(self):
+        """Regression: base_prefix='/' must produce /usr/share/..., never a
+        CWD-relative 'usr/share/...'. Path('/'.rstrip('/')) == Path('') made the
+        packaged candidate relative, so the live ISO never found its catalog."""
+        with tempfile.TemporaryDirectory() as tmp:
+            # Decoy: a RELATIVE usr/share/... tree inside the CWD. With the bug,
+            # find_catalog(base_prefix='/') resolves against this and returns a
+            # relative path; fixed code must ignore it.
+            decoy_dir = Path(tmp) / "usr/share/wheatley-installer/catalog"
+            decoy_dir.mkdir(parents=True)
+            (decoy_dir / "catalog.json").write_text("{}")
+
+            old_env = os.environ.pop("WHEATLEY_CATALOG", None)
+            old_cwd = os.getcwd()
+            try:
+                os.chdir(tmp)
+                result = self._find_catalog(base_prefix="/")
+                self.assertTrue(
+                    result.is_absolute(),
+                    f"find_catalog(base_prefix='/') returned relative path {result}"
+                )
+                self.assertNotEqual(result, Path("usr/share/wheatley-installer/catalog/catalog.json"))
+            finally:
+                os.chdir(old_cwd)
+                if old_env is not None:
+                    os.environ["WHEATLEY_CATALOG"] = old_env
+
     def test_env_overrides_even_when_packaged_exists(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)

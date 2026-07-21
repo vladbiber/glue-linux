@@ -33,8 +33,11 @@ def find_catalog(*, base_prefix: str = "/") -> Path:
     env_path = os.environ.get("WHEATLEY_CATALOG")
     if env_path:
         return Path(env_path)
+    # NOTE: no rstrip("/") here — Path("/".rstrip("/")) is Path("") which makes
+    # the candidate RELATIVE to the CWD, so the packaged catalog was never found
+    # on the live ISO. Path() itself normalizes any trailing slash.
     packaged = (
-        Path(base_prefix.rstrip("/")) / "usr/share/wheatley-installer/catalog/catalog.json"
+        Path(base_prefix) / "usr/share/wheatley-installer/catalog/catalog.json"
     )
     if packaged.exists():
         return packaged
