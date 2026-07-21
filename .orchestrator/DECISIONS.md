@@ -41,3 +41,11 @@ _None yet._
 - Rationale: Capability 1 is complete: the installer runs end-to-end in dry-run (186 tests). But it cannot actually install a bootable system — it assumes /mnt is already partitioned/mounted and never installs a bootloader. The old whiptail script did sgdisk/mkfs/mount/grub; the new one does not. No roadmap item (gaming, DEs, greeter) matters until an install boots, so the disk+boot layer is the unambiguous depth-first next step: it deepens the existing executor rather than adding a new surface.
 - Reviewer: no diff to review
 
+
+
+## task-006 — Build the identity layer: pure IdentitySpec + identity_steps (hostname, locale, timezone, user + password via chpasswd stdin) with RunCommand stdin support, wired into __main__
+- Capability: 9. Disk, boot & identity (required for 'installs & boots')
+- Complexity: standard
+- Rationale: Cycle 6 delivered the disk+bootloader layer (disks.py, 236 tests, --disk wiring) — verified in the repo. The installed system now boots but is unusable and insecure: no hostname, no user, no password, no locale, no timezone — root with no credentials. The old whiptail script configured all of these; the new installer configures none. This is the last missing piece of 'a system that actually boots and you can log into', and it must exist as pure step-compilation before any wizard screen can collect the values, so it is the unambiguous depth-first next step.
+- Reviewer: 295 tests pass, 43 in test_identity.py (15 negative), password never leaks to argv/stdout/stderr, all 11 steps in correct order, RunCommand.stdin is backward-compatible, identity.py is 200 lines with no subprocess/curses imports
+

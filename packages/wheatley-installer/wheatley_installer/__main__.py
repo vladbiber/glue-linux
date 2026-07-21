@@ -163,19 +163,38 @@ def main(argv=None) -> int:
         )
         return EXIT_OK
 
+    wizard_result = None
     if args.headless:
         selection = _headless_selection(catalog)
     else:
         # Imported lazily so headless modes work even where curses is unusable.
         from wheatley_installer.tui import run_tui
 
+        tui_disks = None
+        if args.disk is None:
+            try:
+                tui_disks = discover() or None
+            except DiskError:
+                tui_disks = None  # no disk screen; install to prepared --target
         try:
-            selection = run_tui(catalog)
+            wizard_result = run_tui(
+                catalog,
+                disks=tui_disks,
+                ask_identity=args.username is None,
+                identity_defaults={
+                    "hostname": args.hostname,
+                    "locale": args.locale,
+                    "timezone": args.timezone,
+                },
+            )
         except KeyboardInterrupt:
-            selection = None
-        if selection is None:
+            wizard_result = None
+        if wizard_result is None:
             print("Cancelled.")
             return EXIT_CANCELLED
+        selection = wizard_result.selection
+        if args.disk is None:
+            args.disk = wizard_result.device_path
 
     try:
         plan = resolve_plan(catalog, selection)
@@ -201,8 +220,9 @@ def main(argv=None) -> int:
     except ExecutorError as exc:
         return _fail(f"Executor error: {exc}", EXIT_INSTALL)
 
-    # Append identity steps when a username was provided
-    if args.username is not None:
+    # Append identity steps: wizard-collected spec wins, else --username flags
+    spec = wizard_result.identity if wizard_result is not None else None
+    if spec is None and args.username is not None:
         password = args.password or ""
         try:
             spec = IdentitySpec(
@@ -214,6 +234,7 @@ def main(argv=None) -> int:
             )
         except IdentityError as exc:
             return _fail(f"Identity error: {exc}", EXIT_INSTALL)
+    if spec is not None:
         steps = steps + identity_steps(spec, target=args.target)
 
     _print_summary(plan)

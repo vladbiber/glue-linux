@@ -259,5 +259,69 @@ class TestPurity(unittest.TestCase):
         self.assertIn("clean", result.stdout)
 
 
+class TestFormSecrecy(unittest.TestCase):
+    """With 'hunter2!' typed, no rendered line ever contains the plaintext."""
+
+    _PASSWORD = "hunter2!"
+
+    def _wizard_with_password(self):
+        w = Wizard(_CATALOG, ask_identity=True)
+        w.next()                              # welcome -> mode
+        w.apply(Choose("minimal"))
+        w.next()                              # -> kernel
+        w.apply(Choose("linux-cachyos"))
+        w.next()                              # -> init
+        w.apply(Choose("dinit"))
+        w.next()                              # -> support
+        w.next()                              # -> form:hostname (prefilled)
+        w.next()                              # -> form:username
+        for ch in "alice":
+            w.feed_char(ch)
+        w.next()                              # -> form:password
+        for ch in self._PASSWORD:
+            w.feed_char(ch)
+        return w
+
+    def _rendered(self, w):
+        return _joined(render_screen(w.current_screen(), 0, 120, 40))
+
+    def test_password_screen_masks_plaintext(self):
+        text = self._rendered(self._wizard_with_password())
+        self.assertNotIn(self._PASSWORD, text)
+        self.assertIn("********", text)
+
+    def test_confirm_screen_masks_plaintext(self):
+        w = self._wizard_with_password()
+        w.next()                              # -> form:password_confirm
+        for ch in self._PASSWORD:
+            w.feed_char(ch)
+        text = self._rendered(w)
+        self.assertNotIn(self._PASSWORD, text)
+        self.assertIn("********", text)
+
+    def test_summary_masks_plaintext(self):
+        w = self._wizard_with_password()
+        w.next()                              # -> confirm
+        for ch in self._PASSWORD:
+            w.feed_char(ch)
+        w.next()                              # -> locale (default valid)
+        w.next()                              # -> timezone (default valid)
+        w.next()                              # -> summary
+        self.assertEqual(w.current_screen().key, "summary")
+        text = self._rendered(w)
+        self.assertNotIn(self._PASSWORD, text)
+        self.assertIn("Password: ********", text)
+
+    def test_form_screen_shows_form_footer_and_error(self):
+        from wheatley_installer.render import FORM_FOOTER_TEXT
+        w = self._wizard_with_password()
+        screen = w.current_screen()
+        self.assertEqual(screen.kind, "form")
+        text = self._rendered(w)
+        self.assertIn(FORM_FOOTER_TEXT, text)
+        lines = render_screen(screen, 0, 120, 40, error="Nope.")
+        self.assertIn(("Nope.", "error"), lines)
+
+
 if __name__ == "__main__":
     unittest.main()

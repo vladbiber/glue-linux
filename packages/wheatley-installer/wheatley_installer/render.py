@@ -16,6 +16,7 @@ from __future__ import annotations
 import textwrap
 from typing import List, Optional, Tuple
 
+from wheatley_installer.ui_forms import masked
 from wheatley_installer.ui_model import Item, Screen
 
 StyledLine = Tuple[str, str]
@@ -26,6 +27,8 @@ STYLES = frozenset({
 })
 
 FOOTER_TEXT = "↑/↓ move   Space toggle/choose   Enter next   B back   Q quit"
+
+FORM_FOOTER_TEXT = "Type to edit   Backspace erase   Enter continue   ← back   Esc quit"
 
 _RECOMMENDED_SUFFIX = " (recommended)"
 
@@ -98,6 +101,12 @@ def _item_rows(screen: Screen, cursor: int, width: int) -> Tuple[List[StyledLine
     return rows, cursor_row
 
 
+def _form_rows(form, width: int) -> List[StyledLine]:
+    """Input row for a form screen. Secret values are ALWAYS masked with '*'
+    per character — the plaintext never appears in any rendered line."""
+    return [(_fit(f"> {form.label}: {masked(form)}_", width), "item_cursor")]
+
+
 def _detail_lines(item: Item, width: int) -> List[StyledLine]:
     """Detail block for the item under the cursor; only non-None fields."""
     lines: List[StyledLine] = []
@@ -145,6 +154,10 @@ def render_screen(
 
     cursor = max(0, min(cursor, len(screen.items) - 1)) if screen.items else 0
 
+    is_form = screen.kind == "form" and screen.field is not None
+    if is_form and error is None:
+        error = screen.field.error
+
     title_lines: List[StyledLine] = [(_fit(screen.title, width), "title")]
     notice_lines: List[StyledLine] = (
         [(ln, "notice") for ln in _wrap(screen.notice, width)] if screen.notice else []
@@ -153,9 +166,13 @@ def render_screen(
         [(ln, "error") for ln in _wrap(str(error), width)] if error else []
     )
     detail = _detail_lines(screen.items[cursor], width) if screen.items else []
-    foot: List[StyledLine] = [(_fit(FOOTER_TEXT, width), "footer")]
+    foot_text = FORM_FOOTER_TEXT if is_form else FOOTER_TEXT
+    foot: List[StyledLine] = [(_fit(foot_text, width), "footer")]
 
-    rows, cursor_row = _item_rows(screen, cursor, width)
+    if is_form:
+        rows, cursor_row = _form_rows(screen.field, width), 0
+    else:
+        rows, cursor_row = _item_rows(screen, cursor, width)
 
     # Fit everything into `height`: shed lowest-priority blocks first.
     fixed = (len(title_lines) + len(notice_lines) + len(error_lines)

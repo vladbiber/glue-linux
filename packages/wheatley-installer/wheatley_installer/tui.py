@@ -12,10 +12,9 @@ from __future__ import annotations
 import curses
 from typing import Optional
 
-from wheatley_installer.plan import Selection
 from wheatley_installer.render import render_screen
 from wheatley_installer.ui_model import (
-    Choose, SetFlag, Toggle, ValidationError, Wizard,
+    Choose, SetFlag, Toggle, ValidationError, Wizard, WizardResult,
 )
 
 # Amber palette (#100A02 / #A66900 / #F1B00A), scaled to curses 0-1000.
@@ -132,7 +131,7 @@ def _apply_space(wizard: Wizard, screen, cursor: int) -> Optional[str]:
     return None
 
 
-def _loop(stdscr, wizard: Wizard) -> Optional[Selection]:
+def _loop(stdscr, wizard: Wizard) -> Optional[WizardResult]:
     try:
         curses.curs_set(0)
     except curses.error:
@@ -151,20 +150,35 @@ def _loop(stdscr, wizard: Wizard) -> Optional[Selection]:
         key = stdscr.getch()
         error = None  # any keypress clears the previous error line
 
-        if key in (curses.KEY_UP, ord("k")):
-            cursor = max(0, cursor - 1)
-        elif key in (curses.KEY_DOWN, ord("j")):
-            cursor = min(max(0, count - 1), cursor + 1)
-        elif key == ord(" "):
-            error = _apply_space(wizard, screen, cursor)
-        elif key in (curses.KEY_ENTER, 10, 13):
+        if key in (curses.KEY_ENTER, 10, 13):
             try:
                 wizard.next()
                 cursor = 0
             except ValidationError as exc:
                 error = str(exc)
             if wizard.is_finished():
-                return wizard.to_selection()
+                try:
+                    return wizard.to_result()
+                except ValidationError as exc:
+                    error = str(exc)
+        elif key == 27:  # Esc quits everywhere ('q' is typeable on forms)
+            if _confirm_quit(stdscr):
+                return None
+        elif screen.kind == "form":
+            # Printable characters are text input here — including b/q/space.
+            if key in (curses.KEY_BACKSPACE, 127, 8):
+                wizard.backspace()
+            elif key == curses.KEY_LEFT:
+                wizard.back()
+                cursor = 0
+            elif 32 <= key < 256 and chr(key).isprintable():
+                wizard.feed_char(chr(key))
+        elif key in (curses.KEY_UP, ord("k")):
+            cursor = max(0, cursor - 1)
+        elif key in (curses.KEY_DOWN, ord("j")):
+            cursor = min(max(0, count - 1), cursor + 1)
+        elif key == ord(" "):
+            error = _apply_space(wizard, screen, cursor)
         elif key in (curses.KEY_LEFT, ord("b"), ord("B")):
             wizard.back()
             cursor = 0
@@ -174,7 +188,9 @@ def _loop(stdscr, wizard: Wizard) -> Optional[Selection]:
         # KEY_RESIZE and anything else: just repaint on the next iteration.
 
 
-def run_tui(catalog) -> Optional[Selection]:
-    """Run the full wizard in curses; returns the Selection, or None on quit."""
-    wizard = Wizard(catalog)
+def run_tui(catalog, disks=None, ask_identity: bool = False,
+            identity_defaults=None) -> Optional[WizardResult]:
+    """Run the full wizard in curses; returns a WizardResult, or None on quit."""
+    wizard = Wizard(catalog, disks=disks, ask_identity=ask_identity,
+                    identity_defaults=identity_defaults)
     return curses.wrapper(_loop, wizard)

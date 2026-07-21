@@ -1,5 +1,5 @@
 {
-  "nextId": 7,
+  "nextId": 8,
   "tasks": [
     {
       "id": "task-001",
@@ -78,7 +78,7 @@
       "title": "Build the identity layer: pure IdentitySpec + identity_steps (hostname, locale, timezone, user + password via chpasswd stdin) with RunCommand stdin support, wired into __main__",
       "capability": "9. Disk, boot & identity (required for 'installs & boots')",
       "complexity": "standard",
-      "status": "doing",
+      "status": "done",
       "files": [
         "packages/wheatley-installer/wheatley_installer/identity.py",
         "packages/wheatley-installer/wheatley_installer/executor.py",
@@ -86,7 +86,26 @@
         "packages/wheatley-installer/tests/test_identity.py",
         "packages/wheatley-installer/tests/test_main_headless.py"
       ],
-      "created": 1784617976616
+      "created": 1784617976616,
+      "completed": 1784618418640
+    },
+    {
+      "id": "task-007",
+      "title": "Add disk-selection and identity text-entry screens to the wizard: pure form-field state machine (ui_forms.py) integrated into ui_model flow, rendered with masked password support, wired end-to-end in __main__",
+      "capability": "9. Disk, boot & identity (required for 'installs & boots')",
+      "complexity": "complex",
+      "status": "doing",
+      "files": [
+        "packages/wheatley-installer/wheatley_installer/ui_forms.py",
+        "packages/wheatley-installer/wheatley_installer/ui_model.py",
+        "packages/wheatley-installer/wheatley_installer/render.py",
+        "packages/wheatley-installer/wheatley_installer/tui.py",
+        "packages/wheatley-installer/wheatley_installer/__main__.py",
+        "packages/wheatley-installer/tests/test_ui_forms.py",
+        "packages/wheatley-installer/tests/test_ui_model.py",
+        "packages/wheatley-installer/tests/test_render.py"
+      ],
+      "created": 1784618497137
     }
   ]
 }

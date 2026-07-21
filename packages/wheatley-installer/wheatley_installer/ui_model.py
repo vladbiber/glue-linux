@@ -1,18 +1,16 @@
 """
 Pure TUI wizard state machine for the Wheatley Linux installer.
 
-This module contains NO curses imports and performs NO I/O: it receives an
-already-loaded Catalog and exposes a deterministic screen-by-screen wizard
-that produces a plan.Selection. A thin curses renderer (built later) only
-draws the Screen snapshots returned here and forwards key events.
-
-Screen sequence:
+NO curses imports, NO I/O: takes a loaded Catalog and exposes a deterministic
+screen-by-screen wizard producing a plan.Selection. Screen sequence:
   welcome -> mode -> kernel -> init -> sessions -> shell:<sid>... ->
-  support -> gaming -> summary
-
-In minimal mode the 'sessions', 'shell:*' and 'gaming' screens are skipped
-entirely ('gaming' because resolve_plan rejects gaming on a minimal install;
-support toggles like bluetooth remain available on a bare system).
+  support -> gaming -> [disk] -> [form:hostname .. form:timezone] -> summary
+Minimal mode skips 'sessions', 'shell:*' and 'gaming'. The 'disk' screen
+appears only when block devices are injected via Wizard(disks=...); the
+'form:*' identity screens (ADR-8) appear when ask_identity=True, backed by
+ui_forms.FormField (a password-confirm mismatch clears both fields and
+returns to form:password). A finished wizard yields a WizardResult via
+to_result(): Selection, chosen device path (or None), IdentitySpec (or None).
 """
 
 from __future__ import annotations
@@ -22,15 +20,16 @@ from typing import List, Optional
 
 from wheatley_installer.catalog import Catalog, Session, Shell
 from wheatley_installer.plan import Selection
+from wheatley_installer.ui_forms import (
+    FormField, build_identity_fields, disk_label, masked, submit_form,
+)
 
 
 class ValidationError(Exception):
     """Raised when a wizard action is invalid for the current state."""
 
 
-# ---------------------------------------------------------------------------
-# View dataclasses (immutable snapshots handed to the renderer)
-# ---------------------------------------------------------------------------
+# -- view dataclasses (immutable snapshots handed to the renderer) ----------
 
 DE_SECTION = "Desktop environments (optional)"
 
@@ -44,6 +43,11 @@ WELCOME_NOTICE = (
     "Welcome to Wheatley Linux! This wizard lets you compose your own "
     "system: kernel, init system, window managers, and extras. "
     "Nothing is touched until you confirm the summary at the end."
+)
+
+DISK_NOTICE = (
+    "Choose the disk to install Wheatley Linux on. "
+    "The selected disk will be COMPLETELY ERASED."
 )
 
 
@@ -65,14 +69,22 @@ class Item:
 class Screen:
     key: str
     title: str
-    kind: str  # 'info' | 'radio' | 'multi' | 'toggle' | 'summary'
+    kind: str  # 'info' | 'radio' | 'multi' | 'toggle' | 'form' | 'summary'
     items: List[Item] = field(default_factory=list)
     notice: Optional[str] = None
+    field: Optional[FormField] = None  # set only on kind == 'form' screens
 
 
-# ---------------------------------------------------------------------------
-# Events
-# ---------------------------------------------------------------------------
+@dataclass(frozen=True)
+class WizardResult:
+    """Final wizard output. device_path/identity are None when their screens
+    were skipped (no disk list injected / ask_identity=False)."""
+    selection: Selection
+    device_path: Optional[str]
+    identity: Optional[object]  # identity.IdentitySpec when collected
+
+
+# -- events ------------------------------------------------------------------
 
 @dataclass(frozen=True)
 class Toggle:
@@ -89,9 +101,7 @@ class SetFlag:
     value: bool
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+# -- helpers -----------------------------------------------------------------
 
 def _format_keybinds(keybindings) -> Optional[str]:
     if not keybindings:
@@ -101,43 +111,49 @@ def _format_keybinds(keybindings) -> Optional[str]:
 
 def _session_item(session: Session, selected: bool) -> Item:
     return Item(
-        id=session.id,
-        label=session.name,
-        description=session.description,
-        ease=session.ease,
-        lightness=session.lightness,
+        id=session.id, label=session.name, description=session.description,
+        ease=session.ease, lightness=session.lightness,
         keybinds=_format_keybinds(session.keybindings),
-        screenshot=session.screenshot,
-        selected=selected,
+        screenshot=session.screenshot, selected=selected,
         section=DE_SECTION if session.kind == "de" else None,
     )
 
 
 def _shell_item(shell: Shell, selected: bool) -> Item:
     return Item(
-        id=shell.id,
-        label=shell.name,
-        description=shell.description,
-        ease=shell.ease,
-        lightness=shell.lightness,
+        id=shell.id, label=shell.name, description=shell.description,
+        ease=shell.ease, lightness=shell.lightness,
         keybinds=_format_keybinds(shell.keybindings),
-        screenshot=shell.screenshot,
-        selected=selected,
+        screenshot=shell.screenshot, selected=selected,
     )
 
 
-# ---------------------------------------------------------------------------
-# Wizard
-# ---------------------------------------------------------------------------
+# -- wizard --------------------------------------------------------------------
 
 class Wizard:
     """Deterministic wizard state machine over a loaded Catalog."""
 
-    def __init__(self, catalog: Catalog):
+    def __init__(self, catalog: Catalog, disks=None, ask_identity: bool = False,
+                 identity_defaults=None):
         if not isinstance(catalog, Catalog):
             raise ValidationError(
                 f"Wizard requires a Catalog, got {type(catalog).__name__}"
             )
+        if disks is not None:
+            disks = list(disks)
+            if not disks:
+                raise ValidationError("No installation disks were provided")
+            for d in disks:
+                if not getattr(d, "path", None):
+                    raise ValidationError("Disk entries must have a device path")
+        self._disks = disks
+        self._device_path: Optional[str] = None
+        try:
+            self._forms = (
+                build_identity_fields(identity_defaults) if ask_identity else None
+            )
+        except ValueError as exc:
+            raise ValidationError(str(exc))
         self._catalog = catalog
         self._sessions_by_id = {s.id: s for s in catalog.sessions}
         self._shells_by_id = {s.id: s for s in catalog.shells}
@@ -169,6 +185,10 @@ class Wizard:
         keys.append("support")
         if self._mode == "custom":
             keys.append("gaming")
+        if self._disks is not None:
+            keys.append("disk")
+        if self._forms is not None:
+            keys.extend(f"form:{k}" for k in self._forms)
         keys.append("summary")
         return keys
 
@@ -187,9 +207,15 @@ class Wizard:
             sid = key.split(":", 1)[1]
             if sid not in self._shell_choice:
                 name = self._sessions_by_id[sid].name
-                raise ValidationError(
-                    f"Choose a shell/bar for {name} to continue."
-                )
+                raise ValidationError(f"Choose a shell/bar for {name} to continue.")
+        if key == "disk" and self._device_path is None:
+            raise ValidationError("Select a disk to continue.")
+        if key.startswith("form:"):
+            error, reset = submit_form(self._forms, key.split(":", 1)[1])
+            if reset:
+                self._current_key = "form:password"
+            if error:
+                raise ValidationError(error)
 
     def next(self) -> None:
         """Advance to the next screen; raises ValidationError if invalid."""
@@ -220,20 +246,17 @@ class Wizard:
         if isinstance(event, Choose):
             if screen.kind != "radio":
                 raise ValidationError(
-                    f"Choose is only valid on radio screens, not '{screen.key}'"
-                )
+                    f"Choose is only valid on radio screens, not '{screen.key}'")
             self._apply_choose(screen, event.item_id)
         elif isinstance(event, Toggle):
             if screen.kind != "multi":
                 raise ValidationError(
-                    f"Toggle is only valid on multi screens, not '{screen.key}'"
-                )
+                    f"Toggle is only valid on multi screens, not '{screen.key}'")
             self._apply_toggle(screen, event.item_id)
         elif isinstance(event, SetFlag):
             if screen.kind != "toggle":
                 raise ValidationError(
-                    f"SetFlag is only valid on toggle screens, not '{screen.key}'"
-                )
+                    f"SetFlag is only valid on toggle screens, not '{screen.key}'")
             if not isinstance(event.value, bool):
                 raise ValidationError("SetFlag value must be a boolean")
             self._gaming = event.value
@@ -243,8 +266,7 @@ class Wizard:
     def _check_item(self, screen: Screen, item_id: str) -> None:
         if item_id not in {i.id for i in screen.items}:
             raise ValidationError(
-                f"Unknown item '{item_id}' on screen '{screen.key}'"
-            )
+                f"Unknown item '{item_id}' on screen '{screen.key}'")
 
     def _apply_choose(self, screen: Screen, item_id: str) -> None:
         self._check_item(screen, item_id)
@@ -260,6 +282,8 @@ class Wizard:
             self._kernel_id = item_id
         elif key == "init":
             self._init_id = item_id
+        elif key == "disk":
+            self._device_path = item_id
         elif key.startswith("shell:"):
             self._shell_choice[key.split(":", 1)[1]] = item_id
 
@@ -274,15 +298,30 @@ class Wizard:
         elif screen.key == "support":
             self._support_ids.symmetric_difference_update({item_id})
 
+    # -- form text input (ADR-8) ---------------------------------------------
+
+    def _current_form(self) -> FormField:
+        key = self._current_key
+        if not key.startswith("form:") or self._forms is None:
+            raise ValidationError(
+                f"Text input is only valid on form screens, not '{key}'")
+        return self._forms[key.split(":", 1)[1]]
+
+    def feed_char(self, ch: str) -> None:
+        """Append one printable character to the current form field."""
+        self._current_form().feed_char(ch)
+
+    def backspace(self) -> None:
+        """Delete the last character of the current form field."""
+        self._current_form().backspace()
+
     # -- screen construction -------------------------------------------------
 
     def current_screen(self) -> Screen:
         key = self._current_key
         if key == "welcome":
-            return Screen(
-                key="welcome", title="Welcome to Wheatley Linux",
-                kind="info", items=[], notice=WELCOME_NOTICE,
-            )
+            return Screen(key="welcome", title="Welcome to Wheatley Linux",
+                          kind="info", items=[], notice=WELCOME_NOTICE)
         if key == "mode":
             return self._mode_screen()
         if key == "kernel":
@@ -297,6 +336,18 @@ class Wizard:
             return self._support_screen()
         if key == "gaming":
             return self._gaming_screen()
+        if key == "disk":
+            items = [
+                Item(id=d.path, label=disk_label(d),
+                     description="Removable device" if d.is_removable else "",
+                     selected=self._device_path == d.path)
+                for d in self._disks
+            ]
+            return Screen(key="disk", title="Installation disk", kind="radio",
+                          items=items, notice=DISK_NOTICE)
+        if key.startswith("form:"):
+            form = self._forms[key.split(":", 1)[1]]
+            return Screen(key=key, title=form.label, kind="form", field=form)
         return self._summary_screen()
 
     def _mode_screen(self) -> Screen:
@@ -310,11 +361,9 @@ class Wizard:
                 ),
                 recommended=True, selected=self._mode == "custom",
             ),
-            Item(
-                id="minimal", label=minimal.name,
-                description=minimal.description,
-                selected=self._mode == "minimal",
-            ),
+            Item(id="minimal", label=minimal.name,
+                 description=minimal.description,
+                 selected=self._mode == "minimal"),
         ]
         return Screen(key="mode", title="Installation mode",
                       kind="radio", items=items)
@@ -323,26 +372,20 @@ class Wizard:
         # Primary kernel listed first and marked recommended
         ordered = sorted(self._catalog.kernels, key=lambda k: not k.primary)
         items = [
-            Item(
-                id=k.id,
-                label=k.name + (" (recommended)" if k.primary else ""),
-                description=k.description,
-                recommended=k.primary,
-                selected=self._kernel_id == k.id,
-            )
+            Item(id=k.id,
+                 label=k.name + (" (recommended)" if k.primary else ""),
+                 description=k.description, recommended=k.primary,
+                 selected=self._kernel_id == k.id)
             for k in ordered
         ]
         return Screen(key="kernel", title="Kernel", kind="radio", items=items)
 
     def _init_screen(self) -> Screen:
         items = [
-            Item(
-                id=i.id,
-                label=i.name + (" (recommended)" if i.recommended else ""),
-                description=i.description,
-                recommended=i.recommended,
-                selected=self._init_id == i.id,
-            )
+            Item(id=i.id,
+                 label=i.name + (" (recommended)" if i.recommended else ""),
+                 description=i.description, recommended=i.recommended,
+                 selected=self._init_id == i.id)
             for i in self._catalog.inits
         ]
         return Screen(key="init", title="Init system", kind="radio", items=items)
@@ -350,13 +393,10 @@ class Wizard:
     def _sessions_screen(self) -> Screen:
         wms = [s for s in self._catalog.sessions if s.kind == "wm"]
         des = [s for s in self._catalog.sessions if s.kind == "de"]
-        items = [
-            _session_item(s, s.id in self._session_ids) for s in wms + des
-        ]
-        return Screen(
-            key="sessions", title="Window managers & desktops",
-            kind="multi", items=items, notice=SESSIONS_NOTICE,
-        )
+        items = [_session_item(s, s.id in self._session_ids)
+                 for s in wms + des]
+        return Screen(key="sessions", title="Window managers & desktops",
+                      kind="multi", items=items, notice=SESSIONS_NOTICE)
 
     def _shell_screen(self, session_id: str) -> Screen:
         session = self._sessions_by_id[session_id]
@@ -365,18 +405,14 @@ class Wizard:
             _shell_item(self._shells_by_id[shell_id], chosen == shell_id)
             for shell_id in session.shell_choices
         ]
-        return Screen(
-            key=f"shell:{session_id}",
-            title=f"Shell / bar for {session.name}",
-            kind="radio", items=items,
-        )
+        return Screen(key=f"shell:{session_id}",
+                      title=f"Shell / bar for {session.name}",
+                      kind="radio", items=items)
 
     def _support_screen(self) -> Screen:
         items = [
-            Item(
-                id=t.id, label=t.name, description=t.description,
-                selected=t.id in self._support_ids,
-            )
+            Item(id=t.id, label=t.name, description=t.description,
+                 selected=t.id in self._support_ids)
             for t in self._catalog.support
         ]
         return Screen(key="support", title="Support options",
@@ -384,10 +420,8 @@ class Wizard:
 
     def _gaming_screen(self) -> Screen:
         gaming = self._catalog.gaming
-        item = Item(
-            id="gaming", label=gaming.name,
-            description=gaming.description, selected=self._gaming,
-        )
+        item = Item(id="gaming", label=gaming.name,
+                    description=gaming.description, selected=self._gaming)
         return Screen(key="gaming", title=gaming.name,
                       kind="toggle", items=[item])
 
@@ -415,8 +449,14 @@ class Wizard:
         for tid in sorted(self._support_ids):
             toggle = next(t for t in self._catalog.support if t.id == tid)
             _add(f"summary:support:{tid}", f"Support: {toggle.name}")
-        _add("summary:gaming",
-             f"Gaming Mode: {'on' if self._gaming else 'off'}")
+        _add("summary:gaming", f"Gaming Mode: {'on' if self._gaming else 'off'}")
+        if self._disks is not None:
+            _add("summary:disk", f"Disk: {self._device_path or '(none)'} — WILL BE ERASED")
+        if self._forms is not None:
+            for fkey, form in self._forms.items():
+                if fkey == "password_confirm":
+                    continue  # masked password shown once is enough
+                _add(f"summary:{fkey}", f"{form.label}: {masked(form)}")
         return Screen(key="summary", title="Summary",
                       kind="summary", items=items)
 
@@ -426,8 +466,7 @@ class Wizard:
         """Build the final Selection; only valid once the wizard is finished."""
         if not self._finished:
             raise ValidationError(
-                "to_selection() is only valid after the wizard is finished"
-            )
+                "to_selection() is only valid after the wizard is finished")
         return Selection(
             kernel_id=self._kernel_id,
             init_id=self._init_id,
@@ -437,3 +476,25 @@ class Wizard:
             gaming=self._gaming,
             minimal=self._mode == "minimal",
         )
+
+    def to_result(self) -> WizardResult:
+        """Build the final WizardResult; only valid once the wizard is finished."""
+        selection = self.to_selection()
+        spec = None
+        if self._forms is not None:
+            # Imported lazily: identity pulls in the executor's subprocess
+            # machinery, which must never load at ui_model import time.
+            from wheatley_installer.identity import IdentityError, IdentitySpec
+            f = self._forms
+            try:
+                spec = IdentitySpec(
+                    hostname=f["hostname"].value,
+                    username=f["username"].value,
+                    password=f["password"].value,
+                    locale=f["locale"].value,
+                    timezone=f["timezone"].value,
+                )
+            except IdentityError as exc:
+                raise ValidationError(str(exc))
+        return WizardResult(selection=selection, device_path=self._device_path,
+                            identity=spec)
