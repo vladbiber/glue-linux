@@ -281,6 +281,68 @@ class TestCompileFileSteps(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# compile_steps: pacman_conf parameter
+# ---------------------------------------------------------------------------
+
+class TestCompilePacmanConf(unittest.TestCase):
+
+    def test_pacman_conf_inserts_dash_C_after_basestrap(self):
+        plan = _minimal_plan()
+        steps = compile_steps(plan, target="/mnt", init_id="dinit",
+                              pacman_conf="/usr/share/wheatley/pacman.conf")
+        cmd = steps[0]
+        self.assertIsInstance(cmd, RunCommand)
+        self.assertEqual(cmd.argv[0], "basestrap")
+        self.assertIn("-C", cmd.argv)
+        idx = cmd.argv.index("-C")
+        self.assertEqual(cmd.argv[idx + 1], "/usr/share/wheatley/pacman.conf")
+
+    def test_pacman_conf_dash_C_immediately_after_basestrap(self):
+        plan = _minimal_plan()
+        steps = compile_steps(plan, target="/mnt", init_id="dinit",
+                              pacman_conf="/custom/pacman.conf")
+        cmd = steps[0]
+        self.assertEqual(cmd.argv[1], "-C")
+        self.assertEqual(cmd.argv[2], "/custom/pacman.conf")
+
+    def test_no_pacman_conf_produces_no_dash_C(self):
+        plan = _minimal_plan()
+        steps = compile_steps(plan, target="/mnt", init_id="dinit")
+        cmd = steps[0]
+        self.assertNotIn("-C", cmd.argv)
+
+    def test_pacman_conf_none_explicit_produces_no_dash_C(self):
+        plan = _minimal_plan()
+        steps = compile_steps(plan, target="/mnt", init_id="dinit", pacman_conf=None)
+        cmd = steps[0]
+        self.assertNotIn("-C", cmd.argv)
+
+    def test_target_still_correct_position_with_pacman_conf(self):
+        # argv must be: basestrap -C <conf> <target> [packages...]
+        plan = _minimal_plan()
+        steps = compile_steps(plan, target="/mnt", init_id="dinit",
+                              pacman_conf="/usr/share/wheatley/pacman.conf")
+        cmd = steps[0]
+        self.assertEqual(cmd.argv[3], "/mnt")
+
+    def test_packages_still_present_with_pacman_conf(self):
+        packages = ["pkg-x", "pkg-y"]
+        plan = _minimal_plan(packages=packages)
+        steps = compile_steps(plan, target="/mnt", init_id="dinit",
+                              pacman_conf="/usr/share/wheatley/pacman.conf")
+        cmd = steps[0]
+        for pkg in packages:
+            self.assertIn(pkg, cmd.argv)
+
+    def test_step_count_unchanged_with_pacman_conf(self):
+        plan = _minimal_plan(services=["svc1"])
+        steps_without = compile_steps(plan, target="/mnt", init_id="dinit")
+        steps_with = compile_steps(plan, target="/mnt", init_id="dinit",
+                                   pacman_conf="/usr/share/wheatley/pacman.conf")
+        self.assertEqual(len(steps_without), len(steps_with))
+
+
+# ---------------------------------------------------------------------------
 # Integration: real catalog + resolve_plan + compile_steps
 # ---------------------------------------------------------------------------
 

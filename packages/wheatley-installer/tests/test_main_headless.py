@@ -192,6 +192,64 @@ class TestIdentityFlags(unittest.TestCase):
         self.assertIn("--hostname", result.stdout)
 
 
+class TestCatalogResolution(unittest.TestCase):
+    """Verify WHEATLEY_CATALOG env var and repo-relative fallback."""
+
+    def _run_with_env(self, extra_env, *argv):
+        env = dict(os.environ, TERM="dumb", **extra_env)
+        return subprocess.run(
+            [sys.executable, "-m", "wheatley_installer", *argv],
+            cwd=str(_PKG_ROOT), capture_output=True, text=True,
+            input="", env=env, timeout=60,
+        )
+
+    def test_wheatley_catalog_env_used_for_validate(self):
+        """WHEATLEY_CATALOG pointing at a copy of the real catalog loads correctly."""
+        import shutil
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_catalog = os.path.join(tmp, "catalog.json")
+            shutil.copy(str(_CATALOG_PATH), tmp_catalog)
+            result = self._run_with_env(
+                {"WHEATLEY_CATALOG": tmp_catalog},
+                "--validate-catalog",
+            )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Catalog OK", result.stdout)
+
+    def test_wheatley_catalog_env_bad_path_exits_two(self):
+        """A WHEATLEY_CATALOG that doesn't exist causes a catalog error."""
+        result = self._run_with_env(
+            {"WHEATLEY_CATALOG": "/nonexistent/catalog.json"},
+            "--validate-catalog",
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("Catalog error", result.stderr)
+
+    def test_repo_relative_fallback_works(self):
+        """Without WHEATLEY_CATALOG, the repo-relative catalog is found."""
+        env = {k: v for k, v in os.environ.items() if k != "WHEATLEY_CATALOG"}
+        env["TERM"] = "dumb"
+        result = subprocess.run(
+            [sys.executable, "-m", "wheatley_installer", "--validate-catalog"],
+            cwd=str(_PKG_ROOT), capture_output=True, text=True,
+            input="", env=env, timeout=60,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Catalog OK", result.stdout)
+
+    def test_dry_run_with_wheatley_catalog_override(self):
+        """End-to-end --dry-run honours WHEATLEY_CATALOG."""
+        import shutil
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_catalog = os.path.join(tmp, "catalog.json")
+            shutil.copy(str(_CATALOG_PATH), tmp_catalog)
+            result = self._run_with_env(
+                {"WHEATLEY_CATALOG": tmp_catalog},
+                "--headless", "--dry-run", "--disk", "/dev/fake",
+            )
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+
 class TestExecutorStdin(unittest.TestCase):
     """Verify that execute() passes stdin to subprocess for RunCommand with stdin set."""
 

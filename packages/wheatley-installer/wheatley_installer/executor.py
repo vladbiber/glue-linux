@@ -50,6 +50,7 @@ _SUPPORTED_INITS = frozenset({"dinit", "runit"})
 
 def compile_steps(
     plan: InstallPlan, *, target: str = "/mnt", init_id: str, disk_plan=None,
+    pacman_conf: Optional[str] = None,
 ) -> List[Step]:
     """Compile an InstallPlan into a deterministic ordered list of Steps.
 
@@ -84,8 +85,12 @@ def compile_steps(
 
     # 1. Install all packages in a single basestrap call
     n = len(packages)
+    basestrap_argv = ["basestrap"]
+    if pacman_conf is not None:
+        basestrap_argv += ["-C", pacman_conf]
+    basestrap_argv += [t] + packages
     steps.append(RunCommand(
-        argv=["basestrap", t] + packages,
+        argv=basestrap_argv,
         description=f"Install {n} package{'s' if n != 1 else ''} with basestrap",
     ))
 

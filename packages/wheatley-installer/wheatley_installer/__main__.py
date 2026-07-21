@@ -18,9 +18,27 @@ from wheatley_installer.executor import ExecutorError, compile_steps, execute
 from wheatley_installer.identity import IdentityError, IdentitySpec, identity_steps
 from wheatley_installer.plan import PlanError, Selection, resolve_plan
 
-_DEFAULT_CATALOG = Path(__file__).resolve().parent.parent / "catalog" / "catalog.json"
+_REPO_CATALOG = Path(__file__).resolve().parent.parent / "catalog" / "catalog.json"
 
 EXIT_OK = 0
+
+
+def find_catalog(*, base_prefix: str = "/") -> Path:
+    """Locate catalog.json using ADR-9 search order.
+
+    1. $WHEATLEY_CATALOG env var (explicit override)
+    2. {base_prefix}/usr/share/wheatley-installer/catalog/catalog.json (packaged)
+    3. Repo-relative path (dev checkout fallback)
+    """
+    env_path = os.environ.get("WHEATLEY_CATALOG")
+    if env_path:
+        return Path(env_path)
+    packaged = (
+        Path(base_prefix.rstrip("/")) / "usr/share/wheatley-installer/catalog/catalog.json"
+    )
+    if packaged.exists():
+        return packaged
+    return _REPO_CATALOG
 EXIT_CANCELLED = 1
 EXIT_CATALOG = 2
 EXIT_INSTALL = 3
@@ -32,8 +50,8 @@ def _build_parser() -> argparse.ArgumentParser:
         description="Wheatley Linux installer — compose your own system.",
     )
     parser.add_argument(
-        "--catalog", type=Path, default=_DEFAULT_CATALOG, metavar="PATH",
-        help=f"path to catalog.json (default: {_DEFAULT_CATALOG})",
+        "--catalog", type=Path, default=None, metavar="PATH",
+        help="path to catalog.json (default: auto-detected via ADR-9 search order)",
     )
     parser.add_argument(
         "--target", default="/mnt", metavar="PATH",
@@ -150,6 +168,9 @@ def _print_summary(plan) -> None:
 def main(argv=None) -> int:
     args = _build_parser().parse_args(argv)
 
+    if args.catalog is None:
+        args.catalog = find_catalog()
+
     try:
         catalog = load_catalog(args.catalog)
     except CatalogError as exc:
@@ -212,10 +233,15 @@ def main(argv=None) -> int:
         except DiskError as exc:
             return _fail(f"Disk error: {exc}", EXIT_INSTALL)
 
+    # Resolve pacman.conf path: env override (for tests) or installed location.
+    pacman_conf_path = os.environ.get("WHEATLEY_PACMAN_CONF")
+    if pacman_conf_path is None and os.path.exists("/usr/share/wheatley/pacman.conf"):
+        pacman_conf_path = "/usr/share/wheatley/pacman.conf"
+
     try:
         steps = compile_steps(
             plan, target=args.target, init_id=selection.init_id,
-            disk_plan=disk_plan,
+            disk_plan=disk_plan, pacman_conf=pacman_conf_path,
         )
     except ExecutorError as exc:
         return _fail(f"Executor error: {exc}", EXIT_INSTALL)

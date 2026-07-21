@@ -49,3 +49,11 @@ _None yet._
 - Rationale: Cycle 6 delivered the disk+bootloader layer (disks.py, 236 tests, --disk wiring) — verified in the repo. The installed system now boots but is unusable and insecure: no hostname, no user, no password, no locale, no timezone — root with no credentials. The old whiptail script configured all of these; the new installer configures none. This is the last missing piece of 'a system that actually boots and you can log into', and it must exist as pure step-compilation before any wizard screen can collect the values, so it is the unambiguous depth-first next step.
 - Reviewer: 295 tests pass, 43 in test_identity.py (15 negative), password never leaks to argv/stdout/stderr, all 11 steps in correct order, RunCommand.stdin is backward-compatible, identity.py is 200 lines with no subprocess/curses imports
 
+
+
+## task-007 — Add disk-selection and identity text-entry screens to the wizard: pure form-field state machine (ui_forms.py) integrated into ui_model flow, rendered with masked password support, wired end-to-end in __main__
+- Capability: 9. Disk, boot & identity (required for 'installs & boots')
+- Complexity: complex
+- Rationale: Cycles 6–7 built the disk and identity layers as pure step compilers, but both are reachable ONLY via CLI flags (--disk, identity flags) — the actual wizard never asks for a target disk, hostname, username, password, locale, or timezone. The old whiptail installer collected all of these interactively; until the TUI does too, the 'friendly installer' cannot perform a real install without memorizing flags. This is the last functional gap before packaging (capability 10), and it purely deepens existing layers: ui_model gains screens, render/tui gain text input, __main__ swaps flag-plumbing for wizard output.
+- Reviewer: Implementation complete but ALL test criteria unmet: 295 tests (need ≥330), no ui_forms/disk/identity/render-secrecy tests written, and ui_model.py exceeds 500 lines.
+

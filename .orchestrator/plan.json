@@ -1,5 +1,5 @@
 {
-  "nextId": 8,
+  "nextId": 9,
   "tasks": [
     {
       "id": "task-001",
@@ -94,7 +94,7 @@
       "title": "Add disk-selection and identity text-entry screens to the wizard: pure form-field state machine (ui_forms.py) integrated into ui_model flow, rendered with masked password support, wired end-to-end in __main__",
       "capability": "9. Disk, boot & identity (required for 'installs & boots')",
       "complexity": "complex",
-      "status": "doing",
+      "status": "done",
       "files": [
         "packages/wheatley-installer/wheatley_installer/ui_forms.py",
         "packages/wheatley-installer/wheatley_installer/ui_model.py",
@@ -105,7 +105,25 @@
         "packages/wheatley-installer/tests/test_ui_model.py",
         "packages/wheatley-installer/tests/test_render.py"
       ],
-      "created": 1784618497137
+      "created": 1784618497137,
+      "completed": 1784619605309
+    },
+    {
+      "id": "task-008",
+      "title": "Ship the Python installer: rewrite PKGBUILD to package wheatley_installer + catalog + screenshots, add install-aware catalog resolution and a thin /usr/bin/wheatley-install launcher, and route pacstrap through the staged pacman.conf",
+      "capability": "10. Ship it — PKGBUILD ships the new Python installer as /usr/bin/wheatley-install",
+      "complexity": "standard",
+      "status": "doing",
+      "files": [
+        "packages/wheatley-installer/PKGBUILD",
+        "packages/wheatley-installer/wheatley-install",
+        "packages/wheatley-installer/wheatley_installer/__main__.py",
+        "packages/wheatley-installer/wheatley_installer/executor.py",
+        "packages/wheatley-installer/tests/test_packaging.py",
+        "packages/wheatley-installer/tests/test_main_headless.py",
+        "packages/wheatley-installer/tests/test_executor.py"
+      ],
+      "created": 1784619759290
     }
   ]
 }
