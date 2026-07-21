@@ -33,3 +33,11 @@ _None yet._
 - Rationale: Every logic layer is done and tested (catalog → plan → executor → ui_model wizard brain, 154 tests). The single missing piece between this stack and a usable installer is the view: something must paint Screens, translate keystrokes into Wizard events, and wire Selection → resolve_plan → compile_steps → execute. Nothing else on the roadmap can be meaningfully verified end-to-end until the program is actually runnable, so this is the unambiguous depth-first next step — it completes capability 1 rather than starting anything new.
 - Reviewer: All 186 tests pass, architecture is clean, files are within limits, and all acceptance criteria are provably met.
 
+
+
+## task-005 — Build the disk & bootloader layer: pure lsblk parsing, UEFI/BIOS partition planning, and compile_steps integration (sgdisk/mkfs/mount → pacstrap → grub) with dry-run support
+- Capability: 9. Disk, boot & identity (required for 'installs & boots')
+- Complexity: complex
+- Rationale: Capability 1 is complete: the installer runs end-to-end in dry-run (186 tests). But it cannot actually install a bootable system — it assumes /mnt is already partitioned/mounted and never installs a bootloader. The old whiptail script did sgdisk/mkfs/mount/grub; the new one does not. No roadmap item (gaming, DEs, greeter) matters until an install boots, so the disk+boot layer is the unambiguous depth-first next step: it deepens the existing executor rather than adding a new surface.
+- Reviewer: no diff to review
+

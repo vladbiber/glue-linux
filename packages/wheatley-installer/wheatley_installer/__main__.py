@@ -15,7 +15,8 @@ from pathlib import Path
 from wheatley_installer.catalog import CatalogError, load_catalog
 from wheatley_installer.disks import BlockDevice, DiskError, discover, plan_disk
 from wheatley_installer.executor import ExecutorError, compile_steps, execute
-from wheatley_installer.plan import PlanError, resolve_plan
+from wheatley_installer.identity import IdentityError, IdentitySpec, identity_steps
+from wheatley_installer.plan import PlanError, Selection, resolve_plan
 
 _DEFAULT_CATALOG = Path(__file__).resolve().parent.parent / "catalog" / "catalog.json"
 
@@ -55,6 +56,32 @@ def _build_parser() -> argparse.ArgumentParser:
         "--firmware", choices=("auto", "uefi", "bios"), default="auto",
         help="boot firmware type (default: auto = detect /sys/firmware/efi)",
     )
+    # Identity flags
+    parser.add_argument(
+        "--hostname", default="wheatley", metavar="NAME",
+        help="system hostname (default: wheatley)",
+    )
+    parser.add_argument(
+        "--username", default=None, metavar="NAME",
+        help="primary user account to create (skipped if omitted)",
+    )
+    parser.add_argument(
+        "--password", default=None, metavar="SECRET",
+        help="password for the new user and root (only meaningful with --username)",
+    )
+    parser.add_argument(
+        "--locale", default="en_US.UTF-8", metavar="LOCALE",
+        help="system locale in ll_CC.UTF-8 form (default: en_US.UTF-8)",
+    )
+    parser.add_argument(
+        "--timezone", default="UTC", metavar="TZ",
+        help="system timezone in Area/City form (default: UTC)",
+    )
+    parser.add_argument(
+        "--headless", action="store_true",
+        help="skip the interactive TUI and use a minimal default selection "
+             "(useful for scripted/dry-run use)",
+    )
     return parser
 
 
@@ -88,6 +115,24 @@ def _resolve_disk(path: str, *, dry_run: bool) -> BlockDevice:
     raise DiskError(f"No such disk: {path}")
 
 
+def _headless_selection(catalog) -> Selection:
+    """Build a minimal Selection from catalog defaults without running the TUI."""
+    kernel_id = catalog.kernels[0].id if catalog.kernels else "linux-cachyos"
+    init_id = next(
+        (i.id for i in catalog.inits if "dinit" in i.id),
+        catalog.inits[0].id if catalog.inits else "dinit",
+    )
+    return Selection(
+        kernel_id=kernel_id,
+        init_id=init_id,
+        session_ids=[],
+        shell_choice={},
+        support_ids=[],
+        gaming=False,
+        minimal=True,
+    )
+
+
 def _fail(message: str, code: int) -> int:
     print(message, file=sys.stderr)
     return code
@@ -118,16 +163,19 @@ def main(argv=None) -> int:
         )
         return EXIT_OK
 
-    # Imported lazily so headless modes work even where curses is unusable.
-    from wheatley_installer.tui import run_tui
+    if args.headless:
+        selection = _headless_selection(catalog)
+    else:
+        # Imported lazily so headless modes work even where curses is unusable.
+        from wheatley_installer.tui import run_tui
 
-    try:
-        selection = run_tui(catalog)
-    except KeyboardInterrupt:
-        selection = None
-    if selection is None:
-        print("Cancelled.")
-        return EXIT_CANCELLED
+        try:
+            selection = run_tui(catalog)
+        except KeyboardInterrupt:
+            selection = None
+        if selection is None:
+            print("Cancelled.")
+            return EXIT_CANCELLED
 
     try:
         plan = resolve_plan(catalog, selection)
@@ -152,6 +200,21 @@ def main(argv=None) -> int:
         )
     except ExecutorError as exc:
         return _fail(f"Executor error: {exc}", EXIT_INSTALL)
+
+    # Append identity steps when a username was provided
+    if args.username is not None:
+        password = args.password or ""
+        try:
+            spec = IdentitySpec(
+                hostname=args.hostname,
+                username=args.username,
+                password=password,
+                locale=args.locale,
+                timezone=args.timezone,
+            )
+        except IdentityError as exc:
+            return _fail(f"Identity error: {exc}", EXIT_INSTALL)
+        steps = steps + identity_steps(spec, target=args.target)
 
     _print_summary(plan)
 

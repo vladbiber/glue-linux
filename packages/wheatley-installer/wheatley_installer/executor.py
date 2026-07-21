@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import os
 import subprocess
-from dataclasses import dataclass
-from typing import Callable, List, Union
+from dataclasses import dataclass, field
+from typing import Callable, List, Optional, Union
 
 from wheatley_installer.plan import InstallPlan
 
@@ -27,6 +27,7 @@ class ExecutorError(Exception):
 class RunCommand:
     argv: List[str]
     description: str
+    stdin: Optional[str] = field(default=None)
 
 
 @dataclass
@@ -168,7 +169,11 @@ def execute(
             continue
 
         if isinstance(step, RunCommand):
-            result = subprocess.run(step.argv)
+            kwargs = {}
+            if step.stdin is not None:
+                kwargs["input"] = step.stdin
+                kwargs["text"] = True
+            result = subprocess.run(step.argv, **kwargs)
             if result.returncode != 0:
                 raise ExecutorError(
                     f"Command failed (exit {result.returncode}): {step.description}"

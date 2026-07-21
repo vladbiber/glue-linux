@@ -1,5 +1,5 @@
 {
-  "nextId": 6,
+  "nextId": 7,
   "tasks": [
     {
       "id": "task-001",
@@ -34,7 +34,7 @@
       "title": "Build the executor layer: pure InstallPlan→Step compiler plus a dry-run-capable runner (pacstrap, chroot file writes, init-specific service enabling)",
       "capability": "1. Installer shell — friendly, composable",
       "complexity": "standard",
-      "status": "doing",
+      "status": "todo",
       "files": [
         "packages/wheatley-installer/wheatley_installer/executor.py",
         "packages/wheatley-installer/tests/test_executor.py"
@@ -62,7 +62,7 @@
       "title": "Build the disk & bootloader layer: pure lsblk parsing, UEFI/BIOS partition planning, and compile_steps integration (sgdisk/mkfs/mount → pacstrap → grub) with dry-run support",
       "capability": "9. Disk, boot & identity (required for 'installs & boots')",
       "complexity": "complex",
-      "status": "doing",
+      "status": "done",
       "files": [
         "packages/wheatley-installer/wheatley_installer/disks.py",
         "packages/wheatley-installer/wheatley_installer/executor.py",
@@ -70,7 +70,23 @@
         "packages/wheatley-installer/tests/test_disks.py",
         "packages/wheatley-installer/tests/test_executor_disk.py"
       ],
-      "created": 1784567596284
+      "created": 1784567596284,
+      "completed": 1784567910131
+    },
+    {
+      "id": "task-006",
+      "title": "Build the identity layer: pure IdentitySpec + identity_steps (hostname, locale, timezone, user + password via chpasswd stdin) with RunCommand stdin support, wired into __main__",
+      "capability": "9. Disk, boot & identity (required for 'installs & boots')",
+      "complexity": "standard",
+      "status": "doing",
+      "files": [
+        "packages/wheatley-installer/wheatley_installer/identity.py",
+        "packages/wheatley-installer/wheatley_installer/executor.py",
+        "packages/wheatley-installer/wheatley_installer/__main__.py",
+        "packages/wheatley-installer/tests/test_identity.py",
+        "packages/wheatley-installer/tests/test_main_headless.py"
+      ],
+      "created": 1784617976616
     }
   ]
 }

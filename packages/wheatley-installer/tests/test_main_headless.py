@@ -93,5 +93,137 @@ class TestCliBasics(unittest.TestCase):
         self.assertEqual(module.main(["--validate-catalog"]), 0)
 
 
+class TestIdentityFlags(unittest.TestCase):
+    """Verify --username/--password/--hostname/--locale/--timezone in headless dry-run."""
+
+    def _run_headless_dryrun(self, *extra):
+        return _run_module(
+            "--headless", "--dry-run",
+            "--disk", "/dev/fake",
+            *extra,
+        )
+
+    def test_headless_dry_run_exits_zero(self):
+        result = self._run_headless_dryrun(
+            "--username", "testuser", "--password", "mypassword"
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_identity_steps_appear_in_dry_run_output(self):
+        result = self._run_headless_dryrun(
+            "--username", "testuser", "--password", "mypassword"
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        output = result.stdout + result.stderr
+        self.assertIn("hostname", output.lower())
+        self.assertIn("testuser", output)
+
+    def test_password_never_in_stdout(self):
+        result = self._run_headless_dryrun(
+            "--username", "testuser", "--password", "s3cr3tP@ss"
+        )
+        self.assertNotIn("s3cr3tP@ss", result.stdout)
+
+    def test_password_never_in_stderr(self):
+        result = self._run_headless_dryrun(
+            "--username", "testuser", "--password", "s3cr3tP@ss"
+        )
+        self.assertNotIn("s3cr3tP@ss", result.stderr)
+
+    def test_custom_hostname_appears_in_output(self):
+        result = self._run_headless_dryrun(
+            "--username", "testuser", "--password", "pw",
+            "--hostname", "mycustom"
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("mycustom", result.stdout)
+
+    def test_custom_timezone_appears_in_output(self):
+        result = self._run_headless_dryrun(
+            "--username", "testuser", "--password", "pw",
+            "--timezone", "Europe/Berlin"
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Europe/Berlin", result.stdout)
+
+    def test_custom_locale_appears_in_output(self):
+        result = self._run_headless_dryrun(
+            "--username", "testuser", "--password", "pw",
+            "--locale", "de_DE.UTF-8"
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("de_DE.UTF-8", result.stdout)
+
+    def test_invalid_hostname_exits_nonzero(self):
+        result = self._run_headless_dryrun(
+            "--username", "testuser", "--password", "pw",
+            "--hostname", "BAD-HOST"
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Identity error", result.stderr)
+
+    def test_invalid_username_exits_nonzero(self):
+        result = self._run_headless_dryrun(
+            "--username", "1baduser", "--password", "pw"
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Identity error", result.stderr)
+
+    def test_empty_password_exits_nonzero(self):
+        result = self._run_headless_dryrun(
+            "--username", "testuser", "--password", ""
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Identity error", result.stderr)
+
+    def test_no_username_no_identity_steps(self):
+        # Without --username, no identity steps should appear
+        result = self._run_headless_dryrun()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        # No useradd or chpasswd in output
+        self.assertNotIn("useradd", result.stdout)
+        self.assertNotIn("chpasswd", result.stdout.lower())
+
+    def test_headless_flag_in_help(self):
+        result = _run_module("--help")
+        self.assertIn("--headless", result.stdout)
+        self.assertIn("--username", result.stdout)
+        self.assertIn("--password", result.stdout)
+        self.assertIn("--hostname", result.stdout)
+
+
+class TestExecutorStdin(unittest.TestCase):
+    """Verify that execute() passes stdin to subprocess for RunCommand with stdin set."""
+
+    def test_stdin_field_default_is_none(self):
+        from wheatley_installer.executor import RunCommand
+        step = RunCommand(argv=["echo", "hi"], description="test")
+        self.assertIsNone(step.stdin)
+
+    def test_stdin_field_can_be_set(self):
+        from wheatley_installer.executor import RunCommand
+        step = RunCommand(argv=["cat"], description="test", stdin="hello\n")
+        self.assertEqual(step.stdin, "hello\n")
+
+    def test_execute_dry_run_does_not_print_stdin(self):
+        """Dry-run output never exposes stdin contents."""
+        import io
+        from wheatley_installer.executor import RunCommand, execute
+        secret = "hunter2_secret_value"
+        step = RunCommand(argv=["chpasswd"], description="Set password", stdin=f"root:{secret}\n")
+        log_lines = []
+        execute([step], dry_run=True, log=log_lines.append)
+        combined = "\n".join(log_lines)
+        self.assertNotIn(secret, combined)
+
+    def test_execute_dry_run_still_logs_description(self):
+        """Dry-run logs the description even for stdin-carrying steps."""
+        from wheatley_installer.executor import RunCommand, execute
+        step = RunCommand(argv=["chpasswd"], description="Set password for alice", stdin="alice:pw\n")
+        log_lines = []
+        execute([step], dry_run=True, log=log_lines.append)
+        self.assertTrue(any("Set password for alice" in line for line in log_lines))
+
+
 if __name__ == "__main__":
     unittest.main()
