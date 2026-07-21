@@ -162,6 +162,39 @@ def _fail(message: str, code: int) -> int:
     return code
 
 
+# -- root auto-elevation ------------------------------------------------------
+
+def build_elevation_argv(argv, *, which, executable) -> list:
+    """Argv to re-exec this installer under sudo (pure; testable).
+
+    Prefers the packaged /usr/bin/wheatley-install launcher (it restores the
+    PYTHONPATH that sudo's env_reset strips); falls back to `sudo <python> -m
+    wheatley_installer` for dev checkouts run from the repo root.
+    """
+    launcher = which("wheatley-install")
+    if launcher:
+        return ["sudo", launcher] + list(argv)
+    return ["sudo", executable, "-m", "wheatley_installer"] + list(argv)
+
+
+def _ensure_root(argv) -> None:
+    """Re-exec under sudo when a REAL install could follow (never for
+    --dry-run / --validate-catalog). Everything disk-touching (sgdisk, mkfs,
+    basestrap, chroot) needs root — failing at step 1 of the install after
+    the whole wizard was filled in is the worst possible moment."""
+    import shutil
+    if os.geteuid() == 0:
+        return
+    sudo_argv = build_elevation_argv(
+        argv, which=shutil.which, executable=sys.executable,
+    )
+    print("Installer needs root — re-running with sudo...")
+    try:
+        os.execvp(sudo_argv[0], sudo_argv)
+    except OSError:
+        sys.exit("This installer must run as root: sudo wheatley-install")
+
+
 # -- TUI I/O hooks (the tui module itself never touches subprocess) ----------
 
 def _net_check() -> str:
@@ -210,6 +243,11 @@ def _print_summary(plan) -> None:
 
 def main(argv=None) -> int:
     args = _build_parser().parse_args(argv)
+
+    # Root is mandatory for a real install; elevate BEFORE the wizard so the
+    # user never fills in every screen only to fail at the first disk step.
+    if not args.dry_run and not args.validate_catalog:
+        _ensure_root(argv if argv is not None else sys.argv[1:])
 
     if args.catalog is None:
         args.catalog = find_catalog()

@@ -285,3 +285,24 @@ class TestExecutorStdin(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestRootElevation(unittest.TestCase):
+    """build_elevation_argv: sudo re-exec argv for the root requirement."""
+
+    def test_prefers_packaged_launcher(self):
+        from wheatley_installer.__main__ import build_elevation_argv
+        argv = build_elevation_argv(
+            ["--target", "/mnt"],
+            which=lambda name: "/usr/bin/wheatley-install",
+            executable="/usr/bin/python3",
+        )
+        self.assertEqual(
+            argv, ["sudo", "/usr/bin/wheatley-install", "--target", "/mnt"])
+
+    def test_falls_back_to_python_module(self):
+        from wheatley_installer.__main__ import build_elevation_argv
+        argv = build_elevation_argv(
+            [], which=lambda name: None, executable="/usr/bin/python3")
+        self.assertEqual(
+            argv, ["sudo", "/usr/bin/python3", "-m", "wheatley_installer"])

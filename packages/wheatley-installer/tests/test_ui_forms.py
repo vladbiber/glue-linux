@@ -45,6 +45,7 @@ def _retype(wizard: Wizard, text: str) -> None:
 def _wizard_at_forms(disks=None) -> Wizard:
     """Minimal-mode wizard advanced to the disk screen (or first form)."""
     w = Wizard(_CATALOG, disks=disks, ask_identity=True)
+    w.set_network_status("connected")   # network screen blocks Next otherwise
     w.next()                            # welcome -> network
     w.next()                            # network -> mode
     w.apply(Choose("minimal"))

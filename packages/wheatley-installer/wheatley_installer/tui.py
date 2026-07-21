@@ -175,6 +175,10 @@ def _loop(stdscr, wizard: Wizard, hooks: dict) -> Optional[WizardResult]:
         error = None  # any keypress clears the previous error line
 
         if key in (curses.KEY_ENTER, 10, 13):
+            if screen.key == "network" and hooks.get("net_check"):
+                # Re-check on every attempt: the user may have just plugged
+                # in a cable or finished nmtui. Validation blocks if offline.
+                wizard.set_network_status(hooks["net_check"]())
             was_manual_disk = (
                 screen.key == "disk" and wizard.disk_mode == "manual"
             )

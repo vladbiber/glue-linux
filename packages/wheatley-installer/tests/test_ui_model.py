@@ -19,7 +19,9 @@ _CATALOG = load_catalog(_CATALOG_PATH)
 
 
 def _new_wizard() -> Wizard:
-    return Wizard(_CATALOG)
+    w = Wizard(_CATALOG)
+    w.set_network_status("connected")  # network screen blocks Next otherwise
+    return w
 
 
 def _advance_to(wizard: Wizard, key: str) -> None:
@@ -511,6 +513,7 @@ class TestDiskModeAndPartitionFlow(unittest.TestCase):
 
     def _wizard_at_diskmode(self):
         w = Wizard(_CATALOG, disks=[self._Disk()])
+        w.set_network_status("connected")
         w.set_partitions([self._Part("/dev/vda2"),
                           self._Part("/dev/vda1", esp=True),
                           self._Part("/dev/vda3", mounted=True)])
@@ -567,3 +570,40 @@ class TestDiskModeAndPartitionFlow(unittest.TestCase):
         self.assertEqual(screen.key, "network")
         self.assertIn("OFFLINE", screen.notice)
         self.assertIn("nmtui", screen.notice)
+
+
+class TestMandatoryNetwork(unittest.TestCase):
+    """The network screen HARD-BLOCKS Next until status is 'connected'."""
+
+    def _at_network(self, status):
+        w = Wizard(_CATALOG)
+        w.set_network_status(status)
+        w.next()  # welcome -> network
+        self.assertEqual(w.current_screen().key, "network")
+        return w
+
+    def test_offline_blocks_next(self):
+        w = self._at_network("OFFLINE")
+        with self.assertRaises(ValidationError) as ctx:
+            w.next()
+        self.assertIn("internet", str(ctx.exception).lower())
+        self.assertEqual(w.current_screen().key, "network")  # still here
+
+    def test_initial_checking_status_also_blocks(self):
+        w = Wizard(_CATALOG)
+        w.next()
+        with self.assertRaises(ValidationError):
+            w.next()
+
+    def test_connected_allows_next(self):
+        w = self._at_network("connected")
+        w.next()
+        self.assertEqual(w.current_screen().key, "mode")
+
+    def test_reconnect_after_block_unblocks(self):
+        w = self._at_network("OFFLINE")
+        with self.assertRaises(ValidationError):
+            w.next()
+        w.set_network_status("connected")  # user fixed it via nmtui
+        w.next()
+        self.assertEqual(w.current_screen().key, "mode")

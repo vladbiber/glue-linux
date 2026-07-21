@@ -22,8 +22,7 @@ from wheatley_installer.plan import Selection
 from wheatley_installer.ui_forms import (
     FormField, build_identity_fields, disk_label, masked, submit_form,
 )
-# Re-exported for backwards compatibility: everything under ui_view used to
-# live in this module (render, tui and the tests import it from here).
+# Re-exported for compat: these lived here before the ui_view split.
 from wheatley_installer.ui_view import (  # noqa: F401
     DE_SECTION, DISK_MANUAL_NOTICE, DISK_NOTICE, DISKMODE_NOTICE,
     NETWORK_NOTICE_TEMPLATE, PARTITION_NOTICE, SESSIONS_NOTICE, WELCOME_NOTICE,
@@ -130,6 +129,9 @@ class Wizard:
 
     def _validate_current(self) -> None:
         key = self._current_key
+        if key == "network" and self._network_status != "connected":
+            raise ValidationError("No internet connection — press N to "
+                                  "connect (nmtui), then Enter to re-check.")
         if key == "kernel" and self._kernel_id is None:
             raise ValidationError("Select a kernel to continue.")
         if key == "init" and self._init_id is None:

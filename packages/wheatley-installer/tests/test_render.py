@@ -23,6 +23,7 @@ W, H = 80, 24
 def _wizard_at(key: str) -> Wizard:
     """Drive a fresh wizard along the happy path until screen `key`."""
     w = Wizard(_CATALOG)
+    w.set_network_status("connected")  # network screen blocks Next otherwise
     for _ in range(30):
         screen = w.current_screen()
         if screen.key == key:
@@ -266,6 +267,7 @@ class TestFormSecrecy(unittest.TestCase):
 
     def _wizard_with_password(self):
         w = Wizard(_CATALOG, ask_identity=True)
+        w.set_network_status("connected")
         w.next()                              # welcome -> network
         w.next()                              # network -> mode
         w.apply(Choose("minimal"))

@@ -32,9 +32,10 @@ WELCOME_NOTICE = (
 
 NETWORK_NOTICE_TEMPLATE = (
     "Internet: {status}. "
-    "Installing packages needs a working connection. "
-    "Press N to open the network tool (nmtui) — connect to Wi-Fi or "
-    "check your cable there, then come back and continue."
+    "A working connection is REQUIRED — the installer downloads every "
+    "package. You cannot continue until you are online. "
+    "Press N to open the network tool (nmtui): connect to Wi-Fi or "
+    "check your cable there, then press Enter to re-check and continue."
 )
 
 DISKMODE_NOTICE = (
