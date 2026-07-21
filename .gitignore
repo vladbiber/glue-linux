@@ -18,3 +18,5 @@ packages/apeturewm/apeturewm/
 packages/atomwm/atomwm/
 # tooling
 .claude-flow/
+__pycache__/
+*.pyc
