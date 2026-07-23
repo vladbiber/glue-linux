@@ -104,12 +104,23 @@ a code change.
 
 ### Option A — Download a prebuilt ISO (easiest)
 
-Grab the latest `wheatley-runit-*-x86_64.iso` from the
-**[Releases page](https://github.com/Vifuddyxg/wheatley-linux/releases)**, then
-jump to [Putting the ISO on a USB stick](#putting-the-iso-on-a-usb-stick).
-That's it — no build needed.
+The ISO is hosted on the Internet Archive (it is over GitHub's 2 GiB
+per-file release limit):
 
-*(If there's no release yet, use Option B.)*
+- **Direct download:**
+  [wheatley-runit-20260722-x86_64.iso](https://archive.org/download/wheatley-linux/wheatley-runit-20260722-x86_64.iso)
+- Item page (with torrent): <https://archive.org/details/wheatley-linux>
+
+Verify it:
+
+```sh
+sha256sum wheatley-runit-20260722-x86_64.iso
+# a93c8d7acdfaf512e2df4c80a9b2105f7798295d387c5b0f0667491aa5d961e4
+```
+
+Then jump to [Putting the ISO on a USB stick](#putting-the-iso-on-a-usb-stick).
+No build needed. Release notes and checksums also live on the
+[Releases page](https://github.com/Vifuddyxg/wheatley-linux/releases).
 
 ### Option B — Build it yourself
 
