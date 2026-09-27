@@ -1,4 +1,4 @@
-# Wheatley Linux build environment.
+# Glue Linux build environment.
 # An Artix container with artools + CachyOS repo, used to build the custom
 # package repo and then the ISO. Must be run with --privileged (loop devices,
 # overlayfs, squashfs) — see build.sh.
@@ -41,8 +41,8 @@ RUN set -eux; \
 RUN useradd -m -G wheel builder && \
     echo 'builder ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/builder
 
-WORKDIR /wheatley
-COPY . /wheatley
-RUN chown -R builder:builder /wheatley
+WORKDIR /glue
+COPY . /glue
+RUN chown -R builder:builder /glue
 
-ENTRYPOINT ["/wheatley/scripts/make-iso.sh"]
+ENTRYPOINT ["/glue/scripts/make-iso.sh"]

@@ -1,0 +1,63 @@
+# Maintainer: Glue Linux
+pkgname=st-glue
+_pkgname=st
+pkgver=0.9.2
+pkgrel=1
+pkgdesc="suckless terminal (st) themed with the Glue amber palette"
+arch=('x86_64')
+url="https://st.suckless.org"
+license=('MIT')
+depends=('libxft' 'libxext' 'ttf-jetbrains-mono')
+makedepends=('perl')
+provides=('st')
+conflicts=('st')
+source=("https://dl.suckless.org/st/${_pkgname}-${pkgver}.tar.gz")
+sha256sums=('SKIP')
+
+prepare() {
+    cd "$srcdir/${_pkgname}-${pkgver}"
+
+    # ----- Glue palette: bg #100A02, fg/bright #F1B00A, lines #A66900 -----
+    perl -0777 -i -pe 's/static const char \*colorname\[\].*?\};/static const char *colorname[] = {
+\t\/* 8 normal colors *\/
+\t"#100A02", "#b3402a", "#8a7a1f", "#A66900",
+\t"#6b5a2a", "#9a5a3a", "#c0861a", "#d9a441",
+\t\/* 8 bright colors *\/
+\t"#5a4422", "#d9583a", "#b6a02a", "#F1B00A",
+\t"#8a743a", "#c4724a", "#e0a52a", "#F1B00A",
+\t[255] = 0,
+\t"#F1B00A", \/* 256 cursor *\/
+\t"#100A02", \/* 257 reverse cursor *\/
+\t"#F1B00A", \/* 258 *\/
+\t"#100A02", \/* 259 *\/
+};/s' config.def.h
+
+    # defaults: fg = light amber (7), bg = #100A02 (0), cursor = amber (256)
+    perl -i -pe 's/^unsigned int defaultfg = .*/unsigned int defaultfg = 7;/' config.def.h
+    perl -i -pe 's/^unsigned int defaultbg = .*/unsigned int defaultbg = 0;/' config.def.h
+    perl -i -pe 's/^unsigned int defaultcs = .*/unsigned int defaultcs = 256;/' config.def.h
+
+    # font
+    perl -i -pe 's/^static char \*font = .*/static char *font = "JetBrains Mono:pixelsize=14:antialias=true:autohint=true";/' config.def.h
+
+    # ensure our edited config is the one used
+    cp config.def.h config.h
+}
+
+build() {
+    cd "$srcdir/${_pkgname}-${pkgver}"
+    make X11INC=/usr/include/X11 X11LIB=/usr/lib/X11
+}
+
+package() {
+    cd "$srcdir/${_pkgname}-${pkgver}"
+
+    # Binary + man only. We deliberately DON'T ship terminfo: ncurses already
+    # provides `st` and `st-256color`, and installing our own collides with it
+    # (file conflict in /usr/share/terminfo). st runs fine with the ncurses
+    # st-256color entry, so there's nothing to compile.
+    install -Dm755 st "$pkgdir/usr/bin/st"
+    install -Dm644 st.1 "$pkgdir/usr/share/man/man1/st.1"
+    sed -i "s/VERSION/$pkgver/g" "$pkgdir/usr/share/man/man1/st.1"
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

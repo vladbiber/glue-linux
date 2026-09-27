@@ -1,4 +1,4 @@
-# Maintainer: Wheatley Linux
+# Maintainer: Glue Linux
 pkgname=atomwm
 pkgver=r1
 pkgrel=2
@@ -9,7 +9,7 @@ license=('custom')
 # talks raw X11 over the socket (no link-time X libs); runtime deps below are
 # for the session wrapper: startx to bring up X, dbus for the session bus.
 depends=('xorg-xinit' 'dbus')
-optdepends=('st-wheatley: terminal' 'rofi: launcher'
+optdepends=('st-glue: terminal' 'rofi: launcher'
             'xorg-server: X server' 'pipewire: audio'
             'wireplumber: audio session manager'
             'pipewire-pulse: PulseAudio-compatible audio')
@@ -30,7 +30,7 @@ pkgver() {
 
 prepare() {
     cd "$srcdir/$pkgname"
-    # default terminal -> Wheatley-themed st
+    # default terminal -> Glue-themed st
     sed -i 's/cmd_term   = "alacritty"/cmd_term   = "st"/' config.h
 }
 

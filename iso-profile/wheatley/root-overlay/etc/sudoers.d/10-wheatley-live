@@ -1,6 +1,0 @@
-## Wheatley live session: the live user must sudo without a password so the
-## installer's automatic root elevation can never prompt or fail.
-## Both rules on purpose: the user by name (works even if the initramfs user
-## setup ever drops the wheel group) and wheel as a safety net.
-wheatley ALL=(ALL) NOPASSWD: ALL
-%wheel ALL=(ALL) NOPASSWD: ALL

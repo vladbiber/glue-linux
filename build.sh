@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# build.sh — build the Wheatley Linux ISO on any host with Docker.
+# build.sh — build the Glue Linux ISO on any host with Docker.
 # Spins an Artix build container (artools + CachyOS repo), builds the custom
 # package repo, and runs buildiso. The finished ISO lands in ./out/.
 set -euo pipefail
 cd "$(dirname "$0")"
 
-IMAGE=wheatley-build
+IMAGE=glue-build
 OUT="$PWD/out"
 # buildiso layers livefs over rootfs with overlayfs. Its workdir must live on a
 # real disk fs (ext4) that supports being an overlayfs upperdir — Docker's own

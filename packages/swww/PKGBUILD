@@ -1,6 +1,6 @@
-# Maintainer: Wheatley Linux
+# Maintainer: Glue Linux
 # swww is AUR-only upstream; the imperative-qs bar uses it for wallpapers,
-# so Wheatley ships it in the local repo (built from the release tag).
+# so Glue ships it in the local repo (built from the release tag).
 # Pinned to 0.9.5 (pre-waybackend, wayland-client based): every waybackend-
 # scanner release (0.4.x-0.6.x) panics on the `frozen` attribute in current wayland.xml.
 pkgname=swww

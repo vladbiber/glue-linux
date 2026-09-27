@@ -1,0 +1,3 @@
+#!/bin/sh
+exec env PYTHONPATH="/usr/lib/glue-installer${PYTHONPATH:+:$PYTHONPATH}" \
+    python3 -m glue_installer "$@"

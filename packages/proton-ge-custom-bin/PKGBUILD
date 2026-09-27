@@ -1,4 +1,4 @@
-# Maintainer: Wheatley Linux
+# Maintainer: Glue Linux
 # GloriousEggroll's Proton GE, installed system-wide where Steam picks it up
 # (Steam > Settings > Compatibility, or per-game Properties > Compatibility).
 pkgname=proton-ge-custom-bin

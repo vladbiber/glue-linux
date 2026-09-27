@@ -12,7 +12,7 @@ packages/*/pkg/
 packages/*/*.pkg.tar.*
 packages/*/*.tar.gz
 # pacman.conf staged next to the installer PKGBUILD by make-iso.sh (in-container)
-packages/wheatley-installer/pacman.conf
+packages/glue-installer/pacman.conf
 # git clones makepkg creates from VCS sources
 packages/apeturewm/apeturewm/
 packages/atomwm/atomwm/

@@ -1,14 +1,14 @@
-# Maintainer: Wheatley Linux
+# Maintainer: Glue Linux
 pkgname=apeturewm
 pkgver=r1
 pkgrel=2
-pkgdesc="Small fast tiling window manager for X11 (Wheatley themed)"
+pkgdesc="Small fast tiling window manager for X11 (Glue themed)"
 arch=('x86_64')
 url="https://github.com/Vifuddyxg/apeturewm"
 license=('custom')
 depends=('libx11' 'libxinerama' 'libxrandr' 'libxcomposite' 'libxrender'
          'xorg-xinit' 'dbus')
-optdepends=('rofi: application launcher' 'st-wheatley: terminal'
+optdepends=('rofi: application launcher' 'st-glue: terminal'
             'pipewire: audio' 'wireplumber: audio session manager'
             'pipewire-pulse: PulseAudio-compatible audio')
 makedepends=('git')

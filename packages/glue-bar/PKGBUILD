@@ -1,0 +1,20 @@
+# Maintainer: Glue Linux
+pkgname=glue-bar
+pkgver=1
+pkgrel=1
+pkgdesc="Glue's amber Quickshell bar: clock, volume, battery on every monitor"
+arch=('any')
+url="https://github.com/Vifuddyxg"
+license=('MIT')
+depends=('quickshell')
+# shell.qml lives next to this PKGBUILD (installed via $startdir, same pattern
+# as glue-installer's module files)
+source=()
+sha256sums=()
+
+package() {
+    # system-wide quickshell config, launched with:  qs -c glue-bar
+    # (same layout noctalia-shell uses: /etc/xdg/quickshell/<name>/shell.qml)
+    install -Dm644 "$startdir/shell.qml" \
+        "$pkgdir/etc/xdg/quickshell/glue-bar/shell.qml"
+}

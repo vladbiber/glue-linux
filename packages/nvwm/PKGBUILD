@@ -1,4 +1,4 @@
-# Maintainer: Wheatley Linux
+# Maintainer: Glue Linux
 pkgname=nvwm
 pkgver=r1
 pkgrel=2
@@ -10,7 +10,7 @@ license=('custom')
 # shipped ENABLED (pactl/playerctl/brightnessctl spawns) — hard deps, not opt
 depends=('libx11' 'libxinerama' 'libxrandr' 'libxcomposite' 'libxrender'
          'xorg-xinit' 'dbus' 'libpulse' 'playerctl' 'brightnessctl')
-optdepends=('rofi: application launcher' 'st-wheatley: terminal'
+optdepends=('rofi: application launcher' 'st-glue: terminal'
             'picom: compositor (nvwm ships a picom.conf)'
             'pipewire: audio' 'wireplumber: audio session manager'
             'pipewire-pulse: PulseAudio-compatible audio')
@@ -25,7 +25,7 @@ pkgver() {
 
 prepare() {
     cd "$srcdir/$pkgname"
-    # default terminal -> Wheatley-themed st (upstream config spawns alacritty)
+    # default terminal -> Glue-themed st (upstream config spawns alacritty)
     sed -i -e 's/^terminal       = alacritty/terminal       = st/' \
            -e 's/spawn:alacritty/spawn:st/g' config.conf
     # the volume / media / brightness keys must be ACTIVE however upstream

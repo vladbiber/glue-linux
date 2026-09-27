@@ -1,3 +1,0 @@
-#!/bin/sh
-exec env PYTHONPATH="/usr/lib/wheatley-installer${PYTHONPATH:+:$PYTHONPATH}" \
-    python3 -m wheatley_installer "$@"
