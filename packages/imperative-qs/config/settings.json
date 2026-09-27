@@ -1,0 +1,10 @@
+{
+  "uiScale": 0.9,
+  "openGuideAtStartup": true,
+  "topbarHelpIcon": true,
+  "language": "",
+  "kbOptions": "grp:alt_shift_toggle",
+  "workspaceCount": 6,
+  "keybinds": [],
+  "startup": []
+}

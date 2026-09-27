@@ -1,0 +1,36 @@
+# Maintainer: Wheatley Linux
+pkgname=imperative-qs
+pkgver=1
+pkgrel=4
+pkgdesc="ilyamiro's Imperative Quickshell bar/desktop (topbar, launcher, calendar, wallpapers) for MangoWC/Niri"
+arch=('any')
+url="https://github.com/ilyamiro/nixos-configuration"
+license=('custom')
+# hyprlock deliberately NOT a hard dep: the config only pgreps it to detect
+# an external locker (its own lock is Lock.qml via quickshell), and Artix's
+# hyprlock is currently uninstallable (libhyprutils.so soname mismatch).
+# libpulse: watchers/audio_wait.sh blocks on `pactl subscribe` — without it
+# the fetch->wait Process loop in TopBar.qml respawns bash nonstop (the
+# "50% CPU" bug seen on real hardware). ttf-iosevka-nerd: every icon glyph in
+# the QMLs is font.family "Iosevka Nerd Font" — without it, tofu boxes.
+depends=('quickshell' 'jq' 'curl' 'python' 'socat'
+         'playerctl' 'brightnessctl' 'libnotify' 'wl-clipboard'
+         'cliphist' 'cava' 'swww' 'matugen'
+         'libpulse' 'ttf-iosevka-nerd' 'noto-fonts-emoji')
+optdepends=('hyprlock: external screen locker detection')
+# config/ tree lives next to this PKGBUILD (staged, sanitized copy of the
+# upstream dots: no secrets, loginctl instead of systemctl, no personal paths)
+source=()
+sha256sums=()
+
+package() {
+    # each new user gets the dots at the exact relative paths the QML and
+    # helper scripts expect (~/.config/hypr/...)
+    local dest="$pkgdir/etc/skel/.config/hypr"
+    install -dm755 "$dest"
+    cp -a "$startdir/config/." "$dest/"
+    # normalize permissions: dirs 755, files 644, scripts executable
+    find "$dest" -type d -exec chmod 755 {} +
+    find "$dest" -type f -exec chmod 644 {} +
+    find "$dest" -type f \( -name '*.sh' -o -name '*.py' \) -exec chmod 755 {} +
+}

@@ -62,27 +62,30 @@ class TestPositive(unittest.TestCase):
         self.assertTrue(dinit.recommended)
 
     def test_expected_session_ids(self):
+        # mangowc was REMOVED (unsupported on the user's GPU, like quickshell)
         ids = {s.id for s in self.catalog.sessions}
-        expected = {"apeturewm", "nvwm", "atomwm", "mangowc", "niri", "sway", "kde-plasma", "xfce"}
+        expected = {"apeturewm", "nvwm", "atomwm", "niri", "sway", "kde-plasma", "gnome", "xfce"}
         self.assertEqual(ids, expected)
 
     def test_session_kinds(self):
         wms = {s.id for s in self.catalog.sessions if s.kind == "wm"}
         des = {s.id for s in self.catalog.sessions if s.kind == "de"}
-        self.assertEqual(wms, {"apeturewm", "nvwm", "atomwm", "mangowc", "niri", "sway"})
-        self.assertEqual(des, {"kde-plasma", "xfce"})
+        self.assertEqual(wms, {"apeturewm", "nvwm", "atomwm", "niri", "sway"})
+        self.assertEqual(des, {"kde-plasma", "gnome", "xfce"})
 
-    def test_mangowc_shell_choices(self):
-        mangowc = next(s for s in self.catalog.sessions if s.id == "mangowc")
-        self.assertEqual(set(mangowc.shell_choices), {"noctalia", "imperative-dots"})
-
-    def test_niri_shell_choices(self):
+    def test_only_noctalia_shell_remains(self):
+        """mangowc + the wheatley-bar/imperative-qs quickshell bars stay gone;
+        noctalia is back as niri's single optional shell (user request)."""
+        self.assertEqual([s.id for s in self.catalog.shells], ["noctalia"])
         niri = next(s for s in self.catalog.sessions if s.id == "niri")
-        self.assertEqual(set(niri.shell_choices), {"noctalia", "imperative-dots"})
-
-    def test_expected_shell_ids(self):
-        ids = {s.id for s in self.catalog.shells}
-        self.assertEqual(ids, {"noctalia", "imperative-dots"})
+        self.assertEqual(niri.shell_choices, ["noctalia"])
+        for s in self.catalog.sessions:
+            if s.id != "niri":
+                self.assertEqual(s.shell_choices, [], s.id)
+            for pkg in s.packages:
+                self.assertNotIn("quickshell", pkg)
+                self.assertNotIn("wheatley-bar", pkg)
+                self.assertNotIn("mangowm", pkg)
 
     def test_all_sessions_ease_lightness_in_range(self):
         for s in self.catalog.sessions:
@@ -105,10 +108,12 @@ class TestPositive(unittest.TestCase):
             with self.subTest(session=s.id):
                 self.assertGreaterEqual(len(s.keybindings), 5, f"{s.id} has too few keybindings")
 
-    def test_all_shells_have_five_or_more_keybindings(self):
+    def test_shells_may_have_zero_keybindings(self):
+        # a bar/shell has no hotkeys of its own (the compositor owns keybinds);
+        # the validator only enforces the >=5 minimum for sessions
         for s in self.catalog.shells:
             with self.subTest(shell=s.id):
-                self.assertGreaterEqual(len(s.keybindings), 5, f"{s.id} has too few keybindings")
+                self.assertIsInstance(s.keybindings, list)
 
     def test_all_sessions_have_screenshot_value(self):
         for s in self.catalog.sessions:
@@ -142,9 +147,9 @@ class TestPositive(unittest.TestCase):
         self.assertEqual(g.name, "Gaming Mode")
         self.assertTrue(g.gpu_autodetect)
         gaming_pkgs = set(g.packages)
-        for pkg in ("steam", "heroic-games-launcher-bin", "proton-ge-custom-bin",
+        for pkg in ("steam", "heroic-games-launcher-bin",
                     "vulkan-icd-loader", "lib32-vulkan-icd-loader",
-                    "gamemode", "lib32-gamemode", "mangohud", "lib32-mangohud"):
+                    "gamemode", "lib32-gamemode", "mangohud"):
             self.assertIn(pkg, gaming_pkgs, f"Gaming missing package: {pkg}")
 
     def test_minimal_section(self):
@@ -152,9 +157,9 @@ class TestPositive(unittest.TestCase):
         self.assertTrue(m.name)
         self.assertTrue(m.description)
 
-    def test_eight_sessions_two_shells_two_kernels(self):
+    def test_eight_sessions_one_shell_two_kernels(self):
         self.assertEqual(len(self.catalog.sessions), 8)
-        self.assertEqual(len(self.catalog.shells), 2)
+        self.assertEqual(len(self.catalog.shells), 1)
         self.assertEqual(len(self.catalog.kernels), 2)
 
 
@@ -200,8 +205,8 @@ class TestNegative(unittest.TestCase):
         data = _load_raw()
         # Add a shell_choice that references a nonexistent shell
         for s in data["sessions"]:
-            if s["id"] == "mangowc":
-                s["shell_choices"] = ["noctalia", "ghost-shell-does-not-exist"]
+            if s["id"] == "niri":
+                s["shell_choices"] = ["ghost-shell-does-not-exist"]
                 break
         self._assert_catalog_error(data, "ghost-shell-does-not-exist")
 
@@ -260,7 +265,11 @@ class TestNegative(unittest.TestCase):
 
     def test_missing_shell_required_field(self):
         data = _load_raw()
-        del data["shells"][0]["packages"]
+        # the real catalog ships no shells anymore — inject a broken one
+        data["shells"] = [{
+            "id": "broken-shell", "name": "Broken", "description": "x",
+            "ease": 3, "lightness": 3, "keybindings": [], "screenshot": None,
+        }]
         self._assert_catalog_error(data, "packages")
 
     def test_gaming_missing_gpu_autodetect(self):

@@ -1,8 +1,8 @@
 # Maintainer: Wheatley Linux
 pkgname=wheatley-branding
 pkgver=1
-pkgrel=3
-pkgdesc="Wheatley Linux branding: amber TTY palette, /etc/issue, os-release, fastfetch logo"
+pkgrel=4
+pkgdesc="Wheatley Linux branding: amber TTY palette, /etc/issue, os-release, fastfetch logo, GRUB theme"
 arch=('any')
 url="https://github.com/Vifuddyxg"
 license=('MIT')
@@ -10,8 +10,9 @@ depends=('kbd')                 # setvtrgb
 optdepends=('fastfetch: system info splash with the Wheatley logo')
 backup=('etc/wheatley/fastfetch.jsonc')
 install='wheatley-branding.install'
-source=('logo.txt' 'fastfetch.jsonc' 'term-neutral.sh')
-sha256sums=('SKIP' 'SKIP' 'SKIP')
+source=('logo.txt' 'fastfetch.jsonc' 'term-neutral.sh'
+        'grub-theme.txt' 'grub-background.png' 'grub-icon.png')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
     # ----- fastfetch logo + config -----
@@ -95,4 +96,15 @@ __        __ _   _  _____     _     _____  _      _____ __   __
 EOF
     printf '\033[0;33m        Wheatley Linux \\r (\\l)\033[0m\n\n' >> "$srcdir/issue"
     install -Dm644 "$srcdir/issue" "$pkgdir/usr/share/wheatley/issue"
+
+    # ----- GRUB theme (amber Wheatley) — the installer points the target's
+    #       /etc/default/grub at this via GRUB_THEME. The icon name matches
+    #       the menu-entry class grub-mkconfig derives from
+    #       GRUB_DISTRIBUTOR="Wheatley Linux" (first word, lowercased). -----
+    install -Dm644 "$srcdir/grub-theme.txt" \
+        "$pkgdir/usr/share/grub/themes/wheatley/theme.txt"
+    install -Dm644 "$srcdir/grub-background.png" \
+        "$pkgdir/usr/share/grub/themes/wheatley/background.png"
+    install -Dm644 "$srcdir/grub-icon.png" \
+        "$pkgdir/usr/share/grub/themes/wheatley/icons/wheatley.png"
 }

@@ -155,6 +155,23 @@ def _loop(stdscr, wizard: Wizard, hooks: dict) -> Optional[WizardResult]:
     cursor = 0
     error: Optional[str] = None
     net_checked = False
+    tz_prefilled = False
+
+    def _set_net_status(status: str) -> None:
+        """Inject connectivity + piggyback the GeoIP timezone lookup: the
+        network screen guarantees we are online, which is exactly when the
+        identity form's 'UTC' placeholder can become the real local timezone."""
+        nonlocal tz_prefilled
+        wizard.set_network_status(status)
+        if tz_prefilled or status != "connected":
+            return
+        if hooks.get("detect_timezone"):
+            tz = hooks["detect_timezone"]()
+            if tz:  # detection worked: done (retry only if it failed)
+                wizard.prefill_timezone(tz)
+                tz_prefilled = True
+        else:
+            tz_prefilled = True  # no detector hook: don't retry every Enter
 
     while True:
         screen = wizard.current_screen()
@@ -162,7 +179,7 @@ def _loop(stdscr, wizard: Wizard, hooks: dict) -> Optional[WizardResult]:
         cursor = max(0, min(cursor, count - 1)) if count else 0
 
         if screen.key == "network" and not net_checked and hooks.get("net_check"):
-            wizard.set_network_status(hooks["net_check"]())
+            _set_net_status(hooks["net_check"]())
             net_checked = True
             screen = wizard.current_screen()
 
@@ -178,7 +195,7 @@ def _loop(stdscr, wizard: Wizard, hooks: dict) -> Optional[WizardResult]:
             if screen.key == "network" and hooks.get("net_check"):
                 # Re-check on every attempt: the user may have just plugged
                 # in a cable or finished nmtui. Validation blocks if offline.
-                wizard.set_network_status(hooks["net_check"]())
+                _set_net_status(hooks["net_check"]())
             was_manual_disk = (
                 screen.key == "disk" and wizard.disk_mode == "manual"
             )
@@ -208,7 +225,7 @@ def _loop(stdscr, wizard: Wizard, hooks: dict) -> Optional[WizardResult]:
             if hooks.get("open_net_tool"):
                 _run_external(stdscr, hooks["open_net_tool"])
                 if hooks.get("net_check"):
-                    wizard.set_network_status(hooks["net_check"]())
+                    _set_net_status(hooks["net_check"]())
         elif screen.kind == "form":
             # Printable characters are text input here — including b/q/space.
             if key in (curses.KEY_BACKSPACE, 127, 8):
@@ -235,17 +252,19 @@ def _loop(stdscr, wizard: Wizard, hooks: dict) -> Optional[WizardResult]:
 
 def run_tui(catalog, disks=None, partitions=None, ask_identity: bool = False,
             identity_defaults=None, net_check=None, open_net_tool=None,
-            repartition=None) -> Optional[WizardResult]:
+            repartition=None, detect_timezone=None) -> Optional[WizardResult]:
     """Run the full wizard in curses; returns a WizardResult, or None on quit.
 
     Optional I/O hooks (this module stays curses-only; subprocess work is
     injected by __main__): net_check() -> status str, open_net_tool() runs
-    nmtui, repartition(disk_path) runs cfdisk and returns fresh partitions.
+    nmtui, repartition(disk_path) runs cfdisk and returns fresh partitions,
+    detect_timezone() -> "Area/City" or None (GeoIP; ran once the network
+    screen confirms connectivity, prefills the identity timezone field).
     """
     wizard = Wizard(catalog, disks=disks, ask_identity=ask_identity,
                     identity_defaults=identity_defaults)
     if partitions is not None:
         wizard.set_partitions(partitions)
     hooks = {"net_check": net_check, "open_net_tool": open_net_tool,
-             "repartition": repartition}
+             "repartition": repartition, "detect_timezone": detect_timezone}
     return curses.wrapper(_loop, wizard, hooks)

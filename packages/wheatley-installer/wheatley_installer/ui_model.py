@@ -20,15 +20,14 @@ from typing import List, Optional
 from wheatley_installer.catalog import Catalog
 from wheatley_installer.plan import Selection
 from wheatley_installer.ui_forms import (
-    FormField, build_identity_fields, disk_label, masked, submit_form,
-)
+    FormField, build_identity_fields, disk_label, masked,
+    prefill_timezone_field, submit_form)
 # Re-exported for compat: these lived here before the ui_view split.
 from wheatley_installer.ui_view import (  # noqa: F401
     DE_SECTION, DISK_MANUAL_NOTICE, DISK_NOTICE, DISKMODE_NOTICE,
     NETWORK_NOTICE_TEMPLATE, PARTITION_NOTICE, SESSIONS_NOTICE, WELCOME_NOTICE,
     Choose, Item, Screen, SetFlag, Toggle, WizardResult,
-    partition_item, session_item, shell_item,
-)
+    partition_item, session_item, shell_item)
 
 
 class ValidationError(Exception):
@@ -44,8 +43,7 @@ class Wizard:
                  identity_defaults=None):
         if not isinstance(catalog, Catalog):
             raise ValidationError(
-                f"Wizard requires a Catalog, got {type(catalog).__name__}"
-            )
+                f"Wizard requires a Catalog, got {type(catalog).__name__}")
         if disks is not None:
             disks = list(disks)
             if not disks:
@@ -60,9 +58,8 @@ class Wizard:
         self._disk_mode: str = "erase"  # 'erase' | 'existing' | 'manual'
         self._network_status: str = "checking..."
         try:
-            self._forms = (
-                build_identity_fields(identity_defaults) if ask_identity else None
-            )
+            self._forms = (build_identity_fields(identity_defaults)
+                           if ask_identity else None)
         except ValueError as exc:
             raise ValidationError(str(exc))
         self._catalog = catalog
@@ -87,6 +84,10 @@ class Wizard:
     def set_network_status(self, status: str) -> None:
         """Driver injects the current connectivity status ('online'/'offline')."""
         self._network_status = str(status)
+
+    def prefill_timezone(self, tz) -> bool:
+        # GeoIP tz from the driver — see ui_forms.prefill_timezone_field
+        return prefill_timezone_field(self._forms, tz)
 
     def set_partitions(self, partitions) -> None:
         """Driver injects (or refreshes, after cfdisk) the partition list."""

@@ -88,12 +88,12 @@ def identity_steps(spec: IdentitySpec, *, target: str = "/mnt") -> List[Step]:
     Steps are produced in a fixed, deterministic order:
       1. /etc/hostname
       2. /etc/hosts
-      3. timezone symlink (arch-chroot ln -sf)
+      3. timezone symlink (artix-chroot ln -sf)
       4. hwclock --systohc
       5. /etc/locale.gen write
-      6. locale-gen (arch-chroot)
+      6. locale-gen (artix-chroot)
       7. /etc/locale.conf write
-      8. useradd -m -G wheel -s /bin/bash <username>
+      8. useradd -m -G wheel,audio,video,input,storage -s /bin/bash <username>
       9. chpasswd for the new user (password in stdin only)
      10. chpasswd for root (password in stdin only)
      11. /etc/sudoers.d/10-wheel (mode 0o440)
@@ -128,7 +128,7 @@ def identity_steps(spec: IdentitySpec, *, target: str = "/mnt") -> List[Step]:
     # 3. Timezone symlink
     steps.append(RunCommand(
         argv=[
-            "arch-chroot", t,
+            "artix-chroot", t,
             "ln", "-sf",
             f"/usr/share/zoneinfo/{spec.timezone}",
             "/etc/localtime",
@@ -138,7 +138,7 @@ def identity_steps(spec: IdentitySpec, *, target: str = "/mnt") -> List[Step]:
 
     # 4. Hardware clock
     steps.append(RunCommand(
-        argv=["arch-chroot", t, "hwclock", "--systohc"],
+        argv=["artix-chroot", t, "hwclock", "--systohc"],
         description="Sync hardware clock from system clock",
     ))
 
@@ -152,7 +152,7 @@ def identity_steps(spec: IdentitySpec, *, target: str = "/mnt") -> List[Step]:
 
     # 6. locale-gen
     steps.append(RunCommand(
-        argv=["arch-chroot", t, "locale-gen"],
+        argv=["artix-chroot", t, "locale-gen"],
         description="Generate locales",
     ))
 
@@ -164,11 +164,13 @@ def identity_steps(spec: IdentitySpec, *, target: str = "/mnt") -> List[Step]:
         description="Write /etc/locale.conf",
     ))
 
-    # 8. Create user
+    # 8. Create user — same supplementary groups as the proven shell installer
+    # (audio/video/input/storage matter for startx sessions and removable media)
     steps.append(RunCommand(
         argv=[
-            "arch-chroot", t,
-            "useradd", "-m", "-G", "wheel", "-s", "/bin/bash",
+            "artix-chroot", t,
+            "useradd", "-m", "-G", "wheel,audio,video,input,storage",
+            "-s", "/bin/bash",
             spec.username,
         ],
         description=f"Create user {spec.username}",
@@ -176,14 +178,14 @@ def identity_steps(spec: IdentitySpec, *, target: str = "/mnt") -> List[Step]:
 
     # 9. Set user password via chpasswd stdin (password NEVER in argv)
     steps.append(RunCommand(
-        argv=["arch-chroot", t, "chpasswd"],
+        argv=["artix-chroot", t, "chpasswd"],
         stdin=f"{spec.username}:{spec.password}\n",
         description=f"Set password for {spec.username}",
     ))
 
     # 10. Set root password via chpasswd stdin (password NEVER in argv)
     steps.append(RunCommand(
-        argv=["arch-chroot", t, "chpasswd"],
+        argv=["artix-chroot", t, "chpasswd"],
         stdin=f"root:{spec.password}\n",
         description="Set root password",
     ))

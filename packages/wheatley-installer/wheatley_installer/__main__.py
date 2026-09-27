@@ -17,9 +17,15 @@ from wheatley_installer.disks import (
     BlockDevice, DiskError, discover, discover_partitions,
     plan_disk, plan_existing_partition,
 )
-from wheatley_installer.executor import ExecutorError, compile_steps, execute
+from wheatley_installer.executor import (
+    ExecutorError, compile_steps, execute, keyring_steps,
+)
 from wheatley_installer.identity import IdentityError, IdentitySpec, identity_steps
 from wheatley_installer.plan import PlanError, Selection, resolve_plan
+from wheatley_installer.run_ui import (
+    _INSTALL_LOG, _TZ_ENDPOINTS, autodetect_spec_timezone, detect_timezone,
+    make_progress, print_log_tail, prompt_reboot, sync_clock,
+)
 
 _REPO_CATALOG = Path(__file__).resolve().parent.parent / "catalog" / "catalog.json"
 
@@ -265,6 +271,13 @@ def main(argv=None) -> int:
         )
         return EXIT_OK
 
+    # Auto-detect the timezone from GeoIP when the user didn't pass one —
+    # it becomes the prefilled default in the identity screen, still editable.
+    if args.timezone == "UTC" and not args.dry_run:
+        detected_tz = detect_timezone()
+        if detected_tz:
+            args.timezone = detected_tz
+
     wizard_result = None
     if args.headless:
         selection = _headless_selection(catalog)
@@ -294,6 +307,10 @@ def main(argv=None) -> int:
                 net_check=_net_check,
                 open_net_tool=_open_net_tool,
                 repartition=_repartition,
+                # runs as soon as the network screen confirms connectivity
+                # (installs require the network), so the identity form shows
+                # the real local timezone instead of the UTC placeholder
+                detect_timezone=detect_timezone,
             )
         except KeyboardInterrupt:
             wizard_result = None
@@ -305,7 +322,8 @@ def main(argv=None) -> int:
             args.disk = wizard_result.device_path
 
     try:
-        plan = resolve_plan(catalog, selection)
+        from wheatley_installer.gpu import detect_gpu_vendors
+        plan = resolve_plan(catalog, selection, gpu_vendors=detect_gpu_vendors())
     except PlanError as exc:
         return _fail(f"Plan error: {exc}", EXIT_INSTALL)
 
@@ -354,6 +372,11 @@ def main(argv=None) -> int:
     except ExecutorError as exc:
         return _fail(f"Executor error: {exc}", EXIT_INSTALL)
 
+    # Host keyring prep comes before EVERYTHING: basestrap verifies the
+    # [cachyos] database signature against the HOST keyring — see
+    # executor.keyring_steps.
+    steps = keyring_steps() + steps
+
     # Append identity steps: wizard-collected spec wins, else --username flags
     spec = wizard_result.identity if wizard_result is not None else None
     if spec is None and args.username is not None:
@@ -368,6 +391,14 @@ def main(argv=None) -> int:
             )
         except IdentityError as exc:
             return _fail(f"Identity error: {exc}", EXIT_INSTALL)
+    # Local time, automatically: if the timezone is still the "UTC"
+    # placeholder (GeoIP was offline before the wizard), retry now — the
+    # wizard's network screen usually just brought Wi-Fi up.
+    if not args.dry_run:
+        retried = autodetect_spec_timezone(spec)
+        if retried is not spec and retried is not None:
+            print(f"Timezone auto-detected: {retried.timezone}")
+            spec = retried
     if spec is not None:
         steps = steps + identity_steps(spec, target=args.target)
 
@@ -401,12 +432,33 @@ def main(argv=None) -> int:
         print("Cancelled.")
         return EXIT_CANCELLED
 
+    # The live clock is only as good as the RTC (often hours off: local-time
+    # RTC, dead CMOS battery). Fix it from the network BEFORE identity_steps
+    # runs `hwclock --systohc`, or the wrong time gets burned into the RTC
+    # and the installed system boots with a wrong clock every time.
+    corrected = sync_clock()
+    if corrected is not None:
+        print(f"Clock was off by {corrected:+d}s — synced from the network.")
+
+    # Like the original whiptail installer: the console shows ONLY a progress
+    # bar; all subprocess output goes to the log file.
     try:
-        execute(steps, dry_run=False)
+        with open(_INSTALL_LOG, "w", encoding="utf-8") as fh:
+            fh.write("wheatley-install log\n")
+    except OSError:
+        pass
+    try:
+        execute(
+            steps, dry_run=False,
+            progress=make_progress(steps), output_path=_INSTALL_LOG,
+        )
     except ExecutorError as exc:
+        print()
+        print_log_tail(_INSTALL_LOG)
         return _fail(f"Install failed: {exc}", EXIT_INSTALL)
 
-    print("Install complete.")
+    print(f"\nInstall complete. Full log: {_INSTALL_LOG}")
+    prompt_reboot()
     return EXIT_OK
 
 

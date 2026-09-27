@@ -195,7 +195,7 @@ class TestIdentitySteps(unittest.TestCase):
         self.assertIn("useradd", step.argv)
         self.assertIn("-m", step.argv)
         self.assertIn("-G", step.argv)
-        self.assertIn("wheel", step.argv)
+        self.assertIn("wheel,audio,video,input,storage", step.argv)
         self.assertIn("-s", step.argv)
         self.assertIn("/bin/bash", step.argv)
         self.assertIn("carol", step.argv)
@@ -249,13 +249,13 @@ class TestIdentitySteps(unittest.TestCase):
                     f"Unexpected stdin on non-chpasswd step: {step.description}")
 
     def test_target_path_honored(self):
-        """All WriteTargetFile paths and arch-chroot paths use the given target."""
+        """All WriteTargetFile paths and artix-chroot paths use the given target."""
         steps = identity_steps(self.spec, target="/target/mnt")
         for step in steps:
             if isinstance(step, WriteTargetFile):
                 self.assertTrue(step.path.startswith("/target/mnt"),
                     f"Path {step.path!r} does not start with /target/mnt")
-            if isinstance(step, RunCommand) and "arch-chroot" in step.argv:
+            if isinstance(step, RunCommand) and "artix-chroot" in step.argv:
                 self.assertIn("/target/mnt", step.argv)
 
     def test_hosts_127_0_1_1_contains_hostname(self):

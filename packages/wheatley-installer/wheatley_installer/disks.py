@@ -368,6 +368,42 @@ def disk_steps(disk_plan: DiskPlan, *, target: str = "/mnt") -> List[Step]:
     return steps
 
 
+# Branding + boot behaviour for the installed system's GRUB (ported from the
+# proven shell installer, plus the Wheatley theme):
+#   * GRUB_DISTRIBUTOR — menu entries say "Wheatley Linux", not "Artix"
+#   * os-prober ON — dual-boot entries (Windows, other Linux) appear in the
+#     installed menu. The one thing os-prober must NOT clone is the plugged-in
+#     live USB's own "installer" entries — those are stripped afterwards by
+#     the wheatley_installer.grub_filter step (device-based, see that module)
+#   * quiet cmdline — kernel/udev logs stop painting over the greeter's VT
+#   * theme — the amber Wheatley theme shipped by wheatley-branding
+_GRUB_BRAND_SCRIPT = """\
+set -e
+if grep -q '^GRUB_DISTRIBUTOR=' /etc/default/grub; then
+    sed -i 's/^GRUB_DISTRIBUTOR=.*/GRUB_DISTRIBUTOR="Wheatley Linux"/' /etc/default/grub
+else
+    echo 'GRUB_DISTRIBUTOR="Wheatley Linux"' >> /etc/default/grub
+fi
+if grep -q '^GRUB_DISABLE_OS_PROBER' /etc/default/grub; then
+    sed -i 's/^GRUB_DISABLE_OS_PROBER=.*/GRUB_DISABLE_OS_PROBER=false/' /etc/default/grub
+else
+    echo 'GRUB_DISABLE_OS_PROBER=false' >> /etc/default/grub
+fi
+if grep -q '^GRUB_CMDLINE_LINUX_DEFAULT=' /etc/default/grub; then
+    sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT=.*/GRUB_CMDLINE_LINUX_DEFAULT="quiet loglevel=3 rd.udev.log_level=3"/' /etc/default/grub
+else
+    echo 'GRUB_CMDLINE_LINUX_DEFAULT="quiet loglevel=3 rd.udev.log_level=3"' >> /etc/default/grub
+fi
+if [ -f /usr/share/grub/themes/wheatley/theme.txt ]; then
+    if grep -q '^#\\?GRUB_THEME=' /etc/default/grub; then
+        sed -i 's|^#\\?GRUB_THEME=.*|GRUB_THEME="/usr/share/grub/themes/wheatley/theme.txt"|' /etc/default/grub
+    else
+        echo 'GRUB_THEME="/usr/share/grub/themes/wheatley/theme.txt"' >> /etc/default/grub
+    fi
+fi
+"""
+
+
 def bootloader_steps(disk_plan: DiskPlan, *, target: str = "/mnt") -> List[Step]:
     """Compile GRUB install Steps (chrooted). Runs LAST, after service enabling."""
     t = target.rstrip("/")
@@ -388,8 +424,22 @@ def bootloader_steps(disk_plan: DiskPlan, *, target: str = "/mnt") -> List[Step]
             description=f"Install GRUB ({disk_plan.firmware})",
         ),
         RunCommand(
+            argv=["artix-chroot", t, "sh", "-c", _GRUB_BRAND_SCRIPT],
+            description="Brand GRUB (Wheatley Linux + dual-boot, quiet boot, theme)",
+        ),
+        RunCommand(
             argv=["artix-chroot", t, "grub-mkconfig", "-o", "/boot/grub/grub.cfg"],
             description="Generate GRUB config",
+        ),
+        # Runs on the LIVE system (not chrooted): os-prober just cloned every
+        # bootable thing it saw — including the plugged-in install USB. Strip
+        # entries pointing at removable/live-media partitions; keep real OSes.
+        RunCommand(
+            argv=[
+                "python3", "-m", "wheatley_installer.grub_filter",
+                f"{t}/boot/grub/grub.cfg",
+            ],
+            description="Remove live-USB entries from the GRUB menu",
         ),
     ]
 

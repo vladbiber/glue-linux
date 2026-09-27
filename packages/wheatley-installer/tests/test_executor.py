@@ -16,7 +16,7 @@ from wheatley_installer.plan import (
 )
 from wheatley_installer.executor import (
     ExecutorError, RunCommand, WriteTargetFile, Step,
-    compile_steps,
+    compile_steps, keyring_steps,
 )
 
 _CATALOG_PATH = _PKG_ROOT / "catalog" / "catalog.json"
@@ -98,9 +98,13 @@ class TestCompileOrdering(unittest.TestCase):
                 kinds.append("fstab")
             elif isinstance(s, WriteTargetFile):
                 kinds.append("file")
+            elif isinstance(s, RunCommand) and "ModemManager" in " ".join(s.argv):
+                kinds.append("modemmanager")
             elif isinstance(s, RunCommand):
                 kinds.append("service")
-        self.assertEqual(kinds, ["basestrap", "fstab", "file", "service"])
+        self.assertEqual(
+            kinds, ["basestrap", "fstab", "file", "service", "modemmanager"]
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -236,6 +240,21 @@ class TestCompileInitServices(unittest.TestCase):
         self.assertIn("/etc/init.d/bluetooth", svc.argv)
         self.assertIn("/etc/runlevels/default/bluetooth", svc.argv)
 
+    def test_openntpd_service_renamed_per_init(self):
+        # Artix ships openntpd's scripts as /etc/dinit.d/ntpd and
+        # /etc/init.d/ntpd, but /etc/runit/sv/openntpd — the canonical
+        # plan name "openntpd" must map onto the real script per init.
+        plan = _plan_with_service("openntpd")
+        for init_id, path in (
+            ("dinit", "/etc/dinit.d/ntpd"),
+            ("openrc", "/etc/init.d/ntpd"),
+            ("runit", "/etc/runit/sv/openntpd"),
+        ):
+            steps = compile_steps(plan, target="/mnt", init_id=init_id)
+            svc = [st for st in steps if isinstance(st, RunCommand)
+                   and "ntpd" in " ".join(st.argv)][0]
+            self.assertIn(path, svc.argv, init_id)
+
     def test_dinit_description_names_init(self):
         plan = _plan_with_service("greetd")
         steps = compile_steps(plan, target="/mnt", init_id="dinit")
@@ -252,9 +271,9 @@ class TestCompileInitServices(unittest.TestCase):
     def test_empty_services_no_service_steps(self):
         plan = _minimal_plan(services=[])
         steps = compile_steps(plan, target="/mnt", init_id="dinit")
-        # Only basestrap + fstab steps expected
+        # Only basestrap + fstab + ModemManager-disable steps expected
         run_cmds = [s for s in steps if isinstance(s, RunCommand)]
-        self.assertEqual(len(run_cmds), 2)
+        self.assertEqual(len(run_cmds), 3)
 
     def test_empty_files_no_file_steps(self):
         plan = _minimal_plan(files=[])
@@ -405,6 +424,28 @@ class TestIntegration(unittest.TestCase):
         argv = bt_steps[0].argv
         self.assertIn("/etc/runit/sv/bluetoothd", argv)
         self.assertIn("/etc/runit/runsvdir/default/bluetoothd", argv)
+
+
+# ---------------------------------------------------------------------------
+# keyring_steps: host keyring prep (regression: cachyos key unknown at basestrap)
+# ---------------------------------------------------------------------------
+
+class TestKeyringSteps(unittest.TestCase):
+    def test_two_run_command_steps(self):
+        steps = keyring_steps()
+        self.assertEqual(len(steps), 2)
+        for s in steps:
+            self.assertIsInstance(s, RunCommand)
+
+    def test_init_before_populate(self):
+        steps = keyring_steps()
+        self.assertEqual(steps[0].argv, ["pacman-key", "--init"])
+        self.assertEqual(
+            steps[1].argv, ["pacman-key", "--populate", "artix", "cachyos"]
+        )
+
+    def test_pure_and_deterministic(self):
+        self.assertEqual(keyring_steps(), keyring_steps())
 
 
 if __name__ == "__main__":

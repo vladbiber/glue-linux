@@ -157,3 +157,14 @@ class TestPathValidation(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestMissingBinary(unittest.TestCase):
+    def test_missing_binary_raises_executor_error_not_oserror(self):
+        # regression: identity steps used arch-chroot (missing on Artix) and
+        # the runner crashed with a raw FileNotFoundError traceback
+        steps = [RunCommand(argv=["/nonexistent/definitely-missing-bin"],
+                            description="run missing binary")]
+        with self.assertRaises(ExecutorError) as ctx:
+            execute(steps, dry_run=False)
+        self.assertIn("run missing binary", str(ctx.exception))

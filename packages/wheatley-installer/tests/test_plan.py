@@ -53,12 +53,18 @@ def _make_catalog() -> Catalog:
             Session("wm-bare", "Bare WM", "wm", "desc", 3, 5, _KBS, None,
                     ["wm-bare-pkg"], [], []),
             Session("wm-shell", "Shell WM", "wm", "desc", 4, 4, _KBS, None,
-                    ["wm-shell-pkg"], ["wm-shell-svc"], ["shell-a", "shell-b"]),
+                    ["wm-shell-pkg"], ["wm-shell-svc"], ["shell-a", "shell-b"],
+                    session_type="wayland", exec="shellwm"),
+            Session("de-named", "Named DE", "de", "desc", 5, 2, _KBS, None,
+                    ["de-named-pkg"], [], [],
+                    session_type="wayland", exec="named-session",
+                    desktop="NAMED"),
             Session("de-full", "Full DE", "de", "desc", 5, 2, _KBS, None,
                     ["de-pkg", "de-extra"], ["de-svc"], []),
         ],
         shells=[
-            Shell("shell-a", "Shell A", "desc", 4, 4, _KBS, None, ["shell-a-pkg"]),
+            Shell("shell-a", "Shell A", "desc", 4, 4, _KBS, None, ["shell-a-pkg"],
+                  exec="shell-a-cmd"),
             Shell("shell-b", "Shell B", "desc", 3, 3, _KBS, None, ["shell-b-pkg"]),
         ],
         support=[
@@ -105,7 +111,7 @@ class TestHappyPath(unittest.TestCase):
             support_ids=["bluetooth"],
             gaming=True, minimal=False,
         )
-        plan = resolve_plan(self.catalog, sel)
+        plan = resolve_plan(self.catalog, sel, gpu_vendors=frozenset({"amd"}))
         for pkg in ("wm-bare-pkg", "wm-shell-pkg", "shell-a-pkg",
                     "bluez", "blueman", "steam", "gamemode",
                     "fastfetch", "greetd", "linux-main", "dinit"):
@@ -120,7 +126,7 @@ class TestHappyPath(unittest.TestCase):
         self.assertEqual(len(plan.services), len(set(plan.services)))
         # Warning order: multi-session first, GPU second
         self.assertIn("Multiple sessions installed", plan.warnings[0])
-        self.assertIn("GPU driver", plan.warnings[1])
+        self.assertIn("GPU detected", plan.warnings[1])
 
     def test_minimal_install_no_greetd_no_sessions(self):
         sel = Selection("k-main", "dinit", [], {}, [], False, True)
@@ -176,10 +182,18 @@ class TestHappyPath(unittest.TestCase):
         plan = resolve_plan(self.catalog, sel)
         self.assertEqual(len([w for w in plan.warnings if "Multiple sessions" in w]), 1)
 
-    def test_gaming_gpu_autodetect_warning_present(self):
+    def test_gaming_gpu_autodetect_pins_drivers(self):
+        sel = Selection("k-main", "dinit", [], {}, [], True, False)
+        plan = resolve_plan(self.catalog, sel, gpu_vendors=frozenset({"amd"}))
+        self.assertIn("vulkan-radeon", plan.packages)
+        self.assertIn("lib32-vulkan-radeon", plan.packages)
+        self.assertEqual(len([w for w in plan.warnings if "GPU detected" in w]), 1)
+
+    def test_gaming_without_detection_adds_no_gpu_packages(self):
         sel = Selection("k-main", "dinit", [], {}, [], True, False)
         plan = resolve_plan(self.catalog, sel)
-        self.assertEqual(len([w for w in plan.warnings if "GPU driver" in w]), 1)
+        self.assertNotIn("vulkan-radeon", plan.packages)
+        self.assertNotIn("nvidia-utils", plan.packages)
 
     def test_no_gaming_no_gpu_warning(self):
         sel = Selection("k-main", "dinit", [], {}, [], False, False)
@@ -215,6 +229,39 @@ class TestNetworkAndInitServicePackages(unittest.TestCase):
 
     def setUp(self):
         self.catalog = _make_catalog()
+
+    def test_ntp_and_os_prober_always_present(self):
+        # openntpd keeps the installed clock right; os-prober gives the GRUB
+        # menu its dual-boot entries (the live USB's own cloned entries are
+        # stripped afterwards by the grub_filter bootloader step)
+        for minimal in (True, False):
+            sel = Selection("k-main", "dinit", [] if minimal else ["wm-bare"],
+                            {}, [], False, minimal)
+            plan = resolve_plan(_make_catalog(), sel)
+            self.assertIn("openntpd", plan.packages)
+            self.assertIn("openntpd", plan.services)
+            self.assertIn("openntpd-dinit", plan.packages)
+            self.assertIn("os-prober", plan.packages)
+
+    def test_power_profiles_daemon_with_sessions_only(self):
+        # performance/balanced/power-saver modes: daemon + enabled service on
+        # any graphical install, absent from minimal installs
+        for init in ("dinit", "runit", "openrc"):
+            sel = Selection("k-main", init, ["wm-bare"], {}, [], False, False)
+            plan = resolve_plan(_make_catalog(), sel)
+            self.assertIn("power-profiles-daemon", plan.packages)
+            self.assertIn("power-profiles-daemon", plan.services)
+            self.assertIn(f"power-profiles-daemon-{init}", plan.packages)
+        minimal = Selection("k-main", "dinit", [], {}, [], False, True)
+        plan = resolve_plan(_make_catalog(), minimal)
+        self.assertNotIn("power-profiles-daemon", plan.packages)
+        self.assertNotIn("power-profiles-daemon", plan.services)
+
+    def test_desktop_set_has_qt6_wayland(self):
+        sel = Selection("k-main", "dinit", ["wm-shell"], {"wm-shell": "shell-a"},
+                        [], False, False)
+        plan = resolve_plan(_make_catalog(), sel)
+        self.assertIn("qt6-wayland", plan.packages)
 
     def test_networkmanager_always_present(self):
         sel = Selection("k-main", "dinit", [], {}, [], False, True)  # minimal
@@ -392,16 +439,14 @@ class TestIntegration(unittest.TestCase):
     def setUp(self):
         self.catalog = load_catalog(_CATALOG_PATH)
 
-    def test_mangowc_niri_with_shell_choices(self):
-        """linux-cachyos + dinit + mangowc (imperative-dots) + niri (noctalia)."""
+    def test_niri_sway_multi_session(self):
+        """linux-cachyos + dinit + niri (noctalia shell) + sway. mangowc and
+        the wheatley-bar/imperative-qs quickshell bars stay gone."""
         sel = Selection(
             kernel_id="linux-cachyos",
             init_id="dinit",
-            session_ids=["mangowc", "niri"],
-            shell_choice={
-                "mangowc": "imperative-dots",
-                "niri": "noctalia",
-            },
+            session_ids=["niri", "sway"],
+            shell_choice={"niri": "noctalia"},
             support_ids=[],
             gaming=False,
             minimal=False,
@@ -410,12 +455,15 @@ class TestIntegration(unittest.TestCase):
         # Required packages
         self.assertIn("greetd", plan.packages)
         self.assertIn("fastfetch", plan.packages)
-        self.assertIn("mangowc", plan.packages)
         self.assertIn("niri", plan.packages)
-        self.assertIn("quickshell", plan.packages)        # from imperative-dots shell
-        self.assertIn("noctalia-shell", plan.packages)   # from noctalia shell
+        self.assertIn("sway", plan.packages)
+        self.assertIn("noctalia-shell", plan.packages)
+        self.assertIn("power-profiles-daemon", plan.packages)
+        for gone in ("mangowm", "wheatley-bar", "imperative-qs"):
+            self.assertNotIn(gone, plan.packages)
         # Required services
         self.assertIn("greetd", plan.services)
+        self.assertIn("power-profiles-daemon", plan.services)
         # Sorted and deduplicated
         self.assertEqual(plan.packages, sorted(plan.packages))
         self.assertEqual(len(plan.packages), len(set(plan.packages)))
@@ -443,11 +491,245 @@ class TestIntegration(unittest.TestCase):
             session_ids=[], shell_choice={},
             support_ids=[], gaming=True, minimal=False,
         )
-        plan = resolve_plan(self.catalog, sel)
+        plan = resolve_plan(self.catalog, sel, gpu_vendors=frozenset({"intel"}))
         self.assertIn("steam", plan.packages)
         self.assertIn("gamemode", plan.packages)
-        self.assertEqual(len([w for w in plan.warnings if "GPU driver" in w]), 1)
+        self.assertIn("vulkan-intel", plan.packages)
+        self.assertEqual(len([w for w in plan.warnings if "GPU detected" in w]), 1)
+
+
+# ---------------------------------------------------------------------------
+# Greeter profile (greetd + tuigreet + per-session wrappers)
+# ---------------------------------------------------------------------------
+
+class TestGreeterProfile(unittest.TestCase):
+
+    def setUp(self):
+        self.catalog = _make_catalog()
+
+    def _plan(self, session_ids, shell_choice=None):
+        sel = Selection("k-main", "dinit", session_ids, shell_choice or {},
+                        [], False, False)
+        return resolve_plan(self.catalog, sel)
+
+    def _file(self, plan, path):
+        return next(f for f in plan.files if f.path == path)
+
+    def test_tuigreet_package_with_sessions(self):
+        plan = self._plan(["wm-bare"])
+        self.assertIn("greetd-tuigreet", plan.packages)
+
+    def test_no_greeter_files_on_minimal(self):
+        sel = Selection("k-main", "dinit", [], {}, [], False, True)
+        plan = resolve_plan(self.catalog, sel)
+        self.assertNotIn("greetd-tuigreet", plan.packages)
+        paths = [f.path for f in plan.files]
+        self.assertNotIn("/etc/greetd/config.toml", paths)
+
+    def test_greetd_config_on_vt7_pointing_at_wheatley_sessions(self):
+        plan = self._plan(["wm-bare"])
+        cfg = self._file(plan, "/etc/greetd/config.toml")
+        self.assertIn("vt = 7", cfg.content)
+        self.assertIn("tuigreet", cfg.content)
+        self.assertIn("--sessions /usr/share/wheatley/sessions", cfg.content)
+        self.assertIn('user = "greeter"', cfg.content)
+        self.assertEqual(cfg.mode, 0o644)
+
+    def test_x11_wrapper_has_startx_dbus_and_audio(self):
+        plan = self._plan(["wm-bare"])
+        wrapper = self._file(plan, "/usr/local/bin/wheatley-session-wm-bare")
+        self.assertEqual(wrapper.mode, 0o755)
+        self.assertIn("startx", wrapper.content)
+        self.assertIn("dbus-run-session", wrapper.content)
+        self.assertIn("pipewire", wrapper.content)
+        self.assertIn("exec wm-bare", wrapper.content)  # exec defaults to id
+        self.assertIn("XDG_SESSION_TYPE=x11", wrapper.content)
+
+    def test_wayland_wrapper_no_startx_uses_exec(self):
+        plan = self._plan(["wm-shell"], {"wm-shell": "shell-b"})
+        wrapper = self._file(plan, "/usr/local/bin/wheatley-session-wm-shell")
+        self.assertNotIn("startx", wrapper.content)
+        self.assertIn("dbus-run-session", wrapper.content)
+        self.assertIn("exec shellwm", wrapper.content)
+        self.assertIn("XDG_SESSION_TYPE=wayland", wrapper.content)
+
+    def test_shell_with_exec_is_autostarted(self):
+        plan = self._plan(["wm-shell"], {"wm-shell": "shell-a"})
+        wrapper = self._file(plan, "/usr/local/bin/wheatley-session-wm-shell")
+        self.assertIn("shell-a-cmd", wrapper.content)
+        self.assertIn("WAYLAND_DISPLAY", wrapper.content)
+        entry = self._file(plan, "/usr/share/wheatley/sessions/wm-shell.desktop")
+        self.assertIn("Name=Shell WM + Shell A", entry.content)
+
+    def test_shell_without_exec_not_autostarted(self):
+        plan = self._plan(["wm-shell"], {"wm-shell": "shell-b"})
+        wrapper = self._file(plan, "/usr/local/bin/wheatley-session-wm-shell")
+        self.assertNotIn("WAYLAND_DISPLAY", wrapper.content)
+
+    def test_session_entry_per_selected_session(self):
+        plan = self._plan(["wm-bare", "de-full"])
+        for sid in ("wm-bare", "de-full"):
+            entry = self._file(plan, f"/usr/share/wheatley/sessions/{sid}.desktop")
+            self.assertIn(f"Exec=/usr/local/bin/wheatley-session-{sid}",
+                          entry.content)
+
+    def test_session_with_gpu_vendors_gets_driver_stack(self):
+        sel = Selection("k-main", "dinit", ["wm-bare"], {}, [], False, False)
+        plan = resolve_plan(self.catalog, sel, gpu_vendors=frozenset({"nvidia"}))
+        self.assertIn("mesa", plan.packages)
+        self.assertIn("nvidia-open-dkms", plan.packages)
+        self.assertIn("egl-wayland", plan.packages)
+
+    def test_desktop_set_has_mesa_and_rtkit(self):
+        plan = self._plan(["wm-bare"])
+        self.assertIn("mesa", plan.packages)
+        self.assertIn("rtkit", plan.packages)
+        self.assertIn("alacritty", plan.packages)
+
+    def test_real_catalog_wayland_wm_sessions_have_xwayland_satellite_and_rofi(self):
+        catalog = load_catalog(_CATALOG_PATH)
+        for session in catalog.sessions:
+            if session.session_type == "wayland" and session.kind == "wm":
+                self.assertIn("xwayland-satellite", session.packages, session.id)
+                self.assertIn("rofi", session.packages, session.id)
+                self.assertIn("alacritty", session.packages, session.id)
+
+
+    def test_wayland_wrapper_allows_software_renderer_fallback(self):
+        plan = self._plan(["wm-shell"], {"wm-shell": "shell-b"})
+        wrapper = self._file(plan, "/usr/local/bin/wheatley-session-wm-shell")
+        self.assertIn("WLR_RENDERER_ALLOW_SOFTWARE=1", wrapper.content)
+        x11 = self._plan(["wm-bare"])
+        x11_wrapper = self._file(x11, "/usr/local/bin/wheatley-session-wm-bare")
+        self.assertNotIn("WLR_RENDERER_ALLOW_SOFTWARE", x11_wrapper.content)
+
+    def test_wayland_software_fallback_is_conditional_on_no_render_node(self):
+        plan = self._plan(["wm-shell"], {"wm-shell": "shell-b"})
+        wrapper = self._file(plan, "/usr/local/bin/wheatley-session-wm-shell")
+        self.assertIn("/dev/dri/renderD", wrapper.content)
+        # the fallback export must be inside the no-render-node guard
+        self.assertLess(wrapper.content.index("/dev/dri/renderD"),
+                        wrapper.content.index("WLR_RENDERER_ALLOW_SOFTWARE=1"))
+
+    def test_no_wrapper_ever_presets_display_or_spawns_satellite(self):
+        # Regression guard (booted on real hardware): a preset DISPLAY makes
+        # wlroots/dwl and niri pick the nested X11 backend on a real VT and
+        # die with "Failed to open xcb connection / couldn't create backend".
+        # X11 apps go through each compositor's own XWayland integration.
+        plan = self._plan(["wm-shell", "wm-bare", "de-named"],
+                          {"wm-shell": "shell-b"})
+        for f in plan.files:
+            if "/usr/local/bin/wheatley-session-" in f.path:
+                self.assertNotIn("export DISPLAY=", f.content, f.path)
+                self.assertNotIn("xwayland-satellite", f.content, f.path)
+
+    def test_desktop_name_overrides_id_in_wrapper_and_entry(self):
+        plan = self._plan(["de-named"])
+        wrapper = self._file(plan, "/usr/local/bin/wheatley-session-de-named")
+        self.assertIn("export XDG_CURRENT_DESKTOP=NAMED", wrapper.content)
+        self.assertIn("export XDG_SESSION_DESKTOP=NAMED", wrapper.content)
+        entry = self._file(plan, "/usr/share/wheatley/sessions/de-named.desktop")
+        self.assertIn("DesktopNames=NAMED", entry.content)
+
+    def test_wrapper_without_desktop_field_keeps_id(self):
+        plan = self._plan(["wm-bare"])
+        wrapper = self._file(plan, "/usr/local/bin/wheatley-session-wm-bare")
+        self.assertIn("export XDG_CURRENT_DESKTOP=wm-bare", wrapper.content)
+
+    def test_real_catalog_gnome_is_minimal_wayland_de(self):
+        catalog = load_catalog(_CATALOG_PATH)
+        gnome = next(s for s in catalog.sessions if s.id == "gnome")
+        self.assertEqual(gnome.kind, "de")
+        self.assertEqual(gnome.session_type, "wayland")
+        self.assertEqual(gnome.exec, "gnome-session")
+        self.assertEqual(gnome.desktop, "GNOME")
+        # minimal: core desktop only, no full gnome group, no gdm (greetd
+        # is the greeter; gdm also CONFLICTS with gnome-session-sysvinit),
+        # nothing that could fight a parallel KDE install
+        self.assertNotIn("gnome", gnome.packages)
+        self.assertNotIn("gdm", gnome.packages)
+        self.assertNotIn("gnome-extra", gnome.packages)
+        for pkg in ("gnome-shell", "gnome-session", "gnome-console",
+                    "nautilus", "gnome-control-center"):
+            self.assertIn(pkg, gnome.packages)
+        # GNOME 50's gnome-session leader ALWAYS execs
+        # /usr/lib/gnome-session-init-worker; on Artix only the
+        # gnome-session-sysvinit package ships that file (init-agnostic
+        # worker, provides gnome-session-leader). Without it the session
+        # dies instantly with "Failed to exec gnome-session-init-worker".
+        self.assertIn("gnome-session-sysvinit", gnome.packages)
+
+    def test_real_catalog_gaming_has_user_requested_extras(self):
+        catalog = load_catalog(_CATALOG_PATH)
+        for pkg in ("proton-ge-custom-bin", "firefox", "lm_sensors",
+                    "gamescope", "lib32-mesa", "lib32-pipewire"):
+            self.assertIn(pkg, catalog.gaming.packages, pkg)
+
+    def test_real_catalog_sessions_have_exec_and_type(self):
+        catalog = load_catalog(_CATALOG_PATH)
+        wayland = {"niri", "sway", "gnome"}
+        for session in catalog.sessions:
+            self.assertIsNotNone(session.exec, session.id)
+            expected = "wayland" if session.id in wayland else "x11"
+            self.assertEqual(session.session_type, expected, session.id)
+        for shell in catalog.shells:
+            self.assertIsNotNone(shell.exec, shell.id)
 
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestGamingFilesAndPrimeRun(unittest.TestCase):
+    """Gaming shader-cache env file + the prime-run dGPU wrapper (Artix has
+    no nvidia-prime package, so the installer writes the script itself)."""
+
+    def _paths(self, sel, gpu_vendors=None):
+        plan = resolve_plan(_make_catalog(), sel, gpu_vendors=gpu_vendors)
+        return plan, [f.path for f in plan.files]
+
+    def test_gaming_gets_shader_cache_env_file(self):
+        sel = Selection("k-main", "dinit", ["wm-bare"], {}, [], True, False)
+        plan, paths = self._paths(sel)
+        self.assertIn("/etc/profile.d/wheatley-gaming.sh", paths)
+        env = next(f for f in plan.files
+                   if f.path == "/etc/profile.d/wheatley-gaming.sh")
+        self.assertIn("__GL_SHADER_DISK_CACHE_SKIP_CLEANUP=1", env.content)
+        self.assertEqual(env.mode, 0o644)
+
+    def test_no_gaming_no_env_file(self):
+        sel = Selection("k-main", "dinit", ["wm-bare"], {}, [], False, False)
+        _, paths = self._paths(sel)
+        self.assertNotIn("/etc/profile.d/wheatley-gaming.sh", paths)
+
+    def test_prime_run_written_on_nvidia_systems(self):
+        sel = Selection("k-main", "dinit", ["wm-bare"], {}, [], False, False)
+        plan, paths = self._paths(sel, gpu_vendors=frozenset({"nvidia", "intel"}))
+        self.assertIn("/usr/local/bin/prime-run", paths)
+        script = next(f for f in plan.files
+                      if f.path == "/usr/local/bin/prime-run")
+        self.assertEqual(script.mode, 0o755)
+        self.assertTrue(script.content.startswith("#!/bin/sh"))
+        for env in ("__NV_PRIME_RENDER_OFFLOAD=1",
+                    "__GLX_VENDOR_LIBRARY_NAME=nvidia",
+                    "__VK_LAYER_NV_optimus=NVIDIA_only"):
+            self.assertIn(env, script.content)
+        self.assertIn('exec "$@"', script.content)
+
+    def test_prime_run_absent_without_nvidia_or_without_desktop(self):
+        # AMD-only machine: no wrapper
+        sel = Selection("k-main", "dinit", ["wm-bare"], {}, [], True, False)
+        _, paths = self._paths(sel, gpu_vendors=frozenset({"amd"}))
+        self.assertNotIn("/usr/local/bin/prime-run", paths)
+        # nvidia but minimal install (no sessions, no gaming): no wrapper
+        minimal = Selection("k-main", "dinit", [], {}, [], False, True)
+        _, paths = self._paths(minimal, gpu_vendors=frozenset({"nvidia"}))
+        self.assertNotIn("/usr/local/bin/prime-run", paths)
+
+    def test_real_catalog_niri_ships_xwayland_satellite_for_steam(self):
+        # Steam is an X11 app: niri (>=25.05) auto-starts xwayland-satellite
+        # from PATH and sets DISPLAY itself — the guarantee is the package
+        # being installed with the session, never a preset DISPLAY.
+        catalog = load_catalog(_CATALOG_PATH)
+        niri = next(s for s in catalog.sessions if s.id == "niri")
+        self.assertIn("xwayland-satellite", niri.packages)

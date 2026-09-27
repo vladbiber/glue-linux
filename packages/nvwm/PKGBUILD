@@ -1,0 +1,94 @@
+# Maintainer: Wheatley Linux
+pkgname=nvwm
+pkgver=r1
+pkgrel=2
+pkgdesc="Light and strong BSP tiling window manager for X11 with built-in per-monitor bar"
+arch=('x86_64')
+url="https://github.com/Vifuddyxg/nvwm"
+license=('custom')
+# libpulse/playerctl/brightnessctl: the volume/media/brightness keybinds are
+# shipped ENABLED (pactl/playerctl/brightnessctl spawns) — hard deps, not opt
+depends=('libx11' 'libxinerama' 'libxrandr' 'libxcomposite' 'libxrender'
+         'xorg-xinit' 'dbus' 'libpulse' 'playerctl' 'brightnessctl')
+optdepends=('rofi: application launcher' 'st-wheatley: terminal'
+            'picom: compositor (nvwm ships a picom.conf)'
+            'pipewire: audio' 'wireplumber: audio session manager'
+            'pipewire-pulse: PulseAudio-compatible audio')
+makedepends=('git')
+source=("git+https://github.com/Vifuddyxg/nvwm.git")
+sha256sums=('SKIP')
+
+pkgver() {
+    cd "$srcdir/$pkgname"
+    printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+prepare() {
+    cd "$srcdir/$pkgname"
+    # default terminal -> Wheatley-themed st (upstream config spawns alacritty)
+    sed -i -e 's/^terminal       = alacritty/terminal       = st/' \
+           -e 's/spawn:alacritty/spawn:st/g' config.conf
+    # the volume / media / brightness keys must be ACTIVE however upstream
+    # ships them — commented ("# bind_insert"), or enabled behind leading
+    # whitespace (" bind_insert", current HEAD). pactl/playerctl/brightnessctl
+    # are hard deps of this package so the spawns always work.
+    sed -i -E 's/^[[:space:]#]*(bind_insert = XF86)/\1/' config.conf
+    # all 8 XF86 binds must be live at column 0 after normalization
+    [ "$(grep -c '^bind_insert = XF86' config.conf)" -ge 8 ] || {
+        echo "ERROR: XF86 keybind uncomment failed" >&2; exit 1; }
+}
+
+build() {
+    cd "$srcdir/$pkgname"
+    make
+}
+
+package() {
+    cd "$srcdir/$pkgname"
+    # installs the binary and /etc/nvwm/config.conf
+    make PREFIX=/usr DESTDIR="$pkgdir" install
+    # optional compositor config referenced by nvwm's compositor mode
+    install -Dm644 picom.conf "$pkgdir/etc/nvwm/picom.conf"
+    # user-editable copy in every new home: nvwm loads
+    # ~/.config/nvwm/config.conf LAST (it overrides /etc/nvwm/config.conf)
+    install -Dm644 config.conf "$pkgdir/etc/skel/.config/nvwm/config.conf"
+    install -Dm644 picom.conf "$pkgdir/etc/skel/.config/nvwm/picom.conf"
+
+    # session wrapper (starts X under a TUI greeter + dbus + audio, matching
+    # the apeturewm/atomwm wrappers)
+    install -Dm755 /dev/stdin "$pkgdir/usr/bin/nvwm-session" <<'EOF'
+#!/bin/sh
+# nvwm-session — login session wrapper for greeters / display managers.
+# Starts X if launched from a TUI greeter (greetd/tuigreet) with no display,
+# then audio (pipewire) + session bus, then the WM.
+if [ -z "${DISPLAY:-}" ] && [ -z "${WAYLAND_DISPLAY:-}" ] && [ -z "${NVWM_XSTARTED:-}" ]; then
+    NVWM_XSTARTED=1; export NVWM_XSTARTED
+    exec startx "$0" -- "vt${XDG_VTNR:-1}"
+fi
+export XDG_CURRENT_DESKTOP=nvwm
+export XDG_SESSION_DESKTOP=nvwm
+export XDG_SESSION_TYPE=x11
+export XCURSOR_THEME=Adwaita
+export XCURSOR_SIZE=24
+exec dbus-run-session sh -lc '
+  command -v pipewire       >/dev/null 2>&1 && pipewire &
+  command -v wireplumber    >/dev/null 2>&1 && wireplumber &
+  command -v pipewire-pulse >/dev/null 2>&1 && pipewire-pulse &
+  exec nvwm
+'
+EOF
+
+    # xsession entry
+    install -Dm644 /dev/stdin "$pkgdir/usr/share/xsessions/nvwm.desktop" <<'EOF'
+[Desktop Entry]
+Name=nvwm
+Comment=BSP tiling window manager with built-in bar
+Exec=/usr/bin/nvwm-session
+TryExec=/usr/bin/nvwm
+Type=XSession
+DesktopNames=nvwm
+Keywords=tiling;bsp;wm;
+EOF
+
+    install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+}

@@ -1,0 +1,19 @@
+# Maintainer: Wheatley Linux
+# matugen is AUR-only upstream; the imperative-qs bar uses it for Material
+# color theming. Upstream publishes a prebuilt x86_64 binary — repack it.
+pkgname=matugen
+pkgver=4.1.0
+pkgrel=1
+pkgdesc="Material You color generation tool"
+arch=('x86_64')
+url="https://github.com/InioX/matugen"
+license=('GPL-2.0-only')
+depends=('gcc-libs')
+source=("$pkgname-$pkgver-x86_64.tar.gz::https://github.com/InioX/matugen/releases/download/v$pkgver/matugen-$pkgver-x86_64.tar.gz")
+sha256sums=('SKIP')
+
+package() {
+    local bin
+    bin="$(find "$srcdir" -name matugen -type f | head -1)"
+    install -Dm755 "$bin" "$pkgdir/usr/bin/matugen"
+}

@@ -74,6 +74,15 @@ class TestNoDiskPlanRegression(unittest.TestCase):
                       "/etc/dinit.d/greetd", "/etc/dinit.d/boot.d/greetd"],
                 description="Enable service greetd (dinit)",
             ),
+            RunCommand(
+                argv=[
+                    "artix-chroot", "/mnt", "sh", "-c",
+                    "f=/usr/share/dbus-1/system-services/"
+                    "org.freedesktop.ModemManager1.service; "
+                    '[ -e "$f" ] && mv -f "$f" "$f.wheatley-disabled"; true',
+                ],
+                description="Disable ModemManager D-Bus activation (console spam)",
+            ),
         ]
         self.assertEqual(steps, expected)
 
@@ -117,16 +126,31 @@ class TestUefiDiskPlan(unittest.TestCase):
         self.assertIn(["mkdir", "-p", "/mnt/boot/efi"], argvs)
 
     def test_grub_steps_are_last_after_services(self):
-        self.assertEqual(self.steps[-2].argv, [
+        self.assertEqual(self.steps[-4].argv, [
             "artix-chroot", "/mnt", "grub-install", "--target=x86_64-efi",
             "--efi-directory=/boot/efi", "--bootloader-id=Wheatley",
         ])
-        self.assertEqual(self.steps[-1].argv, [
+        # branding step (distributor/os-prober/quiet/theme) between install
+        # and mkconfig
+        self.assertEqual(self.steps[-3].argv[:4],
+                         ["artix-chroot", "/mnt", "sh", "-c"])
+        self.assertIn("GRUB_DISTRIBUTOR", self.steps[-3].argv[4])
+        # os-prober must be ON (dual-boot entries for Windows/other Linux);
+        # the live USB's own cloned entries are stripped by the grub_filter
+        # step that runs right after grub-mkconfig
+        self.assertIn("GRUB_DISABLE_OS_PROBER=false", self.steps[-3].argv[4])
+        self.assertNotIn("GRUB_DISABLE_OS_PROBER=true", self.steps[-3].argv[4])
+        self.assertEqual(self.steps[-2].argv, [
             "artix-chroot", "/mnt", "grub-mkconfig", "-o", "/boot/grub/grub.cfg",
+        ])
+        # LAST step: live-side filter removing the plugged-in USB's entries
+        self.assertEqual(self.steps[-1].argv, [
+            "python3", "-m", "wheatley_installer.grub_filter",
+            "/mnt/boot/grub/grub.cfg",
         ])
         service_at = _index_of(self.steps, "artix-chroot")
         self.assertIn("ln", self.steps[service_at].argv)
-        self.assertLess(service_at, len(self.steps) - 2)
+        self.assertLess(service_at, len(self.steps) - 4)
 
     def test_grub_and_efibootmgr_in_basestrap_sorted(self):
         basestrap = self.steps[_index_of(self.steps, "basestrap")]
@@ -154,7 +178,8 @@ class TestUefiDiskPlan(unittest.TestCase):
         argvs = _argvs(steps)
         self.assertIn(["mount", "/dev/sda2", "/target"], argvs)
         self.assertIn(["mount", "/dev/sda1", "/target/boot/efi"], argvs)
-        self.assertEqual(steps[-1].argv[1], "/target")
+        self.assertEqual(steps[-2].argv[1], "/target")
+        self.assertEqual(steps[-1].argv[-1], "/target/boot/grub/grub.cfg")
 
 
 class TestBiosDiskPlan(unittest.TestCase):
@@ -177,11 +202,18 @@ class TestBiosDiskPlan(unittest.TestCase):
         self.assertIn(["mount", "/dev/nvme0n1p2", "/mnt"], argvs)
 
     def test_grub_install_targets_i386_pc_with_disk(self):
-        self.assertEqual(self.steps[-2].argv, [
+        self.assertEqual(self.steps[-4].argv, [
             "artix-chroot", "/mnt", "grub-install", "--target=i386-pc",
             "/dev/nvme0n1",
         ])
-        self.assertEqual(self.steps[-1].argv[2], "grub-mkconfig")
+        self.assertIn("GRUB_DISTRIBUTOR", self.steps[-3].argv[4])
+        # os-prober ON for dual-boot; live-USB clones are stripped by the
+        # grub_filter step that follows grub-mkconfig
+        self.assertIn("GRUB_DISABLE_OS_PROBER=false", self.steps[-3].argv[4])
+        self.assertNotIn("GRUB_DISABLE_OS_PROBER=true", self.steps[-3].argv[4])
+        self.assertEqual(self.steps[-2].argv[2], "grub-mkconfig")
+        self.assertEqual(self.steps[-1].argv[1], "-m")
+        self.assertEqual(self.steps[-1].argv[2], "wheatley_installer.grub_filter")
 
     def test_grub_but_no_efibootmgr_in_basestrap(self):
         basestrap = self.steps[_index_of(self.steps, "basestrap")]

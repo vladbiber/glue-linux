@@ -1,0 +1,27 @@
+# Maintainer: Wheatley Linux
+# swww is AUR-only upstream; the imperative-qs bar uses it for wallpapers,
+# so Wheatley ships it in the local repo (built from the release tag).
+# Pinned to 0.9.5 (pre-waybackend, wayland-client based): every waybackend-
+# scanner release (0.4.x-0.6.x) panics on the `frozen` attribute in current wayland.xml.
+pkgname=swww
+pkgver=0.9.5
+pkgrel=1
+pkgdesc="Efficient animated wallpaper daemon for wlroots compositors"
+arch=('x86_64')
+url="https://github.com/LGFae/swww"
+license=('GPL-3.0-only')
+depends=('lz4' 'gcc-libs')
+makedepends=('rust' 'git' 'wayland' 'wayland-protocols' 'pkgconf')
+source=("$pkgname-$pkgver.tar.gz::https://github.com/LGFae/swww/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+    cd "$srcdir/$pkgname-$pkgver"
+    cargo build --release --locked
+}
+
+package() {
+    cd "$srcdir/$pkgname-$pkgver"
+    install -Dm755 target/release/swww "$pkgdir/usr/bin/swww"
+    install -Dm755 target/release/swww-daemon "$pkgdir/usr/bin/swww-daemon"
+}

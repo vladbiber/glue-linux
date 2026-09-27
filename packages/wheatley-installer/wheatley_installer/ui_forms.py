@@ -183,6 +183,22 @@ def build_identity_fields(
     }
 
 
+def prefill_timezone_field(forms, tz) -> bool:
+    """Inject the GeoIP-detected timezone into an identity form, but only
+    while the field still holds the 'UTC' placeholder — never clobbers what
+    the user typed, and invalid values are rejected. Returns True on apply."""
+    if not forms or not tz or not isinstance(tz, str):
+        return False
+    field = forms.get("timezone")
+    if field is None or field.value != "UTC":
+        return False
+    if field.validator and field.validator(tz) is not None:
+        return False
+    field.value = tz
+    field.error = None
+    return True
+
+
 def submit_form(forms: Dict[str, FormField], fkey: str) -> Tuple[Optional[str], bool]:
     """Submit field `fkey`; returns (error, reset_to_password).
 

@@ -33,7 +33,7 @@ def _wizard_at(key: str) -> Wizard:
         elif screen.key == "init":
             w.apply(Choose("dinit"))
         elif screen.key == "sessions":
-            w.apply(Toggle("mangowc"))
+            w.apply(Toggle("niri"))
             w.apply(Toggle("sway"))
         elif screen.key.startswith("shell:"):
             w.apply(Choose("noctalia"))
@@ -181,14 +181,14 @@ class TestNoticeAndDetail(unittest.TestCase):
 
     def test_detail_block_shows_ease_lightness_keys_preview(self):
         screen = _wizard_at("sessions").current_screen()
-        idx = [i.id for i in screen.items].index("mangowc")
+        idx = [i.id for i in screen.items].index("niri")
         detail = " ".join(t for t, s in render_screen(screen, idx, 200, 60)
                           if s == "detail")
         self.assertIn("Ease: 4/5", detail)
         self.assertIn("Lightness: 4/5", detail)
         self.assertIn("Keys: Super+Return — Open terminal", detail)
-        self.assertIn("Preview: screenshots/mangowc.png", detail)
-        self.assertIn("User-friendly Wayland compositor", detail)
+        self.assertIn("Preview: screenshots/niri.png", detail)
+        self.assertIn("scrollable-tiling Wayland compositor", detail)
 
     def test_detail_follows_the_cursor(self):
         screen = _wizard_at("sessions").current_screen()
@@ -196,7 +196,7 @@ class TestNoticeAndDetail(unittest.TestCase):
         sway = " ".join(t for t, s in render_screen(screen, ids.index("sway"), W, 60)
                         if s == "detail")
         self.assertIn("i3-compatible", sway)
-        self.assertNotIn("mangowc.png", sway)
+        self.assertNotIn("niri.png", sway)
 
 
 class TestGeometry(unittest.TestCase):
@@ -241,7 +241,7 @@ class TestSummaryScreen(unittest.TestCase):
         text = _joined(render_screen(w.current_screen(), 0, 120, 60))
         self.assertIn("Kernel: CachyOS Kernel", text)
         self.assertIn("Init: dinit", text)
-        self.assertIn("Session: MangoWC", text)
+        self.assertIn("Session: Niri", text)
         self.assertIn("Gaming Mode: on", text)
 
 

@@ -30,7 +30,7 @@ class TestValidateCatalog(unittest.TestCase):
         self.assertIn("2 kernels", result.stdout)
         self.assertIn("3 inits", result.stdout)
         self.assertIn("8 sessions", result.stdout)
-        self.assertIn("2 shells", result.stdout)
+        self.assertIn("1 shells", result.stdout)
 
     def test_explicit_catalog_path_matches_default(self):
         result = _run_module("--validate-catalog", "--catalog", str(_CATALOG_PATH))
@@ -91,6 +91,25 @@ class TestCliBasics(unittest.TestCase):
         module = importlib.import_module("wheatley_installer.__main__")
         self.assertTrue(callable(module.main))
         self.assertEqual(module.main(["--validate-catalog"]), 0)
+
+
+class TestKeyringPrepInDryRun(unittest.TestCase):
+    """The host pacman keyring must be initialized+populated BEFORE basestrap
+    (regression: online install died with 'cachyos: key ... is unknown')."""
+
+    def test_keyring_steps_precede_basestrap(self):
+        result = _run_module("--headless", "--dry-run", "--disk", "/dev/fake")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        lines = result.stdout.splitlines()
+        init_at = next(
+            i for i, l in enumerate(lines) if "pacman keyring" in l and "Initialize" in l
+        )
+        populate_at = next(
+            i for i, l in enumerate(lines) if "cachyos" in l and "Populate" in l
+        )
+        basestrap_at = next(i for i, l in enumerate(lines) if "basestrap" in l)
+        self.assertLess(init_at, populate_at)
+        self.assertLess(populate_at, basestrap_at)
 
 
 class TestIdentityFlags(unittest.TestCase):
@@ -306,3 +325,128 @@ class TestRootElevation(unittest.TestCase):
             [], which=lambda name: None, executable="/usr/bin/python3")
         self.assertEqual(
             argv, ["sudo", "/usr/bin/python3", "-m", "wheatley_installer"])
+
+
+class TestSyncClock(unittest.TestCase):
+    """HTTP-Date live-clock sync (injectable; never raises)."""
+
+    def test_large_drift_sets_clock(self):
+        from wheatley_installer.run_ui import sync_clock
+        applied = []
+        drift = sync_clock(
+            fetch_date=lambda url: "Tue, 21 Jul 2026 12:00:00 GMT",
+            set_time=applied.append,
+            now=lambda: 1000.0,
+        )
+        self.assertEqual(len(applied), 1)
+        self.assertGreater(applied[0], 1.7e9)
+        self.assertIsInstance(drift, int)
+        self.assertGreater(drift, 0)
+
+    def test_small_drift_leaves_clock_alone(self):
+        import email.utils
+        from wheatley_installer.run_ui import sync_clock
+        header = "Tue, 21 Jul 2026 12:00:00 GMT"
+        epoch = email.utils.parsedate_to_datetime(header).timestamp()
+        applied = []
+        self.assertIsNone(sync_clock(
+            fetch_date=lambda url: header,
+            set_time=applied.append,
+            now=lambda: epoch + 30,
+        ))
+        self.assertEqual(applied, [])
+
+    def test_offline_returns_none(self):
+        from wheatley_installer.run_ui import sync_clock
+        def fetch(url):
+            raise OSError("no net")
+        self.assertIsNone(sync_clock(fetch_date=fetch,
+                                     set_time=lambda e: None,
+                                     now=lambda: 0.0))
+
+    def test_garbage_date_header_returns_none(self):
+        from wheatley_installer.run_ui import sync_clock
+        for bad in (None, "", "<html>", "not a date"):
+            self.assertIsNone(sync_clock(fetch_date=lambda url, b=bad: b,
+                                         set_time=lambda e: None,
+                                         now=lambda: 0.0), bad)
+
+    def test_set_time_failure_is_swallowed(self):
+        from wheatley_installer.run_ui import sync_clock
+        def boom(epoch):
+            raise RuntimeError("date failed")
+        self.assertIsNone(sync_clock(
+            fetch_date=lambda url: "Tue, 21 Jul 2026 12:00:00 GMT",
+            set_time=boom,
+            now=lambda: 1000.0,
+        ))
+
+
+class TestDetectTimezone(unittest.TestCase):
+    """GeoIP timezone default (injectable fetch, never raises)."""
+
+    def test_valid_first_endpoint(self):
+        from wheatley_installer.__main__ import detect_timezone
+        self.assertEqual(
+            detect_timezone(fetch=lambda url: "Europe/Bucharest\n"),
+            "Europe/Bucharest",
+        )
+
+    def test_falls_back_to_second_endpoint(self):
+        from wheatley_installer.__main__ import detect_timezone, _TZ_ENDPOINTS
+        calls = []
+
+        def fetch(url):
+            calls.append(url)
+            if url == _TZ_ENDPOINTS[0]:
+                raise OSError("offline")
+            return "America/New_York"
+
+        self.assertEqual(detect_timezone(fetch=fetch), "America/New_York")
+        self.assertEqual(calls, list(_TZ_ENDPOINTS))
+
+    def test_offline_returns_none(self):
+        from wheatley_installer.__main__ import detect_timezone
+
+        def fetch(url):
+            raise OSError("no network")
+
+        self.assertIsNone(detect_timezone(fetch=fetch))
+
+    def test_garbage_rejected(self):
+        from wheatley_installer.__main__ import detect_timezone
+        for bad in ("", "<html>error</html>", "not a timezone at all!", "UTC;rm -rf"):
+            self.assertIsNone(detect_timezone(fetch=lambda url, b=bad: b), bad)
+
+
+class TestAutodetectSpecTimezone(unittest.TestCase):
+    """Second-chance timezone detection after the wizard (Wi-Fi came up in
+    the wizard's network screen, so the pre-wizard lookup often ran offline)."""
+
+    def _spec(self, tz):
+        from wheatley_installer.identity import IdentitySpec
+        return IdentitySpec(hostname="h", username="u", password="p", timezone=tz)
+
+    def test_utc_placeholder_gets_detected_timezone(self):
+        from wheatley_installer.run_ui import autodetect_spec_timezone
+        spec = self._spec("UTC")
+        out = autodetect_spec_timezone(spec, detect=lambda: "Europe/Bucharest")
+        self.assertEqual(out.timezone, "Europe/Bucharest")
+        self.assertEqual(out.username, "u")  # everything else untouched
+        self.assertEqual(spec.timezone, "UTC")  # original spec not mutated
+
+    def test_real_timezone_never_overridden(self):
+        from wheatley_installer.run_ui import autodetect_spec_timezone
+        spec = self._spec("Europe/London")
+        out = autodetect_spec_timezone(spec, detect=lambda: "Europe/Bucharest")
+        self.assertIs(out, spec)
+
+    def test_detection_failure_keeps_spec(self):
+        from wheatley_installer.run_ui import autodetect_spec_timezone
+        spec = self._spec("UTC")
+        self.assertIs(autodetect_spec_timezone(spec, detect=lambda: None), spec)
+        self.assertIs(autodetect_spec_timezone(spec, detect=lambda: "UTC"), spec)
+
+    def test_none_spec_passes_through(self):
+        from wheatley_installer.run_ui import autodetect_spec_timezone
+        self.assertIsNone(autodetect_spec_timezone(None, detect=lambda: "Europe/Paris"))

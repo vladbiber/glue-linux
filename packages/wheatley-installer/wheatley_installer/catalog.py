@@ -62,6 +62,14 @@ class Session:
     packages: List[str]
     services: List[str]
     shell_choices: List[str]
+    # Greeter integration (optional in JSON): how the login-session wrapper
+    # starts this session. session_type "x11" sessions get a startx bootstrap
+    # (greetd/tuigreet never starts X); "wayland" ones exec the compositor.
+    session_type: str = "x11"  # "x11" or "wayland"
+    exec: Optional[str] = None  # command to exec; defaults to the session id
+    # XDG_CURRENT_DESKTOP/DesktopNames value when it must differ from the id
+    # (GNOME components match the exact string "GNOME"). None = use the id.
+    desktop: Optional[str] = None
 
 
 @dataclass
@@ -74,6 +82,9 @@ class Shell:
     keybindings: List[Keybinding]
     screenshot: Optional[str]
     packages: List[str]
+    # Optional command the session wrapper autostarts once the compositor's
+    # Wayland socket is up (e.g. "qs -c wheatley-bar"). None = no autostart.
+    exec: Optional[str] = None
 
 
 @dataclass
@@ -121,11 +132,13 @@ _REQUIRED_TOP = {"version", "kernels", "inits", "sessions", "shells", "support",
 _VALID_KINDS = {"wm", "de"}
 
 
-def _require_keys(d: dict, required: set, ctx: str) -> None:
+def _require_keys(
+    d: dict, required: set, ctx: str, *, optional: frozenset = frozenset(),
+) -> None:
     missing = required - d.keys()
     if missing:
         raise CatalogError(f"{ctx}: missing required keys: {sorted(missing)}")
-    unknown = d.keys() - required
+    unknown = d.keys() - required - optional
     if unknown:
         raise CatalogError(f"{ctx}: unknown keys: {sorted(unknown)}")
 
@@ -138,7 +151,9 @@ def _check_rating(value: object, field_name: str, ctx: str) -> int:
     return value
 
 
-def _parse_keybindings(raw: object, ctx: str) -> List[Keybinding]:
+def _parse_keybindings(
+    raw: object, ctx: str, *, minimum: int = 5,
+) -> List[Keybinding]:
     if not isinstance(raw, list):
         raise CatalogError(f"{ctx}: 'keybindings' must be a list")
     result: List[Keybinding] = []
@@ -152,8 +167,10 @@ def _parse_keybindings(raw: object, ctx: str) -> List[Keybinding]:
         if not isinstance(kb["action"], str) or not kb["action"]:
             raise CatalogError(f"{kb_ctx}: 'action' must be a non-empty string")
         result.append(Keybinding(keys=kb["keys"], action=kb["action"]))
-    if len(result) < 5:
-        raise CatalogError(f"{ctx}: needs at least 5 keybindings, found {len(result)}")
+    if len(result) < minimum:
+        raise CatalogError(
+            f"{ctx}: needs at least {minimum} keybindings, found {len(result)}"
+        )
     return result
 
 
@@ -229,18 +246,32 @@ def _parse_init(raw: dict, idx: int) -> Init:
 
 _SESSION_KEYS = {"id", "name", "kind", "description", "ease", "lightness",
                  "keybindings", "screenshot", "packages", "services", "shell_choices"}
+_SESSION_OPTIONAL_KEYS = frozenset({"session_type", "exec", "desktop"})
+_VALID_SESSION_TYPES = {"x11", "wayland"}
 
 
 def _parse_session(raw: dict, idx: int) -> Session:
     ctx = f"sessions[{idx}]"
     if not isinstance(raw, dict):
         raise CatalogError(f"{ctx}: must be an object")
-    _require_keys(raw, _SESSION_KEYS, ctx)
+    _require_keys(raw, _SESSION_KEYS, ctx, optional=_SESSION_OPTIONAL_KEYS)
     eid = _str_field(raw, "id", ctx)
     ctx = f"session '{eid}'"
     kind = _str_field(raw, "kind", ctx)
     if kind not in _VALID_KINDS:
         raise CatalogError(f"{ctx}: 'kind' must be one of {sorted(_VALID_KINDS)}, got '{kind}'")
+    session_type = raw.get("session_type", "x11")
+    if session_type not in _VALID_SESSION_TYPES:
+        raise CatalogError(
+            f"{ctx}: 'session_type' must be one of {sorted(_VALID_SESSION_TYPES)}, "
+            f"got '{session_type}'"
+        )
+    exec_cmd = _optional_str(raw, "exec", ctx) if "exec" in raw else None
+    if exec_cmd is not None and not exec_cmd:
+        raise CatalogError(f"{ctx}: 'exec' must be a non-empty string or null")
+    desktop = _optional_str(raw, "desktop", ctx) if "desktop" in raw else None
+    if desktop is not None and not desktop:
+        raise CatalogError(f"{ctx}: 'desktop' must be a non-empty string or null")
     return Session(
         id=eid,
         name=_str_field(raw, "name", ctx),
@@ -253,18 +284,22 @@ def _parse_session(raw: dict, idx: int) -> Session:
         packages=_str_list(raw, "packages", ctx),
         services=_str_list(raw, "services", ctx),
         shell_choices=_str_list(raw, "shell_choices", ctx),
+        session_type=session_type,
+        exec=exec_cmd,
+        desktop=desktop,
     )
 
 
 _SHELL_KEYS = {"id", "name", "description", "ease", "lightness",
                "keybindings", "screenshot", "packages"}
+_SHELL_OPTIONAL_KEYS = frozenset({"exec"})
 
 
 def _parse_shell(raw: dict, idx: int) -> Shell:
     ctx = f"shells[{idx}]"
     if not isinstance(raw, dict):
         raise CatalogError(f"{ctx}: must be an object")
-    _require_keys(raw, _SHELL_KEYS, ctx)
+    _require_keys(raw, _SHELL_KEYS, ctx, optional=_SHELL_OPTIONAL_KEYS)
     eid = _str_field(raw, "id", ctx)
     ctx = f"shell '{eid}'"
     return Shell(
@@ -273,9 +308,12 @@ def _parse_shell(raw: dict, idx: int) -> Shell:
         description=_str_field(raw, "description", ctx),
         ease=_check_rating(raw["ease"], "ease", ctx),
         lightness=_check_rating(raw["lightness"], "lightness", ctx),
-        keybindings=_parse_keybindings(raw["keybindings"], ctx),
+        # A shell/bar has no hotkeys of its own (the compositor owns keybinds),
+        # so unlike sessions, shells may list none.
+        keybindings=_parse_keybindings(raw["keybindings"], ctx, minimum=0),
         screenshot=_optional_str(raw, "screenshot", ctx),
         packages=_str_list(raw, "packages", ctx),
+        exec=(_optional_str(raw, "exec", ctx) if "exec" in raw else None),
     )
 
 

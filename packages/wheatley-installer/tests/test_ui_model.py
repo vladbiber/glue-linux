@@ -17,9 +17,37 @@ from wheatley_installer.ui_model import (
 _CATALOG_PATH = _PKG_ROOT / "catalog" / "catalog.json"
 _CATALOG = load_catalog(_CATALOG_PATH)
 
+# The REAL catalog no longer ships any shell/bar (quickshell was dropped), but
+# the wizard's shell-choice machinery stays — cover it with a synthetic
+# catalog: one extra shell-capable session + two fake bars.
+import dataclasses as _dc
 
-def _new_wizard() -> Wizard:
-    w = Wizard(_CATALOG)
+from wheatley_installer.catalog import Session as _Session, Shell as _Shell
+
+_MOCK_SHELLS = [
+    _Shell(id="bar-a", name="Bar A", description="synthetic bar A",
+           ease=4, lightness=4, keybindings=[], screenshot="screenshots/bar-a.png",
+           packages=["bar-a-pkg"], exec="bar-a-cmd"),
+    _Shell(id="bar-b", name="Bar B", description="synthetic bar B",
+           ease=3, lightness=5, keybindings=[], screenshot=None,
+           packages=["bar-b-pkg"], exec="bar-b-cmd"),
+]
+_MOCK_SESSION = _Session(
+    id="mockwc", name="MockWC", kind="wm", description="synthetic compositor",
+    ease=4, lightness=4, keybindings=[], screenshot="screenshots/mockwc.png",
+    packages=["mockwc-pkg"], services=[], shell_choices=["bar-a", "bar-b"],
+    session_type="wayland", exec="mockwc",
+)
+_SHELL_CATALOG = _dc.replace(
+    _CATALOG,
+    sessions=list(_CATALOG.sessions) + [_MOCK_SESSION],
+    # keep the real shells too — niri's shell_choices reference "noctalia"
+    shells=_MOCK_SHELLS + list(_CATALOG.shells),
+)
+
+
+def _new_wizard(catalog=_CATALOG) -> Wizard:
+    w = Wizard(catalog)
     w.set_network_status("connected")  # network screen blocks Next otherwise
     return w
 
@@ -33,10 +61,10 @@ def _advance_to(wizard: Wizard, key: str) -> None:
     raise AssertionError(f"Never reached screen '{key}'")
 
 
-def _drive_happy_path(sessions=("mangowc", "niri"), shells=None,
-                      bluetooth=True, gaming=True) -> Wizard:
+def _drive_happy_path(sessions=("niri", "sway"), shells=None,
+                      bluetooth=True, gaming=True, catalog=_CATALOG) -> Wizard:
     """Full custom-mode walk: cachyos, dinit, given sessions/shells."""
-    w = _new_wizard()
+    w = _new_wizard(catalog)
     w.next()  # welcome -> network
     w.next()  # network -> mode (custom preselected)
     w.next()  # mode -> kernel
@@ -50,7 +78,9 @@ def _drive_happy_path(sessions=("mangowc", "niri"), shells=None,
     shells = shells or {}
     while w.current_screen().key.startswith("shell:"):
         sid = w.current_screen().key.split(":", 1)[1]
-        w.apply(Choose(shells.get(sid, "noctalia")))
+        # explicit choice if given, else the screen's first shell
+        choice = shells.get(sid) or w.current_screen().items[0].id
+        w.apply(Choose(choice))
         w.next()
     assert w.current_screen().key == "support"
     if bluetooth:
@@ -72,7 +102,7 @@ class TestScreenSequence(unittest.TestCase):
         self.assertIn("Wheatley", screen.notice)
 
     def test_full_custom_walk_visits_expected_keys(self):
-        w = _new_wizard()
+        w = _new_wizard(_SHELL_CATALOG)
         visited = [w.current_screen().key]
         w.next(); visited.append(w.current_screen().key)   # network
         w.next(); visited.append(w.current_screen().key)   # mode
@@ -81,18 +111,18 @@ class TestScreenSequence(unittest.TestCase):
         w.next(); visited.append(w.current_screen().key)   # init
         w.apply(Choose("dinit"))
         w.next(); visited.append(w.current_screen().key)   # sessions
-        w.apply(Toggle("mangowc"))
+        w.apply(Toggle("mockwc"))
         w.apply(Toggle("niri"))
-        w.next(); visited.append(w.current_screen().key)   # shell:mangowc
-        w.apply(Choose("noctalia"))
+        w.next(); visited.append(w.current_screen().key)   # shell:mockwc
+        w.apply(Choose("bar-a"))
         w.next(); visited.append(w.current_screen().key)   # shell:niri
-        w.apply(Choose("imperative-dots"))
+        w.apply(Choose("noctalia"))
         w.next(); visited.append(w.current_screen().key)   # support
         w.next(); visited.append(w.current_screen().key)   # gaming
         w.next(); visited.append(w.current_screen().key)   # summary
         self.assertEqual(visited, [
             "welcome", "network", "mode", "kernel", "init", "sessions",
-            "shell:mangowc", "shell:niri", "support", "gaming", "summary",
+            "shell:mockwc", "shell:niri", "support", "gaming", "summary",
         ])
 
     def test_mode_screen_preselects_custom(self):
@@ -104,12 +134,12 @@ class TestScreenSequence(unittest.TestCase):
         selected = [i.id for i in screen.items if i.selected]
         self.assertEqual(selected, ["custom"])
 
-    def test_shell_screens_sorted_session_order(self):
-        w = _drive_happy_path()
-        # mangowc < niri alphabetically; verified via full walk above, and
-        # the shell_choice keys must cover exactly the qualifying sessions.
+    def test_shell_choice_covers_exactly_the_qualifying_sessions(self):
+        w = _drive_happy_path(sessions=("mockwc", "sway"),
+                              catalog=_SHELL_CATALOG)
+        # only mockwc has shell_choices; sway must not appear in the mapping
         sel = w.to_selection()
-        self.assertEqual(list(sel.shell_choice.keys()), ["mangowc", "niri"])
+        self.assertEqual(list(sel.shell_choice.keys()), ["mockwc"])
 
     def test_shell_screens_only_for_shell_capable_sessions(self):
         w = _new_wizard()
@@ -217,38 +247,51 @@ class TestSessionsScreen(unittest.TestCase):
 
     def test_toggle_flips_item(self):
         w, _ = self._sessions_screen()
-        w.apply(Toggle("mangowc"))
-        item = next(i for i in w.current_screen().items if i.id == "mangowc")
+        w.apply(Toggle("niri"))
+        item = next(i for i in w.current_screen().items if i.id == "niri")
         self.assertTrue(item.selected)
-        w.apply(Toggle("mangowc"))
-        item = next(i for i in w.current_screen().items if i.id == "mangowc")
+        w.apply(Toggle("niri"))
+        item = next(i for i in w.current_screen().items if i.id == "niri")
         self.assertFalse(item.selected)
 
 
 class TestShellScreens(unittest.TestCase):
+    """Shell-choice machinery, driven by the synthetic _SHELL_CATALOG (the
+    real catalog ships no shells since quickshell was dropped)."""
 
     def _to_shell_screen(self):
+        w = _new_wizard(_SHELL_CATALOG)
+        _advance_to(w, "kernel")
+        w.apply(Choose("linux-cachyos")); w.next()
+        w.apply(Choose("dinit")); w.next()
+        w.apply(Toggle("mockwc"))
+        w.next()
+        return w
+
+    def test_real_catalog_niri_offers_noctalia_shell(self):
         w = _new_wizard()
         _advance_to(w, "kernel")
         w.apply(Choose("linux-cachyos")); w.next()
         w.apply(Choose("dinit")); w.next()
-        w.apply(Toggle("mangowc"))
+        w.apply(Toggle("niri"))
         w.next()
-        return w
+        screen = w.current_screen()
+        self.assertEqual(screen.key, "shell:niri")
+        self.assertEqual([i.id for i in screen.items], ["noctalia"])
 
     def test_shell_items_carry_catalog_data(self):
         w = self._to_shell_screen()
         screen = w.current_screen()
-        self.assertEqual(screen.key, "shell:mangowc")
-        shells = {s.id: s for s in _CATALOG.shells}
-        self.assertEqual([i.id for i in screen.items],
-                         ["noctalia", "imperative-dots"])
+        self.assertEqual(screen.key, "shell:mockwc")
+        shells = {s.id: s for s in _SHELL_CATALOG.shells}
+        self.assertEqual([i.id for i in screen.items], ["bar-a", "bar-b"])
         for item in screen.items:
             shell = shells[item.id]
             self.assertEqual(item.ease, shell.ease)
             self.assertEqual(item.lightness, shell.lightness)
             self.assertEqual(item.screenshot, shell.screenshot)
-            self.assertIsNotNone(item.keybinds)
+            if shell.keybindings:
+                self.assertIsNotNone(item.keybinds)
 
     def test_next_without_shell_choice_raises(self):
         w = self._to_shell_screen()
@@ -257,10 +300,10 @@ class TestShellScreens(unittest.TestCase):
 
     def test_deselect_session_drops_shell_screen_and_choice(self):
         w = self._to_shell_screen()
-        w.apply(Choose("noctalia"))
+        w.apply(Choose("bar-a"))
         w.back()  # back to sessions
         self.assertEqual(w.current_screen().key, "sessions")
-        w.apply(Toggle("mangowc"))  # deselect
+        w.apply(Toggle("mockwc"))   # deselect
         w.apply(Toggle("sway"))     # keep a session so next() is valid
         w.next()
         self.assertEqual(w.current_screen().key, "support")
@@ -268,7 +311,7 @@ class TestShellScreens(unittest.TestCase):
         sel = w.to_selection()
         self.assertEqual(sel.shell_choice, {})
         self.assertEqual(sel.session_ids, ["sway"])
-        resolve_plan(_CATALOG, sel)  # must not raise
+        resolve_plan(_SHELL_CATALOG, sel)  # must not raise
 
 
 class TestValidation(unittest.TestCase):
@@ -309,7 +352,7 @@ class TestValidation(unittest.TestCase):
         w.apply(Choose("linux-cachyos")); w.next()
         w.apply(Choose("dinit")); w.next()
         with self.assertRaises(ValidationError):
-            w.apply(Choose("mangowc"))
+            w.apply(Choose("niri"))
 
     def test_toggle_on_radio_screen_raises(self):
         w = _new_wizard()
@@ -399,22 +442,24 @@ class TestSummaryAndSelection(unittest.TestCase):
 
     def test_happy_path_selection_resolves_with_expected_packages(self):
         w = _drive_happy_path(
-            sessions=("mangowc", "niri"),
-            shells={"mangowc": "noctalia", "niri": "imperative-dots"},
+            sessions=("mockwc", "niri"),
+            shells={"mockwc": "bar-a"},
             bluetooth=True, gaming=True,
+            catalog=_SHELL_CATALOG,
         )
         sel = w.to_selection()
         self.assertEqual(sel.kernel_id, "linux-cachyos")
         self.assertEqual(sel.init_id, "dinit")
-        self.assertEqual(sel.session_ids, ["mangowc", "niri"])
+        self.assertEqual(sel.session_ids, ["mockwc", "niri"])
+        # niri's screen got its first (only) shell by the driver's fallback
         self.assertEqual(sel.shell_choice,
-                         {"mangowc": "noctalia", "niri": "imperative-dots"})
+                         {"mockwc": "bar-a", "niri": "noctalia"})
         self.assertEqual(sel.support_ids, ["bluetooth"])
         self.assertTrue(sel.gaming)
         self.assertFalse(sel.minimal)
-        plan = resolve_plan(_CATALOG, sel)  # must not raise PlanError
-        for pkg in ("mangowc", "niri", "noctalia-shell", "quickshell",
-                    "imperative-dots", "linux-cachyos", "dinit", "bluez",
+        plan = resolve_plan(_SHELL_CATALOG, sel)  # must not raise PlanError
+        for pkg in ("mockwc-pkg", "niri", "bar-a-pkg", "noctalia-shell",
+                    "linux-cachyos", "dinit", "bluez",
                     "steam", "greetd", "fastfetch"):
             self.assertIn(pkg, plan.packages)
 
@@ -427,8 +472,8 @@ class TestSummaryAndSelection(unittest.TestCase):
         labels = "\n".join(i.label for i in summary.items)
         self.assertIn("CachyOS", labels)
         self.assertIn("dinit", labels)
-        self.assertIn("MangoWC", labels)
         self.assertIn("Niri", labels)
+        self.assertIn("Sway", labels)
         self.assertIn("Bluetooth", labels)
         self.assertIn("Gaming Mode: on", labels)
 
@@ -477,12 +522,12 @@ class TestMinimalMode(unittest.TestCase):
         resolve_plan(_CATALOG, sel)  # must not raise
 
     def test_switching_to_minimal_clears_sessions_and_shells(self):
-        w = _new_wizard()
+        w = _new_wizard(_SHELL_CATALOG)
         _advance_to(w, "kernel")
         w.apply(Choose("linux-cachyos")); w.next()
         w.apply(Choose("dinit")); w.next()
-        w.apply(Toggle("mangowc")); w.next()
-        w.apply(Choose("noctalia"))
+        w.apply(Toggle("mockwc")); w.next()
+        w.apply(Choose("bar-a"))
         w.back(); w.back(); w.back(); w.back()  # back to mode
         self.assertEqual(w.current_screen().key, "mode")
         w.apply(Choose("minimal"))
@@ -491,7 +536,7 @@ class TestMinimalMode(unittest.TestCase):
         sel = w.to_selection()
         self.assertEqual(sel.session_ids, [])
         self.assertEqual(sel.shell_choice, {})
-        resolve_plan(_CATALOG, sel)  # must not raise
+        resolve_plan(_SHELL_CATALOG, sel)  # must not raise
 
 
 if __name__ == "__main__":
@@ -607,3 +652,35 @@ class TestMandatoryNetwork(unittest.TestCase):
         w.set_network_status("connected")  # user fixed it via nmtui
         w.next()
         self.assertEqual(w.current_screen().key, "mode")
+
+
+class TestTimezonePrefill(unittest.TestCase):
+    """prefill_timezone: the TUI injects the GeoIP timezone once the network
+    screen confirms connectivity; only the 'UTC' placeholder is replaced."""
+
+    def _wizard_with_identity(self, tz_default="UTC"):
+        w = Wizard(_CATALOG, ask_identity=True,
+                   identity_defaults={"timezone": tz_default})
+        w.set_network_status("connected")
+        return w
+
+    def test_replaces_utc_placeholder(self):
+        w = self._wizard_with_identity()
+        self.assertTrue(w.prefill_timezone("Europe/Bucharest"))
+        self.assertEqual(w._forms["timezone"].value, "Europe/Bucharest")
+
+    def test_never_clobbers_a_real_default_or_user_input(self):
+        w = self._wizard_with_identity(tz_default="Europe/London")
+        self.assertFalse(w.prefill_timezone("Europe/Bucharest"))
+        self.assertEqual(w._forms["timezone"].value, "Europe/London")
+
+    def test_rejects_invalid_or_empty_values(self):
+        w = self._wizard_with_identity()
+        self.assertFalse(w.prefill_timezone(""))
+        self.assertFalse(w.prefill_timezone(None))
+        self.assertFalse(w.prefill_timezone("not a tz!!"))
+        self.assertEqual(w._forms["timezone"].value, "UTC")
+
+    def test_noop_without_identity_forms(self):
+        w = _new_wizard()  # ask_identity defaults to False
+        self.assertFalse(w.prefill_timezone("Europe/Bucharest"))

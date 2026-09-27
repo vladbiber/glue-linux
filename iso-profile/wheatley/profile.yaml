@@ -62,6 +62,13 @@ rootfs:
     - xorg-xsetroot
     - rofi
     - dmenu
+    # --- Wayland preview: test a compositor on real hardware straight from
+    #     the stick, before installing. From a tty: `niri`. ---
+    - niri
+    - foot
+    - fuzzel
+    - xorg-xwayland
+    - xwayland-satellite
     - pipewire
     - wireplumber
     - pipewire-pulse

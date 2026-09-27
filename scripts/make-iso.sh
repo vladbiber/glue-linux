@@ -18,11 +18,28 @@ mkdir -p "$REPO"
 # stage pacman.conf next to the installer PKGBUILD (makepkg can't take ../.. paths)
 cp "$ROOT/repo/pacman.conf" "$ROOT/packages/wheatley-installer/pacman.conf"
 chown -R builder:builder "$ROOT/repo" "$ROOT/packages"
-for pkg in wheatley-branding st-wheatley apeturewm atomwm wheatley-installer; do
+# Register the (initially empty) [wheatley] repo with the build container's
+# pacman BEFORE building: later packages in the loop depend on earlier ones
+# (imperative-qs needs swww + matugen), and makepkg --syncdeps resolves deps
+# through pacman. Refresh the repo db after each package.
+repo-add -q "$REPO/wheatley.db.tar.gz" 2>/dev/null || true
+grep -q '^\[wheatley\]' /etc/pacman.conf || cat >> /etc/pacman.conf <<EOF
+
+[wheatley]
+SigLevel = Optional TrustAll
+Server = file://$REPO
+EOF
+pacman -Sy --noconfirm >/dev/null 2>&1 || true
+
+# quickshell-based bars (wheatley-bar, imperative-qs + its swww/matugen deps)
+# are no longer built: quickshell was dropped from the catalog and the ISO.
+for pkg in wheatley-branding st-wheatley apeturewm atomwm nvwm proton-ge-custom-bin wheatley-installer; do
     echo "    -- $pkg"
     ( cd "$ROOT/packages/$pkg" && \
       sudo -u builder makepkg -f --syncdeps --noconfirm --skippgpcheck )
     cp "$ROOT/packages/$pkg"/*.pkg.tar.* "$REPO"/ 2>/dev/null || true
+    repo-add -q "$REPO/wheatley.db.tar.gz" "$REPO"/*.pkg.tar.* >/dev/null 2>&1 || true
+    pacman -Sy --noconfirm >/dev/null 2>&1 || true
 done
 repo-add "$REPO/wheatley.db.tar.gz" "$REPO"/*.pkg.tar.* 2>/dev/null || \
     repo-add "$REPO/wheatley.db.tar.zst" "$REPO"/*.pkg.tar.*

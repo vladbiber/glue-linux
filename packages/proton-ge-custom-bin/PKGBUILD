@@ -1,0 +1,26 @@
+# Maintainer: Wheatley Linux
+# GloriousEggroll's Proton GE, installed system-wide where Steam picks it up
+# (Steam > Settings > Compatibility, or per-game Properties > Compatibility).
+pkgname=proton-ge-custom-bin
+_tag=GE-Proton11-1
+pkgver=${_tag//GE-Proton/}
+pkgver=${pkgver//-/.}
+pkgrel=1
+pkgdesc="Proton GE (GloriousEggroll) — Steam compatibility tool for Windows games"
+arch=('x86_64')
+url="https://github.com/GloriousEggroll/proton-ge-custom"
+license=('custom')
+optdepends=('steam: the client that uses this compatibility tool')
+# prebuilt release tarball; nothing to strip/compress, and stripping would
+# break the bundled Wine binaries anyway
+options=('!strip' '!debug')
+source=("https://github.com/GloriousEggroll/proton-ge-custom/releases/download/${_tag}/${_tag}.tar.gz")
+sha256sums=('SKIP')
+noextract=("${_tag}.tar.gz")
+
+package() {
+    install -d "$pkgdir/usr/share/steam/compatibilitytools.d"
+    # extract straight into place: ~1.2 GB unpacked, no point copying twice
+    bsdtar -xf "$srcdir/${_tag}.tar.gz" \
+        -C "$pkgdir/usr/share/steam/compatibilitytools.d"
+}
