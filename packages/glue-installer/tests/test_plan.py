@@ -535,6 +535,13 @@ class TestGreeterProfile(unittest.TestCase):
         self.assertIn('user = "greeter"', cfg.content)
         self.assertEqual(cfg.mode, 0o644)
 
+    def test_greetd_config_greeting_and_no_legacy_branding(self):
+        plan = self._plan(["wm-bare"])
+        cfg = self._file(plan, "/etc/greetd/config.toml")
+        self.assertIn("--greeting 'Glue Linux'", cfg.content)
+        self.assertNotIn("wheatley", cfg.content.lower())
+        self.assertNotIn("artix", cfg.content.lower())
+
     def test_x11_wrapper_has_startx_dbus_and_audio(self):
         plan = self._plan(["wm-bare"])
         wrapper = self._file(plan, "/usr/local/bin/glue-session-wm-bare")

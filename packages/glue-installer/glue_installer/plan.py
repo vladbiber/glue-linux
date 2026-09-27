@@ -155,7 +155,7 @@ _GREETD_CONFIG_CONTENT = """\
 vt = 7
 
 [default_session]
-command = "tuigreet --remember --remember-session --time --sessions /usr/share/glue/sessions --theme 'border=yellow;text=white;prompt=yellow;time=yellow;action=yellow;button=yellow;container=black;input=white'"
+command = "tuigreet --remember --remember-session --time --greeting 'Glue Linux' --sessions /usr/share/glue/sessions --theme 'border=yellow;text=white;prompt=yellow;time=yellow;action=yellow;button=yellow;container=black;input=white'"
 user = "greeter"
 """
 
