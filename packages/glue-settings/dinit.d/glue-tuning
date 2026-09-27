@@ -1,0 +1,4 @@
+# glue-tuning — one-shot THP tuning at boot (enabled by the installer via
+# a symlink in /etc/dinit.d/boot.d, same mechanism as every other service)
+type = scripted
+command = /usr/bin/glue-thp-tune

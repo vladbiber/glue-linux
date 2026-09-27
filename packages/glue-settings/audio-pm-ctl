@@ -1,0 +1,15 @@
+#!/bin/sh
+# audio-pm-ctl — switch sound codec power saving with the power source.
+# Called from 20-audio-pm.rules: "ac" on mains, "bat" on battery.
+case "${1:-}" in
+    ac)  save=0;  ctl=0 ;;
+    bat) save=10; ctl=1 ;;
+    *)   echo "usage: audio-pm-ctl ac|bat" >&2; exit 1 ;;
+esac
+for f in /sys/module/snd_hda_intel/parameters/power_save \
+         /sys/module/snd_ac97_codec/parameters/power_save; do
+    [ -w "$f" ] && printf '%s\n' "$save" > "$f"
+done
+f=/sys/module/snd_hda_intel/parameters/power_save_controller
+[ -w "$f" ] && printf '%s\n' "$ctl" > "$f"
+exit 0

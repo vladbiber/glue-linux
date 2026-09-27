@@ -1,0 +1,3 @@
+# When zram0 comes up (CachyOS port): swap aggressively to the compressed
+# device and turn zswap off — zswap in front of zram double-compresses pages.
+ACTION=="add", KERNEL=="zram0", ATTR{initstate}=="1", SYSCTL{vm.swappiness}="150", RUN+="/bin/sh -c 'echo 0 > /sys/module/zswap/parameters/enabled'"

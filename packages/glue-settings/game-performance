@@ -1,0 +1,21 @@
+#!/bin/sh
+# game-performance — run a command under the 'performance' power profile
+# (CachyOS port; a shell trap replaces the upstream inhibitor). Restores
+# the previous profile on exit, whatever way the command ends.
+if [ "$#" -eq 0 ]; then
+    echo "usage: game-performance <command> [args...]" >&2
+    exit 64
+fi
+if ! command -v powerprofilesctl >/dev/null 2>&1; then
+    # no power-profiles-daemon: just run the command
+    exec "$@"
+fi
+prev=$(powerprofilesctl get 2>/dev/null)
+restore() {
+    [ -n "$prev" ] && powerprofilesctl set "$prev" 2>/dev/null
+}
+trap restore EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+powerprofilesctl set performance 2>/dev/null
+"$@"

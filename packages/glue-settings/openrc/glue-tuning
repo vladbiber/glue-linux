@@ -1,0 +1,13 @@
+#!/usr/bin/openrc-run
+# glue-tuning — one-shot THP tuning at boot
+description="Glue Linux THP tuning (oneshot)"
+
+depend() {
+    after localmount
+}
+
+start() {
+    ebegin "Applying Glue THP tuning"
+    /usr/bin/glue-thp-tune
+    eend $?
+}

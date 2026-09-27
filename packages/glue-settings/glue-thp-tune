@@ -1,0 +1,8 @@
+#!/bin/sh
+# glue-thp-tune — one-shot THP tuning at boot (CachyOS defaults, idempotent).
+# defer+madvise: no direct-reclaim stalls; 409 max_ptes_none: collapse pages
+# games actually touch. Tolerates kernels built without THP (missing files).
+thp=/sys/kernel/mm/transparent_hugepage
+[ -w "$thp/defrag" ] && echo defer+madvise > "$thp/defrag"
+[ -w "$thp/khugepaged/max_ptes_none" ] && echo 409 > "$thp/khugepaged/max_ptes_none"
+exit 0

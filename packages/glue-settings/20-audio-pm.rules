@@ -1,0 +1,4 @@
+# Toggle HDA/AC97 codec power saving on AC/battery events (CachyOS port,
+# udev RUN instead of a unit)
+SUBSYSTEM=="power_supply", ATTR{online}=="1", RUN+="/usr/lib/udev/audio-pm-ctl ac"
+SUBSYSTEM=="power_supply", ATTR{online}=="0", RUN+="/usr/lib/udev/audio-pm-ctl bat"

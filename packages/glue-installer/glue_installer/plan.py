@@ -100,6 +100,9 @@ Include = /etc/pacman.d/cachyos-mirrorlist
 
 # Quiet the kernel console on the installed system (ported from the proven
 # shell installer): stops kernel/udev log lines painting over the greeter's VT.
+# Written ONLY on server-like installs (no sessions, no gaming): everywhere
+# else glue-settings ships the same key in /usr/lib/sysctl.d/70-glue.conf and
+# no sysctl key may be defined in both places at once.
 _SYSCTL_QUIET_CONTENT = "kernel.printk = 3 3 3 3\n"
 
 # Gaming installs only. The NVIDIA driver's default shader disk cache is
@@ -135,10 +138,6 @@ _BASELINE_FILES: List[PlannedFile] = [
     PlannedFile(path="/etc/pacman.conf", content=_TARGET_PACMAN_CONF, mode=0o644),
     PlannedFile(path="/etc/skel/.bashrc", content=_BASHRC_CONTENT, mode=0o644),
     PlannedFile(path="/etc/skel/.zshrc", content=_ZSHRC_CONTENT, mode=0o644),
-    PlannedFile(
-        path="/etc/sysctl.d/20-glue-quiet.conf",
-        content=_SYSCTL_QUIET_CONTENT, mode=0o644,
-    ),
 ]
 
 # ---------------------------------------------------------------------------
@@ -486,6 +485,15 @@ def resolve_plan(
                 f"GPU detected: {detected} — installing {', '.join(gpu_pkgs)}"
             )
 
+    # Rule 13: glue-settings (CachyOS tuning without systemd) on every desktop
+    # or gaming install, with its glue-tuning oneshot (THP defaults at boot).
+    # The package is arch=any and ships the dinit/runit/openrc scripts itself,
+    # so it deliberately has NO _SERVICE_PKG_BASE entry (Rule 10 skips it).
+    tuned = bool(selection.session_ids) or selection.gaming
+    if tuned:
+        packages.add("glue-settings")
+        services.add("glue-tuning")
+
     # Rule 8: fastfetch always
     packages.add("fastfetch")
 
@@ -522,6 +530,13 @@ def resolve_plan(
 
     # Greeter profile files (config.toml + per-session wrapper/entry)
     files: List[PlannedFile] = list(_BASELINE_FILES)
+    if not tuned:
+        # server-like install has no glue-settings — keep the quiet console
+        # sysctl as a standalone fallback file
+        files.append(PlannedFile(
+            path="/etc/sysctl.d/20-glue-quiet.conf",
+            content=_SYSCTL_QUIET_CONTENT, mode=0o644,
+        ))
     if selection.session_ids:
         selected_sessions = [session_map[sid] for sid in selection.session_ids]
         files.extend(_greeter_files(

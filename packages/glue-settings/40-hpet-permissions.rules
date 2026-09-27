@@ -1,0 +1,3 @@
+# Pro-audio timers: let the audio group use the HPET and RTC (CachyOS port)
+KERNEL=="rtc0", GROUP="audio"
+KERNEL=="hpet", GROUP="audio"

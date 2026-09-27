@@ -1,0 +1,11 @@
+#!/bin/sh
+# pci-latency — even out PCI bus latency timers (CachyOS port).
+# Sound cards get a bigger slice against crackle under load.
+command -v setpci >/dev/null 2>&1 || { echo "setpci not found" >&2; exit 1; }
+# reasonable default for every device
+setpci -v -s '*:*' latency_timer=20 >/dev/null 2>&1
+# host bridge stays at 0
+setpci -v -s '0:0' latency_timer=0 >/dev/null 2>&1
+# multimedia audio controllers (class 0401) get priority
+setpci -v -d '::0401' latency_timer=80 >/dev/null 2>&1
+exit 0

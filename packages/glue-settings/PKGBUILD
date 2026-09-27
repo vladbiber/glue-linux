@@ -1,0 +1,58 @@
+# Maintainer: Glue Linux
+pkgname=glue-settings
+pkgver=1
+pkgrel=1
+pkgdesc="Glue Linux performance defaults (CachyOS-Settings ported to Artix inits): sysctl, udev rules, modprobe, limits, THP oneshot, game-performance"
+arch=('any')
+url="https://github.com/Vifuddyxg"
+license=('GPL-3.0-or-later')
+# hdparm: 69-hdparm.rules RUN; pciutils: setpci in pci-latency
+depends=('hdparm' 'pciutils')
+optdepends=('power-profiles-daemon: profile switching for game-performance')
+source=('70-glue.conf'
+        '60-ioschedulers.rules' '50-sata.rules' '69-hdparm.rules'
+        '40-hpet-permissions.rules' '99-cpu-dma-latency.rules'
+        '30-zram.rules' '71-nvidia.rules' '20-audio-pm.rules'
+        'audio-pm-ctl'
+        'nvidia.conf' 'amdgpu.conf' 'blacklist.conf'
+        '20-audio.conf'
+        'glue-thp-tune' 'game-performance' 'pci-latency')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
+            'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+
+package() {
+    # ----- sysctl (vendor dir; /etc stays free for the admin) -----
+    install -Dm644 "$srcdir/70-glue.conf" "$pkgdir/usr/lib/sysctl.d/70-glue.conf"
+
+    # ----- udev rules + AC/battery audio power helper -----
+    local rule
+    for rule in 60-ioschedulers 50-sata 69-hdparm 40-hpet-permissions \
+                99-cpu-dma-latency 30-zram 71-nvidia 20-audio-pm; do
+        install -Dm644 "$srcdir/$rule.rules" \
+            "$pkgdir/usr/lib/udev/rules.d/$rule.rules"
+    done
+    install -Dm755 "$srcdir/audio-pm-ctl" "$pkgdir/usr/lib/udev/audio-pm-ctl"
+
+    # ----- modprobe -----
+    install -Dm644 "$srcdir/nvidia.conf"    "$pkgdir/etc/modprobe.d/nvidia.conf"
+    install -Dm644 "$srcdir/amdgpu.conf"    "$pkgdir/etc/modprobe.d/amdgpu.conf"
+    install -Dm644 "$srcdir/blacklist.conf" "$pkgdir/etc/modprobe.d/blacklist.conf"
+
+    # ----- realtime limits for the audio group -----
+    install -Dm644 "$srcdir/20-audio.conf" \
+        "$pkgdir/etc/security/limits.d/20-audio.conf"
+
+    # ----- tools -----
+    install -Dm755 "$srcdir/glue-thp-tune"    "$pkgdir/usr/bin/glue-thp-tune"
+    install -Dm755 "$srcdir/game-performance" "$pkgdir/usr/bin/game-performance"
+    install -Dm755 "$srcdir/pci-latency"      "$pkgdir/usr/bin/pci-latency"
+
+    # ----- glue-tuning oneshot for all three inits (from $startdir: the three
+    #       files share basenames, which source= symlinks cannot represent) -----
+    install -Dm644 "$startdir/dinit.d/glue-tuning" \
+        "$pkgdir/etc/dinit.d/glue-tuning"
+    install -Dm755 "$startdir/runit/glue-tuning/run" \
+        "$pkgdir/etc/runit/sv/glue-tuning/run"
+    install -Dm755 "$startdir/openrc/glue-tuning" \
+        "$pkgdir/etc/init.d/glue-tuning"
+}

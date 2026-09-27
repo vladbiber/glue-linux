@@ -1,0 +1,4 @@
+# NVIDIA runtime power management: VGA (0x030000) and 3D (0x030200)
+# controllers get power/control=auto (CachyOS port)
+ACTION=="add", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x030000", TEST=="power/control", ATTR{power/control}="auto"
+ACTION=="add", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x030200", TEST=="power/control", ATTR{power/control}="auto"

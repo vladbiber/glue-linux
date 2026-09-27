@@ -1,0 +1,5 @@
+#!/bin/sh
+# glue-tuning (runit oneshot): apply THP tuning once, then idle so runsv
+# does not respawn the script in a loop
+/usr/bin/glue-thp-tune
+exec sleep infinity
