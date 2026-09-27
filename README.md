@@ -2,8 +2,8 @@
 
 A small, amber-themed Linux distribution.
 
-- **Base:** Artix Linux (Arch-based, **no systemd**) — pick **dinit**, **runit**
-  or **OpenRC** at install time
+- **Base:** Arch-based, **no systemd** — pick **dinit**, **runit** or **OpenRC**
+  at install time
 - **Kernel:** `linux-cachyos` (CachyOS performance kernel, default) or `linux-zen`
 - **Installer:** a full-screen **Python curses TUI** (`glue-install`) —
   catalog-driven wizard with Back navigation on every screen, automatic GeoIP
@@ -46,7 +46,7 @@ Palette: background `#100A02`, secondary/lines `#A66900`, primary text `#F1B00A`
 10. a final summary — nothing is written until you type `yes`
 
 The install itself is a single progress bar (full log in
-`/tmp/glue-install.log`). Every install gets: a complete Artix base,
+`/tmp/glue-install.log`). Every install gets: a complete systemd-free base,
 NetworkManager, `openntpd` (clock stays right from first boot), sudo wheel
 setup, and a **Glue-branded GRUB** — `os-prober` dual-boot entries for the
 other OSes on the machine, while the plugged-in install USB's own entries are
@@ -55,7 +55,7 @@ dedicated VT7, the PipeWire stack, `power-profiles-daemon`
 (performance/balanced/power-saver in KDE/GNOME settings, `powerprofilesctl`
 elsewhere), fonts, portals, and per-session wrappers that bring up D-Bus +
 audio (+ `startx` for the X11 WMs). On NVIDIA machines the installer also
-writes `/usr/local/bin/prime-run` (Artix has no `nvidia-prime` package) — set a
+writes `/usr/local/bin/prime-run` (no `nvidia-prime` package needed) — set a
 Steam game's launch options to `prime-run %command%` to run it on the dGPU.
 
 ## Layout
@@ -63,9 +63,9 @@ Steam game's launch options to `prime-run %command%` to run it on the dGPU.
 ```
 glue-linux/
 ├── build.sh                 # build the ISO on any Docker host
-├── Dockerfile               # Artix + artools + CachyOS build env
+├── Dockerfile               # build env (Arch-based + artools + CachyOS)
 ├── scripts/make-iso.sh      # runs inside the container: repo + buildiso
-├── repo/pacman.conf         # Artix + lib32 + CachyOS + [glue] repos
+├── repo/pacman.conf         # base + lib32 + CachyOS + [glue] repos
 ├── packages/                # custom packages (built into the [glue] repo)
 │   ├── apeturewm/           # tiling WM (BSP, per-monitor bar)
 │   ├── nvwm/                # BSP tiling WM, built-in bar, media keys enabled,
@@ -85,7 +85,7 @@ logic layers — `catalog.py` (JSON catalog + validation) → `plan.py` (selecti
 → package/service/file plan) → `executor.py` (plan → ordered steps) →
 `disks.py` / `identity.py` / `gpu.py` / `grub_filter.py` — driven by a curses
 TUI (`ui_model.py` state machine, `render.py`, `tui.py`). All I/O is injected,
-so the whole thing is covered by **470+ unit tests that run without root**:
+so the whole thing is covered by **520+ unit tests that run without root**:
 
 ```sh
 cd packages/glue-installer
@@ -125,7 +125,7 @@ No build needed. Release notes and checksums also live on the
 ### Option B — Build it yourself
 
 Only needed if you want to compile the ISO from source. You need **Docker**
-(the build runs in an Artix container, so it works from any distro — including a
+(the build runs in a container, so it works from any distro — including a
 Gentoo host). The image needs `--privileged` for loop devices / squashfs;
 `build.sh` handles that.
 
@@ -135,11 +135,11 @@ cd glue-linux
 ./build.sh
 ```
 
-The whole thing is self-contained: `build.sh` spins up the Artix + artools +
-CachyOS container, builds the custom `[glue]` packages, and runs `buildiso`.
-The custom window managers are cloned from GitHub during the build. First run
-downloads packages and takes a while; re-runs reuse the `.pkgcache/` so they
-are much faster.
+The whole thing is self-contained: `build.sh` spins up the build container,
+builds the custom `[glue]` packages via `scripts/make-iso.sh`, and runs
+`buildiso` against `iso-profile/glue/`. The custom window managers are cloned
+from GitHub during the build. First run downloads packages and takes a while;
+re-runs reuse the `.pkgcache/` so they are much faster.
 
 The finished ISO lands in **`./out/`** (≈2.1 GB).
 
@@ -179,13 +179,13 @@ launches apeturewm, `niri` starts the Wayland compositor straight from a tty.
   hard-blocks until you're connected.
 - The live ISO itself runs runit (independent of the target's init) and
   auto-logs into the installer on tty1; every other tty is a normal shell.
-- GNOME on Artix needs `gnome-session-sysvinit` (the init-agnostic session
-  worker) — the catalog includes it, and the GNOME session coexists cleanly
-  with a parallel KDE install (no gdm; greetd stays the greeter).
-- `iso-profile/glue/profile.yaml` follows the current Artix `artools`
-  iso-profiles (YAML) format. **artools changes these keys between versions** —
-  if `buildiso` rejects a key, diff against the official `base` profile that
-  `make-iso.sh` clones into place and adjust.
+- GNOME needs `gnome-session-sysvinit` (the init-agnostic session worker) —
+  the catalog includes it, and the GNOME session coexists cleanly with a
+  parallel KDE install (no gdm; greetd stays the greeter).
+- `iso-profile/glue/profile.yaml` follows the current `artools` iso-profiles
+  (YAML) format. **artools changes these keys between versions** — if `buildiso`
+  rejects a key, diff against the official `base` profile that `make-iso.sh`
+  clones into place and adjust.
 
 ## The window managers
 
