@@ -144,5 +144,167 @@ class TestPkgbuildClean(unittest.TestCase):
         self.assertNotIn("neofetch", self._text)
 
 
+_PALETTE_JSON = _BRANDING_ROOT / "palette.json"
+_PALETTE_SH   = _BRANDING_ROOT / "palette.sh"
+
+_EXPECTED_PALETTE = {
+    "bg":     "#100A02",
+    "lines":  "#A66900",
+    "text":   "#F1B00A",
+    "amber1": "#F1B00A",
+    "amber2": "#A66900",
+    "amber3": "#FFD75F",
+    "amber4": "#7A4E00",
+}
+
+_HEX_RE = re.compile(r'^#[0-9A-F]{6}$')
+
+
+class TestPaletteJson(unittest.TestCase):
+    """palette.json must contain exactly the 7 canonical amber values."""
+
+    def setUp(self):
+        self.assertTrue(_PALETTE_JSON.exists(), f"palette.json not found at {_PALETTE_JSON}")
+        self._data = json.loads(_PALETTE_JSON.read_text())
+
+    def test_exact_keys(self):
+        self.assertEqual(set(self._data.keys()), set(_EXPECTED_PALETTE.keys()))
+
+    def test_values(self):
+        for key, expected in _EXPECTED_PALETTE.items():
+            self.assertEqual(self._data[key], expected, f"palette.json key '{key}' mismatch")
+
+    def test_hex_format(self):
+        for key, val in self._data.items():
+            self.assertRegex(val.upper(), _HEX_RE, f"palette.json key '{key}' not #RRGGBB uppercase")
+
+
+class TestPaletteSh(unittest.TestCase):
+    """palette.sh must define all 7 GLUE_* vars with same values as palette.json."""
+
+    _VAR_RE = re.compile(r'^(GLUE_\w+)=["\']?(#[0-9A-Fa-f]{6})["\']?\s*$')
+
+    def setUp(self):
+        self.assertTrue(_PALETTE_SH.exists(), f"palette.sh not found at {_PALETTE_SH}")
+        self._vars: dict[str, str] = {}
+        for line in _PALETTE_SH.read_text().splitlines():
+            m = self._VAR_RE.match(line.strip())
+            if m:
+                self._vars[m.group(1)] = m.group(2).upper()
+
+    def test_posix_syntax(self):
+        import subprocess
+        result = subprocess.run(["sh", "-n", str(_PALETTE_SH)])
+        self.assertEqual(result.returncode, 0, "palette.sh fails sh -n syntax check")
+
+    def test_all_vars_present(self):
+        expected_vars = {
+            "GLUE_BG", "GLUE_LINES", "GLUE_TEXT",
+            "GLUE_AMBER1", "GLUE_AMBER2", "GLUE_AMBER3", "GLUE_AMBER4",
+        }
+        self.assertEqual(set(self._vars.keys()), expected_vars)
+
+    def test_values_match_json(self):
+        palette = json.loads(_PALETTE_JSON.read_text())
+        mapping = {
+            "GLUE_BG":     "bg",
+            "GLUE_LINES":  "lines",
+            "GLUE_TEXT":   "text",
+            "GLUE_AMBER1": "amber1",
+            "GLUE_AMBER2": "amber2",
+            "GLUE_AMBER3": "amber3",
+            "GLUE_AMBER4": "amber4",
+        }
+        for var, key in mapping.items():
+            self.assertEqual(
+                self._vars.get(var), palette[key].upper(),
+                f"palette.sh {var} != palette.json {key}",
+            )
+
+
+class TestPaletteConsistencyFastfetch(unittest.TestCase):
+    """fastfetch.jsonc color 1..4 must equal amber1..amber4 from palette.json."""
+
+    def setUp(self):
+        self.assertTrue(_PALETTE_JSON.exists(), f"palette.json not found at {_PALETTE_JSON}")
+        path = _BRANDING_ROOT / "fastfetch.jsonc"
+        self.assertTrue(path.exists(), f"fastfetch.jsonc not found at {path}")
+        raw = path.read_text()
+        stripped = re.sub(r'(?m)^\s*//.*\n?', '', raw)
+        self._cfg = json.loads(stripped)
+        self._palette = json.loads(_PALETTE_JSON.read_text())
+
+    def test_color1_eq_amber1(self):
+        self.assertEqual(
+            self._cfg["logo"]["color"]["1"].upper(),
+            self._palette["amber1"].upper(),
+        )
+
+    def test_color2_eq_amber2(self):
+        self.assertEqual(
+            self._cfg["logo"]["color"]["2"].upper(),
+            self._palette["amber2"].upper(),
+        )
+
+    def test_color3_eq_amber3(self):
+        self.assertEqual(
+            self._cfg["logo"]["color"]["3"].upper(),
+            self._palette["amber3"].upper(),
+        )
+
+    def test_color4_eq_amber4(self):
+        self.assertEqual(
+            self._cfg["logo"]["color"]["4"].upper(),
+            self._palette["amber4"].upper(),
+        )
+
+
+class TestPaletteConsistencyGrub(unittest.TestCase):
+    """grub-theme.txt colors must match bg/lines/text from palette.json."""
+
+    _PROP_RE = re.compile(r'^\s*([\w-]+)\s*[=:]\s*"?(#[0-9A-Fa-f]{6})"?')
+
+    def setUp(self):
+        self.assertTrue(_PALETTE_JSON.exists(), f"palette.json not found at {_PALETTE_JSON}")
+        path = _BRANDING_ROOT / "grub-theme.txt"
+        self.assertTrue(path.exists(), f"grub-theme.txt not found at {path}")
+        self._props: dict[str, str] = {}
+        for line in path.read_text().splitlines():
+            m = self._PROP_RE.match(line)
+            if m:
+                self._props[m.group(1)] = m.group(2).upper()
+        self._palette = json.loads(_PALETTE_JSON.read_text())
+
+    def test_message_color_eq_text(self):
+        self.assertEqual(self._props.get("message-color"), self._palette["text"].upper())
+
+    def test_selected_item_color_eq_text(self):
+        self.assertEqual(self._props.get("selected_item_color"), self._palette["text"].upper())
+
+    def test_message_bg_color_eq_bg(self):
+        self.assertEqual(self._props.get("message-bg-color"), self._palette["bg"].upper())
+
+    def test_desktop_color_eq_bg(self):
+        self.assertEqual(self._props.get("desktop-color"), self._palette["bg"].upper())
+
+    def test_item_color_eq_lines(self):
+        self.assertEqual(self._props.get("item_color"), self._palette["lines"].upper())
+
+
+class TestPkgbuildIncludesPalette(unittest.TestCase):
+    """PKGBUILD must list palette.sh and palette.json in source=()."""
+
+    def setUp(self):
+        path = _BRANDING_ROOT / "PKGBUILD"
+        self.assertTrue(path.exists(), f"PKGBUILD not found at {path}")
+        self._text = path.read_text()
+
+    def test_palette_sh_in_source(self):
+        self.assertIn("palette.sh", self._text)
+
+    def test_palette_json_in_source(self):
+        self.assertIn("palette.json", self._text)
+
+
 if __name__ == "__main__":
     unittest.main()

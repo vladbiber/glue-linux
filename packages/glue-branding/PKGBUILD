@@ -12,8 +12,9 @@ backup=('etc/glue/fastfetch.jsonc')
 install='glue-branding.install'
 source=('logo.txt' 'fastfetch.jsonc' 'term-neutral.sh'
         'grub-theme.txt' 'grub-background.png' 'grub-icon.png'
-        'os-release' 'issue')
-sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+        'os-release' 'issue'
+        'palette.sh' 'palette.json')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
     # ----- fastfetch logo + config -----
@@ -23,6 +24,10 @@ package() {
 
     # ship fastfetch config in /etc/skel so every new user picks up the logo automatically
     install -Dm644 "$srcdir/fastfetch.jsonc" "$pkgdir/etc/skel/.config/fastfetch/config.jsonc"
+
+    # ----- amber palette (single source of truth for Hub, installer, regreet, Limine) -----
+    install -Dm644 "$srcdir/palette.sh"   "$pkgdir/usr/share/glue/palette.sh"
+    install -Dm644 "$srcdir/palette.json" "$pkgdir/usr/share/glue/palette.json"
 
     # ----- os-release (staged; the .install scriptlet copies it to
     #       /usr/lib/os-release, which is owned by the filesystem package) -----
