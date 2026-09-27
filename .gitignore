@@ -17,6 +17,5 @@ packages/wheatley-installer/pacman.conf
 packages/apeturewm/apeturewm/
 packages/atomwm/atomwm/
 # tooling
-.claude-flow/
 __pycache__/
 *.pyc
