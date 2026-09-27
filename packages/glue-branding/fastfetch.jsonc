@@ -1,9 +1,9 @@
 {
   "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
   "logo": {
-    "source": "/usr/share/glue/logo-fastfetch.txt",
+    "source": "/usr/share/glue/logo.txt",
     "type": "file",
-    "color": { "1": "yellow" },
+    "color": { "1": "#F1B00A", "2": "#A66900", "3": "#FFD75F", "4": "#7A4E00" },
     "padding": { "top": 1, "right": 2 }
   },
   "display": {

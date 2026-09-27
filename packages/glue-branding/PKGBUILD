@@ -21,36 +21,8 @@ package() {
     install -Dm644 "$srcdir/fastfetch.jsonc" "$pkgdir/etc/glue/fastfetch.jsonc"
     install -Dm644 "$srcdir/term-neutral.sh" "$pkgdir/usr/share/glue/term-neutral.sh"
 
-    # fastfetch (type:file) treats '$' as a colour placeholder, which both eats
-    # the art and miscomputes the logo width -> a huge gap before the info. Ship
-    # a '$'-escaped copy ('$$' = literal '$') just for fastfetch; the raw logo.txt
-    # is still used by neofetch (which doesn't interpret '$').
-    sed 's/\$/$$/g' "$srcdir/logo.txt" > "$srcdir/logo-fastfetch.txt"
-    install -Dm644 "$srcdir/logo-fastfetch.txt" "$pkgdir/usr/share/glue/logo-fastfetch.txt"
-
-    # ----- make the Glue logo the default for a bare `fastfetch`/`neofetch`
-    #       too (not just the shell splash): ship configs in /etc/skel so every
-    #       new user picks up the logo automatically. -----
+    # ship fastfetch config in /etc/skel so every new user picks up the logo automatically
     install -Dm644 "$srcdir/fastfetch.jsonc" "$pkgdir/etc/skel/.config/fastfetch/config.jsonc"
-    install -Dm644 /dev/stdin "$pkgdir/etc/skel/.config/neofetch/config.conf" <<'EOF'
-# Glue neofetch config — use the Glue ASCII logo and amber colour.
-print_info() {
-    info title
-    info underline
-    info "OS" distro
-    info "Kernel" kernel
-    info "WM" wm
-    info "Shell" shell
-    info "Packages" packages
-    info "Memory" memory
-    info "Uptime" uptime
-    info cols
-}
-image_backend="ascii"
-image_source="/usr/share/glue/logo.txt"
-ascii_colors=(3 3 3 3 3 3)
-colors=(3 3 3 3 3 7)
-EOF
 
     # ----- os-release (staged; the .install scriptlet copies it to
     #       /usr/lib/os-release, which is owned by the filesystem package) -----
