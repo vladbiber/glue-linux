@@ -306,5 +306,81 @@ class TestPkgbuildIncludesPalette(unittest.TestCase):
         self.assertIn("palette.json", self._text)
 
 
+_REPO_ROOT = _PKG_ROOT.parent.parent
+_THEME_DIR = _REPO_ROOT / "iso-profile/glue/root-overlay/usr/share/grub/themes/artix"
+_LIVE_THEME_TXT = _THEME_DIR / "theme.txt"
+_KERNELS_CFG = _REPO_ROOT / "iso-profile/glue/live-overlay/usr/share/grub/cfg/kernels.cfg"
+
+_IMG_REF_RE = re.compile(r'"([^"*?]+\.(?:png|jpg|jpeg|bmp|tga))"')
+_HEX_IN_THEME_RE = re.compile(r'"(#[0-9A-Fa-f]{6})"')
+
+
+class TestGrubThemeLive(unittest.TestCase):
+    """Live GRUB theme in root-overlay must be Glue-branded and palette-consistent."""
+
+    def setUp(self):
+        self.assertTrue(_THEME_DIR.exists(), f"theme dir not found: {_THEME_DIR}")
+        self.assertTrue(_LIVE_THEME_TXT.exists(), f"theme.txt not found: {_LIVE_THEME_TXT}")
+        self.assertTrue(_KERNELS_CFG.exists(), f"kernels.cfg not found: {_KERNELS_CFG}")
+        self._theme_text = _LIVE_THEME_TXT.read_text()
+        self._palette = json.loads(_PALETTE_JSON.read_text())
+        self._palette_values = {v.upper() for v in self._palette.values()}
+
+    def test_theme_dir_no_artix_in_content(self):
+        """No file in the theme dir has 'artix' anywhere in its byte content."""
+        for fpath in _THEME_DIR.rglob("*"):
+            if not fpath.is_file():
+                continue
+            raw = fpath.read_bytes()
+            try:
+                text = raw.decode("utf-8", errors="replace").lower()
+            except Exception:
+                text = ""
+            self.assertNotIn(
+                "artix", text,
+                f"{fpath.relative_to(_REPO_ROOT)} contains 'artix' in content",
+            )
+
+    def test_theme_dir_no_wheatley_in_content(self):
+        """No file in the theme dir has 'wheatley' anywhere in its byte content."""
+        for fpath in _THEME_DIR.rglob("*"):
+            if not fpath.is_file():
+                continue
+            raw = fpath.read_bytes()
+            try:
+                text = raw.decode("utf-8", errors="replace").lower()
+            except Exception:
+                text = ""
+            self.assertNotIn(
+                "wheatley", text,
+                f"{fpath.relative_to(_REPO_ROOT)} contains 'wheatley' in content",
+            )
+
+    def test_theme_txt_colors_in_palette(self):
+        """Every hex color in theme.txt must be a value present in palette.json."""
+        found = _HEX_IN_THEME_RE.findall(self._theme_text)
+        self.assertGreater(len(found), 0, "theme.txt has no color values")
+        for color in found:
+            self.assertIn(
+                color.upper(), self._palette_values,
+                f"theme.txt color {color} is not in palette.json",
+            )
+
+    def test_theme_txt_image_refs_exist(self):
+        """Non-glob image files referenced in theme.txt must exist in the theme dir."""
+        refs = _IMG_REF_RE.findall(self._theme_text)
+        for ref in refs:
+            target = _THEME_DIR / ref
+            self.assertTrue(
+                target.exists(),
+                f"theme.txt references '{ref}' but {target} does not exist",
+            )
+
+    def test_kernels_cfg_has_glue_linux_live(self):
+        """kernels.cfg must contain 'Glue Linux (live)' as a menu entry title."""
+        text = _KERNELS_CFG.read_text()
+        self.assertIn("Glue Linux (live)", text)
+
+
 if __name__ == "__main__":
     unittest.main()

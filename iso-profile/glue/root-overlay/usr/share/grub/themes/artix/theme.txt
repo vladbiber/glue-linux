@@ -15,7 +15,6 @@ title-text: ""
     item_color = "#A66900"
     selected_item_font = "Unifont Regular 16"
     selected_item_color= "#F1B00A"
-    selected_item_pixmap_style= "highlight_*.png"
     icon_height = 28
     icon_width = 28
     item_height = 32
@@ -24,6 +23,4 @@ title-text: ""
     item_spacing = 0
     scrollbar = true
     scrollbar_width = 32
-    scrollbar_thumb = "slider_*.png"
-    menu_pixmap_style = "menu_*.png"
 }
