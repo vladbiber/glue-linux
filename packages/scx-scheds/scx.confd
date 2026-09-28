@@ -1,0 +1,5 @@
+# /etc/default/scx — sched_ext scheduler for the `scx` service (all inits).
+# SCX_SCHEDULER: which scheduler binary from /usr/bin to run.
+# SCX_FLAGS: extra flags for it (scx_lavd knows --performance/--autopilot).
+SCX_SCHEDULER=scx_lavd
+SCX_FLAGS=--performance

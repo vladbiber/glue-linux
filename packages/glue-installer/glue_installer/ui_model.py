@@ -74,6 +74,10 @@ class Wizard:
         self._shell_choice: dict = {}  # session_id -> shell_id
         self._support_ids: set = {t.id for t in catalog.support if t.default}
         self._gaming: bool = False
+        # CPU scheduler (roadmap 1.4): catalog default preselected, so the
+        # scheduler screen is always valid to advance past.
+        self._scheduler: str = next(
+            (o.id for o in catalog.gaming.schedulers if o.default), "scx_lavd")
 
         # Navigation state
         self._current_key: str = "welcome"
@@ -117,6 +121,8 @@ class Wizard:
         keys.append("support")
         if self._mode == "custom":
             keys.append("gaming")
+            if self._gaming and self._catalog.gaming.schedulers:
+                keys.append("scheduler")
         if self._disks is not None:
             keys.append("diskmode")
             if self._disk_mode in ("erase", "manual"):
@@ -296,6 +302,8 @@ class Wizard:
             return self._support_screen()
         if key == "gaming":
             return self._gaming_screen()
+        if key == "scheduler":
+            return self._scheduler_screen()
         if key == "disk":
             items = [
                 Item(id=d.path, label=disk_label(d),

@@ -98,12 +98,22 @@ class SupportToggle:
 
 
 @dataclass
+class SchedulerOption:
+    """One CPU scheduler choice on the Gaming screen (roadmap 1.4)."""
+    id: str
+    name: str
+    description: str
+    default: bool
+
+
+@dataclass
 class Gaming:
     name: str
     description: str
     packages: List[str]
     services: List[str]
     gpu_autodetect: bool
+    schedulers: List[SchedulerOption] = field(default_factory=list)
 
 
 @dataclass
@@ -338,13 +348,43 @@ def _parse_support(raw: dict, idx: int) -> SupportToggle:
 
 
 _GAMING_KEYS = {"name", "description", "packages", "services", "gpu_autodetect"}
+_GAMING_OPTIONAL_KEYS = frozenset({"schedulers"})
+_SCHEDULER_KEYS = {"id", "name", "description", "default"}
+
+
+def _parse_schedulers(raw: object, ctx: str) -> List[SchedulerOption]:
+    if not isinstance(raw, list):
+        raise CatalogError(f"{ctx}: 'schedulers' must be a list")
+    result: List[SchedulerOption] = []
+    for i, s in enumerate(raw):
+        s_ctx = f"{ctx}.schedulers[{i}]"
+        if not isinstance(s, dict):
+            raise CatalogError(f"{s_ctx}: must be an object")
+        _require_keys(s, _SCHEDULER_KEYS, s_ctx)
+        result.append(SchedulerOption(
+            id=_str_field(s, "id", s_ctx),
+            name=_str_field(s, "name", s_ctx),
+            description=_str_field(s, "description", s_ctx),
+            default=_bool_field(s, "default", s_ctx),
+        ))
+    if result:
+        ids = [o.id for o in result]
+        if len(ids) != len(set(ids)):
+            raise CatalogError(f"{ctx}: duplicate scheduler ids")
+        defaults = [o for o in result if o.default]
+        if len(defaults) != 1:
+            raise CatalogError(
+                f"{ctx}: exactly one scheduler must have default=true, "
+                f"found {len(defaults)}"
+            )
+    return result
 
 
 def _parse_gaming(raw: object) -> Gaming:
     ctx = "gaming"
     if not isinstance(raw, dict):
         raise CatalogError(f"{ctx}: must be an object")
-    _require_keys(raw, _GAMING_KEYS, ctx)
+    _require_keys(raw, _GAMING_KEYS, ctx, optional=_GAMING_OPTIONAL_KEYS)
     if not isinstance(raw["gpu_autodetect"], bool):
         raise CatalogError(f"{ctx}: 'gpu_autodetect' must be a boolean")
     return Gaming(
@@ -353,6 +393,7 @@ def _parse_gaming(raw: object) -> Gaming:
         packages=_str_list(raw, "packages", ctx),
         services=_str_list(raw, "services", ctx),
         gpu_autodetect=raw["gpu_autodetect"],
+        schedulers=_parse_schedulers(raw.get("schedulers", []), ctx),
     )
 
 

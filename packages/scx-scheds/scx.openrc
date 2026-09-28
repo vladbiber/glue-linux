@@ -1,0 +1,14 @@
+#!/usr/bin/openrc-run
+# scx — sched_ext userspace CPU scheduler, supervised by supervise-daemon.
+# Config is shared across the inits in /etc/default/scx (not /etc/conf.d).
+description="sched_ext userspace CPU scheduler"
+
+[ -r /etc/default/scx ] && . /etc/default/scx
+
+supervisor=supervise-daemon
+command="/usr/bin/${SCX_SCHEDULER:-scx_lavd}"
+command_args="${SCX_FLAGS:-}"
+
+depend() {
+    after localmount
+}

@@ -1,0 +1,68 @@
+# Maintainer: Glue Linux
+# Vendored from Arch extra scx-scheds 1.1.3-2 (cargo workspace build), plus
+# the `scx` service for dinit/runit/openrc. Nothing D-Bus-based is shipped:
+# see the rm in package().
+pkgname=scx-scheds
+_gitname=scx
+pkgver=1.1.3
+pkgrel=1
+pkgdesc='sched_ext userspace CPU schedulers (scx_lavd, scx_bpfland, ...) with Artix init services'
+url='https://github.com/sched-ext/scx'
+arch=('x86_64')
+backup=('etc/default/scx')
+license=('GPL-2.0-only')
+depends=('bash' 'bpf' 'libbpf' 'libelf' 'jq' 'libseccomp' 'protobuf' 'zlib')
+makedepends=('clang' 'git' 'llvm' 'llvm-libs' 'python' 'rust')
+options=(!lto)
+source=("git+https://github.com/sched-ext/scx#tag=v${pkgver}"
+        'scx.confd'
+        'scx.dinit'
+        'scx.runit-run'
+        'scx.openrc')
+sha256sums=('282b4a9365fc2635ba554ee46f6decbe78f1d06340a8dee3f1573931e8a3973a'
+            'SKIP'
+            'SKIP'
+            'SKIP'
+            'SKIP')
+
+prepare() {
+  cd $_gitname
+
+  # Fix migration-disabled task stalls in LAVD (upstream PR #3748).
+  git cherry-pick --no-commit 6d31ddd8973333e95ae7e3584e84029533064d69
+
+  cargo fetch --locked --target "$(rustc --print host-tuple)"
+}
+
+build() {
+  cd $_gitname
+  cargo build \
+     --release \
+     --frozen \
+     --workspace \
+     --exclude scx_rlfifo \
+     --exclude scx_mitosis \
+     --exclude scx_characterize \
+     --exclude xtask \
+     --exclude vmlinux_docify \
+     --exclude scx_arena_selftests
+}
+
+package() {
+  cd $_gitname
+
+  # Install all built executables (skip .so and .d files)
+  find target/release \
+    -maxdepth 1 -type f -executable ! -name '*.so' \
+    -exec install -Dm755 -t "$pkgdir/usr/bin/" {} +
+
+  # Exclusion: the scx_loader daemon (D-Bus activated, systemd-oriented) has
+  # no place on Artix inits — the plain `scx` service below replaces it.
+  rm -f "$pkgdir/usr/bin/scx_loader"
+
+  # Shared config + the `scx` service for all three Artix inits
+  install -Dm644 "$srcdir/scx.confd"     "$pkgdir/etc/default/scx"
+  install -Dm644 "$srcdir/scx.dinit"     "$pkgdir/etc/dinit.d/scx"
+  install -Dm755 "$srcdir/scx.runit-run" "$pkgdir/etc/runit/sv/scx/run"
+  install -Dm755 "$srcdir/scx.openrc"    "$pkgdir/etc/init.d/scx"
+}

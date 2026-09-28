@@ -32,6 +32,9 @@ class Selection:
     support_ids: List[str]
     gaming: bool
     minimal: bool
+    # CPU scheduler from the Gaming screen (roadmap 1.4); only consulted when
+    # gaming is True. Defaults to scx_lavd so existing callers keep working.
+    scheduler: str = "scx_lavd"
 
 
 @dataclass
@@ -367,6 +370,20 @@ _ZRAMEN_CONF: dict = {
     "openrc": ("/etc/conf.d/zramen",               "ZRAM_COMP_ALGORITHM=zstd\n"),
 }
 
+# Rule 15 (roadmap 1.4): sched_ext CPU scheduler on gaming installs.
+# scx-scheds is a vendored [glue] package that ships its own dinit/runit/
+# openrc `scx` service scripts (like glue-settings), so it deliberately has
+# NO _SERVICE_PKG_BASE entry. The package default (/etc/default/scx) is
+# scx_lavd --performance; any other scheduler overrides that file below.
+# "none" keeps the kernel's built-in EEVDF scheduler: no package, no service.
+_SCX_DEFAULT_SCHEDULER = "scx_lavd"
+_SCX_KNOWN_SCHEDULERS = frozenset({"scx_lavd", "scx_bpfland", "none"})
+_SCX_CONF_TEMPLATE = """\
+# /etc/default/scx — written by the Glue Linux installer.
+SCX_SCHEDULER={scheduler}
+SCX_FLAGS=
+"""
+
 
 # ---------------------------------------------------------------------------
 # Resolver
@@ -497,6 +514,16 @@ def resolve_plan(
                 f"GPU detected: {detected} — installing {', '.join(gpu_pkgs)}"
             )
 
+    # Rule 15: sched_ext scheduler (roadmap 1.4) — gaming installs only
+    if selection.gaming:
+        allowed = ({o.id for o in catalog.gaming.schedulers}
+                   if catalog.gaming.schedulers else _SCX_KNOWN_SCHEDULERS)
+        if selection.scheduler not in allowed:
+            raise PlanError(f"Unknown scheduler: '{selection.scheduler}'")
+        if selection.scheduler != "none":
+            packages.add("scx-scheds")
+            services.add("scx")
+
     # Rule 13: glue-settings (CachyOS tuning without systemd) on every desktop
     # or gaming install, with its glue-tuning oneshot (THP defaults at boot).
     # The package is arch=any and ships the dinit/runit/openrc scripts itself,
@@ -569,6 +596,14 @@ def resolve_plan(
         files.append(PlannedFile(
             path="/usr/local/bin/prime-run",
             content=_PRIME_RUN_CONTENT, mode=0o755,
+        ))
+
+    if (selection.gaming and selection.scheduler != "none"
+            and selection.scheduler != _SCX_DEFAULT_SCHEDULER):
+        files.append(PlannedFile(
+            path="/etc/default/scx",
+            content=_SCX_CONF_TEMPLATE.format(scheduler=selection.scheduler),
+            mode=0o644,
         ))
 
     if selection.init_id in _ZRAMEN_CONF:

@@ -533,7 +533,27 @@
       "lm_sensors"
     ],
     "services": [],
-    "gpu_autodetect": true
+    "gpu_autodetect": true,
+    "schedulers": [
+      {
+        "id": "scx_lavd",
+        "name": "scx_lavd",
+        "description": "Latency-aware sched_ext scheduler tuned for gaming; runs with --performance. The CachyOS default.",
+        "default": true
+      },
+      {
+        "id": "scx_bpfland",
+        "name": "scx_bpfland",
+        "description": "sched_ext scheduler that prioritizes interactive tasks — UI and audio stay smooth under load.",
+        "default": false
+      },
+      {
+        "id": "none",
+        "name": "None",
+        "description": "No userspace scheduler: keep the kernel's built-in EEVDF scheduler.",
+        "default": false
+      }
+    ]
   },
   "minimal": {
     "name": "Minimal Install",

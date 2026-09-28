@@ -1,0 +1,6 @@
+#!/bin/sh
+# scx (runit): sched_ext userspace CPU scheduler.
+# Scheduler and flags come from /etc/default/scx; SCX_FLAGS stays unquoted
+# so multiple flags split into separate arguments.
+[ -r /etc/default/scx ] && . /etc/default/scx
+exec "/usr/bin/${SCX_SCHEDULER:-scx_lavd}" ${SCX_FLAGS:-}
