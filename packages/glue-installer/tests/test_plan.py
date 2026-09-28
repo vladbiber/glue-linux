@@ -740,3 +740,70 @@ class TestGamingFilesAndPrimeRun(unittest.TestCase):
         catalog = load_catalog(_CATALOG_PATH)
         niri = next(s for s in catalog.sessions if s.id == "niri")
         self.assertIn("xwayland-satellite", niri.packages)
+
+
+# ---------------------------------------------------------------------------
+# Zram (roadmap 1.2) and gaming additions (roadmap 1.3)
+# ---------------------------------------------------------------------------
+
+class TestZramAndGaming(unittest.TestCase):
+    """1.2: zramen on every install with zstd; 1.3: gaming package additions."""
+
+    def _plan(self, init_id, gaming=False, session_ids=None, gpu_vendors=None):
+        catalog = _make_catalog()
+        sel = Selection("k-main", init_id, session_ids or [], {}, [], gaming, False)
+        return resolve_plan(catalog, sel, gpu_vendors=gpu_vendors)
+
+    def test_zramen_on_non_gaming_dinit(self):
+        plan = self._plan("dinit")
+        self.assertIn("zramen", plan.packages)
+        self.assertIn("zramen-dinit", plan.packages)
+        self.assertIn("zramen", plan.services)
+
+    def test_zramen_on_non_gaming_runit(self):
+        plan = self._plan("runit")
+        self.assertIn("zramen", plan.packages)
+        self.assertIn("zramen-runit", plan.packages)
+        self.assertIn("zramen", plan.services)
+
+    def test_zramen_on_non_gaming_openrc(self):
+        plan = self._plan("openrc")
+        self.assertIn("zramen", plan.packages)
+        self.assertIn("zramen-openrc", plan.packages)
+        self.assertIn("zramen", plan.services)
+
+    def test_zramen_config_dinit_zstd(self):
+        plan = self._plan("dinit")
+        cfg = next((f for f in plan.files if f.path == "/etc/dinit.d/config/zramen.conf"), None)
+        self.assertIsNotNone(cfg, "zramen dinit config file missing")
+        self.assertIn("ZRAM_COMP_ALGORITHM", cfg.content)
+        self.assertIn("zstd", cfg.content)
+        self.assertEqual(cfg.mode, 0o644)
+
+    def test_zramen_config_runit_zstd(self):
+        plan = self._plan("runit")
+        cfg = next((f for f in plan.files if f.path == "/etc/runit/sv/zramen/conf"), None)
+        self.assertIsNotNone(cfg, "zramen runit config file missing")
+        self.assertIn("zstd", cfg.content)
+
+    def test_zramen_config_openrc_zstd(self):
+        plan = self._plan("openrc")
+        cfg = next((f for f in plan.files if f.path == "/etc/conf.d/zramen"), None)
+        self.assertIsNotNone(cfg, "zramen openrc config file missing")
+        self.assertIn("zstd", cfg.content)
+
+    def test_gaming_includes_new_packages_real_catalog(self):
+        catalog = load_catalog(_CATALOG_PATH)
+        sel = Selection("linux-cachyos", "dinit", [], {}, [], True, False)
+        plan = resolve_plan(catalog, sel)
+        for pkg in ("ntsync-autoload", "proton-cachyos-slr", "umu-launcher",
+                    "proton-ge-custom-bin"):
+            self.assertIn(pkg, plan.packages, f"Gaming plan missing: {pkg}")
+
+    def test_non_gaming_excludes_gaming_packages_real_catalog(self):
+        catalog = load_catalog(_CATALOG_PATH)
+        sel = Selection("linux-cachyos", "dinit", [], {}, [], False, False)
+        plan = resolve_plan(catalog, sel)
+        for pkg in ("ntsync-autoload", "proton-cachyos-slr", "umu-launcher",
+                    "proton-ge-custom-bin"):
+            self.assertNotIn(pkg, plan.packages, f"Non-gaming plan has: {pkg}")

@@ -353,6 +353,18 @@ _SERVICE_PKG_BASE = {
     # verified: -dinit/-runit/-openrc all ship a script named exactly
     # "power-profiles-daemon", so no _INIT_SERVICE_NAMES rename is needed
     "power-profiles-daemon": "power-profiles-daemon",
+    "zramen": "zramen",
+}
+
+# Per-init config file path and content for zramen (zstd algorithm, Rule 14).
+# Paths verified from actual package contents (galaxy repo, 2026-09-28):
+#   zramen-dinit:  env-file = /etc/dinit.d/config/zramen.conf
+#   zramen-runit:  sourced via `. ./conf` (relative to /etc/runit/sv/zramen/)
+#   zramen-openrc: OpenRC framework sources /etc/conf.d/<service> automatically
+_ZRAMEN_CONF: dict = {
+    "dinit":  ("/etc/dinit.d/config/zramen.conf", "ZRAM_COMP_ALGORITHM=zstd\n"),
+    "runit":  ("/etc/runit/sv/zramen/conf",        "export ZRAM_COMP_ALGORITHM=zstd\n"),
+    "openrc": ("/etc/conf.d/zramen",               "ZRAM_COMP_ALGORITHM=zstd\n"),
 }
 
 
@@ -494,6 +506,11 @@ def resolve_plan(
         packages.add("glue-settings")
         services.add("glue-tuning")
 
+    # Rule 14: zram via zramen on every install (roadmap 1.2).
+    # zramen-{init_id} is pulled in automatically by Rule 10 below.
+    packages.add("zramen")
+    services.add("zramen")
+
     # Rule 8: fastfetch always
     packages.add("fastfetch")
 
@@ -553,6 +570,10 @@ def resolve_plan(
             path="/usr/local/bin/prime-run",
             content=_PRIME_RUN_CONTENT, mode=0o755,
         ))
+
+    if selection.init_id in _ZRAMEN_CONF:
+        zramen_path, zramen_content = _ZRAMEN_CONF[selection.init_id]
+        files.append(PlannedFile(path=zramen_path, content=zramen_content, mode=0o644))
 
     return InstallPlan(
         packages=sorted(packages),
