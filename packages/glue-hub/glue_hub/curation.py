@@ -4,6 +4,7 @@ RECOMMENDED = (
     "Firefox", "LibreOffice", "VLC", "GIMP", "Discord", "Spotify", "OBS",
     "Steam", "Lutris", "Thunderbird", "Telegram", "Kdenlive", "Inkscape",
     "Blender", "Krita", "qBittorrent", "VSCodium", "Bitwarden", "Signal",
+    "Prism Launcher",
 )
 
 CATEGORIES = {

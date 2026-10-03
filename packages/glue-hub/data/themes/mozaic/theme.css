@@ -5,3 +5,4 @@ window { background: #11141b; color: #eef3ff; }
 button.suggested-action { background: #3a8bd8; color: white; }
 row { border-radius: 4px; }
 row:hover { background: #263f61; }
+.source-badge { color: #69b4ff; font-size: .85em; }

@@ -19,6 +19,8 @@ APPSTREAM = """<?xml version="1.0"?>
     <description><p>Explorează internetul în siguranță.</p></description>
     <developer_name>Mozilla</developer_name>
     <pkgname>firefox</pkgname>
+    <icon type="cached" width="128" height="128">firefox.jxl</icon>
+    <icon type="stock">firefox</icon>
     <project_license>MPL-2.0</project_license>
     <categories><category>Network</category><category>WebBrowser</category></categories>
     <screenshots><screenshot><image>https://example.test/firefox.png</image></screenshot></screenshots>
@@ -34,6 +36,7 @@ class TestAppStream(unittest.TestCase):
         app = apps[0]
         self.assertEqual(app.name, "Firefox")
         self.assertEqual(app.sources[0], AppSource("repo", "firefox", installed=True))
+        self.assertEqual(app.icon, "firefox.jxl")
         self.assertEqual(app.screenshots, ("https://example.test/firefox.png",))
         self.assertIn("WebBrowser", app.categories)
 

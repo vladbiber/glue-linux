@@ -22,6 +22,7 @@ from .model import App, AppSource
 from .pages import base_page, home_page, keys_page, system_page
 from .remote import SearchCache, aur_details, aur_search, flathub_details, flathub_search
 from .system import update_counts
+from .widgets import app_result_row
 
 
 PAGE_NAMES = {
@@ -236,19 +237,7 @@ class HubWindow(Adw.ApplicationWindow):
         while row := self.results.get_row_at_index(0):
             self.results.remove(row)
         for app in apps:
-            row = Gtk.ListBoxRow()
-            row.app_model = app
-            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)
-            box.set_margin_top(8); box.set_margin_bottom(8)
-            box.set_margin_start(10); box.set_margin_end(10)
-            name = Gtk.Label(label=app.name, xalign=0)
-            name.add_css_class("heading")
-            kinds = " · ".join(source.kind.upper() for source in app.sources)
-            summary = Gtk.Label(label=f"{app.summary}\n{kinds}", xalign=0, wrap=True)
-            summary.add_css_class("dim-label")
-            box.append(name); box.append(summary)
-            row.set_child(box)
-            self.results.append(row)
+            self.results.append(app_result_row(app, self.pool, self.image_cache))
 
     def _result_activated(self, _list, row) -> None:
         self.current_app = row.app_model
@@ -299,11 +288,17 @@ class HubWindow(Adw.ApplicationWindow):
     def _show_media(self, app: App) -> None:
         self._clear_box(self.gallery)
         self.gallery_scroll.set_visible(bool(app.screenshots))
+        self.detail_icon.set_from_icon_name("application-x-executable-symbolic")
         if app.icon.startswith("/"):
-            self.detail_icon.set_from_file(app.icon)
+            try:
+                self.detail_icon.set_from_paintable(Gdk.Texture.new_from_filename(app.icon))
+            except GLib.Error:
+                pass
         elif app.icon.startswith("https://"):
             future = self.pool.submit(cached_image, app.icon, self.image_cache)
             future.add_done_callback(lambda f: GLib.idle_add(self._set_icon, f.result()))
+        elif app.icon:
+            self.detail_icon.set_from_icon_name(app.icon)
         for url in app.screenshots[:3]:
             if url.startswith("https://"):
                 future = self.pool.submit(cached_image, url, self.image_cache)
@@ -311,7 +306,11 @@ class HubWindow(Adw.ApplicationWindow):
 
     def _set_icon(self, path: Path | None) -> bool:
         if path:
-            self.detail_icon.set_from_file(str(path))
+            try:
+                self.detail_icon.set_from_paintable(
+                    Gdk.Texture.new_from_filename(str(path)))
+            except GLib.Error:
+                pass
         return False
 
     def _add_screenshot(self, path: Path | None) -> bool:

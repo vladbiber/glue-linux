@@ -4,3 +4,4 @@ window { background: #f5f1e8; color: #28241d; }
 .hero { background: #ffffff; border-radius: 20px; padding: 34px; box-shadow: 0 4px 16px alpha(#33281a, .14); }
 button.suggested-action { background: #a66900; color: white; }
 row:hover { background: alpha(#a66900, .08); }
+.source-badge { color: #8a5800; font-size: .85em; }
