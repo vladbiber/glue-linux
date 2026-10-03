@@ -479,7 +479,7 @@ class TestSummaryAndSelection(unittest.TestCase):
         # gluewc's screen keeps its preselected recommended shell (glueqs)
         self.assertEqual(sel.shell_choice,
                          {"gluewc": "glueqs", "mockwc": "bar-a"})
-        self.assertEqual(sel.support_ids, ["bluetooth"])
+        self.assertEqual(sel.support_ids, ["app-store", "bluetooth"])
         self.assertTrue(sel.gaming)
         self.assertFalse(sel.minimal)
         plan = resolve_plan(_SHELL_CATALOG, sel)  # must not raise PlanError

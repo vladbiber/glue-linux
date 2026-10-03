@@ -28,6 +28,11 @@ rootfs:
     - st-glue
     # --- TUI installer + its partitioning tools (must be runnable live) ---
     - glue-installer
+    - glue-hub
+    - flatpak
+    - yay
+    - artixlinux-appstream-data
+    - pacman-contrib
     - gptfdisk
     - parted
     # --- 'Offline express' install: clone the live system to disk with no net.

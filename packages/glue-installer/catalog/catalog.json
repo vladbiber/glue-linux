@@ -412,6 +412,19 @@
   ],
   "support": [
     {
+      "id": "app-store",
+      "name": "Magazin de aplicații (repo + Flathub + AUR)",
+      "description": "Glue Hub caută, instalează și actualizează aplicații din depozitele sistemului, Flathub și AUR prin yay. Recomandat.",
+      "packages": [
+        "flatpak",
+        "yay",
+        "artixlinux-appstream-data",
+        "pacman-contrib"
+      ],
+      "services": [],
+      "default": true
+    },
+    {
       "id": "bluetooth",
       "name": "Bluetooth Support",
       "description": "Installs Bluetooth stack (BlueZ) and a GUI manager (Blueman) for easy pairing and management.",

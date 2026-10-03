@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Glue Hub
+Exec=glue-hub --autostart
+Icon=org.glue.Hub
+Terminal=false
+Type=Application
+X-GNOME-Autostart-enabled=true
+NoDisplay=true

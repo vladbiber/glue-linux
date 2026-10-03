@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Glue Hub
+Comment=Aplicații, actualizări și setări Glue Linux
+Exec=glue-hub
+Icon=org.glue.Hub
+Terminal=false
+Type=Application
+Categories=Settings;PackageManager;
+Keywords=aplicații;magazin;actualizări;sistem;
+StartupNotify=true

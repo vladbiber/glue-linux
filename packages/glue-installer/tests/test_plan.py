@@ -742,6 +742,28 @@ class TestGamingFilesAndPrimeRun(unittest.TestCase):
         self.assertEqual(gluewc.session_type, "wayland")
         self.assertEqual(gluewc.packages, ["gluewc"])
 
+    def test_glue_hub_is_always_on_desktop_and_store_backends_follow_toggle(self):
+        catalog = load_catalog(_CATALOG_PATH)
+        base = dict(
+            kernel_id="linux-cachyos", init_id="dinit",
+            session_ids=["gluewc"], shell_choice={"gluewc": "glueqs"},
+            gaming=False, minimal=False,
+        )
+        enabled = resolve_plan(catalog, Selection(
+            support_ids=["app-store"], **base))
+        disabled = resolve_plan(catalog, Selection(support_ids=[], **base))
+        for plan in (enabled, disabled):
+            self.assertIn("glue-hub", plan.packages)
+            self.assertNotIn("shelly", plan.packages)
+            self.assertNotIn("shelly-flatpak-backend", plan.packages)
+        for package in ("flatpak", "yay", "artixlinux-appstream-data", "pacman-contrib"):
+            self.assertIn(package, enabled.packages)
+            self.assertNotIn(package, disabled.packages)
+        enabled_cfg = next(f for f in enabled.files if f.path == "/etc/glue/hub.conf")
+        disabled_cfg = next(f for f in disabled.files if f.path == "/etc/glue/hub.conf")
+        self.assertIn("store=1", enabled_cfg.content)
+        self.assertIn("store=0", disabled_cfg.content)
+
 
 # ---------------------------------------------------------------------------
 # Zram (roadmap 1.2) and gaming additions (roadmap 1.3)

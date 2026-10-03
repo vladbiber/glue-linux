@@ -208,6 +208,15 @@ class TestPositive(unittest.TestCase):
         self.assertIn("bluetoothd", bt.services)
         self.assertFalse(bt.default)
 
+    def test_app_store_is_default_and_has_all_backends(self):
+        store = next((s for s in self.catalog.support if s.id == "app-store"), None)
+        self.assertIsNotNone(store, "app-store support entry missing")
+        self.assertTrue(store.default)
+        self.assertEqual(set(store.packages), {
+            "flatpak", "yay", "artixlinux-appstream-data", "pacman-contrib",
+        })
+        self.assertNotIn("shelly", " ".join(store.packages).casefold())
+
     def test_gaming_section(self):
         g = self.catalog.gaming
         self.assertEqual(g.name, "Gaming Mode")

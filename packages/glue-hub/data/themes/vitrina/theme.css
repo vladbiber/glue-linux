@@ -1,0 +1,6 @@
+window { background: #f5f1e8; color: #28241d; }
+.hub-body { background: #f5f1e8; }
+.navigation-sidebar { background: #fffdf8; border-right: 1px solid #d8d1c4; }
+.hero { background: #ffffff; border-radius: 20px; padding: 34px; box-shadow: 0 4px 16px alpha(#33281a, .14); }
+button.suggested-action { background: #a66900; color: white; }
+row:hover { background: alpha(#a66900, .08); }

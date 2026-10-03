@@ -1,0 +1,8 @@
+#!/usr/bin/python
+import sys
+
+sys.path.insert(0, "/usr/lib/glue-hub")
+
+from glue_hub.app import main
+
+raise SystemExit(main())

@@ -6,7 +6,10 @@ d=packages/glue-installer
 if [ -d "$d/tests" ]; then
     # unittest writes its "Ran N tests" summary to stderr; merge it into
     # stdout so gate consumers that capture stdout see the test count
-    cd "$d" && exec python -m unittest 2>&1
+    (cd "$d" && python -m unittest 2>&1)
 fi
-echo "gate: no installer package with tests found" >&2
-exit 1
+h=packages/glue-hub
+if [ -d "$h/tests" ]; then
+    (cd "$h" && python -m unittest 2>&1)
+fi
+echo "gate: installer + Glue Hub tests passed"

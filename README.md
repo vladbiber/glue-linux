@@ -8,10 +8,12 @@ A small, amber-themed Linux distribution.
 - **Installer:** a full-screen **Python curses TUI** (`glue-install`) —
   catalog-driven wizard with Back navigation on every screen, automatic GeoIP
   timezone detection, network clock sync, and GPU driver auto-detection
-- **Sessions (pick any, or minimal):** three custom X11 window managers
-  (**apeturewm**, **nvwm**, **atomwm**), two Wayland compositors (**Niri** — with
-  the optional **Noctalia** shell/bar — and **Sway**), plus optional full DEs:
-  **KDE Plasma**, **GNOME (minimal)**, **XFCE**
+- **Sessions (pick one or more, or minimal):** **gluewc** with glueqs or
+  Noctalia (default), **nvwm**, **KDE Plasma**, **XFCE**, **GNOME** and
+  **Cinnamon**
+- **Glue Hub:** the single application store and control center. It searches
+  the system repositories, Flathub and AUR through `yay` in one window;
+  Shelly, Discover and PackageKit are not installed by default.
 - **Gaming Mode (optional):** Steam (+ Proton GE preinstalled), Heroic, Vulkan
   32/64-bit, GameMode, MangoHud, Gamescope, `prime-run` for hybrid NVIDIA
   (also Lutris, Faugus, Wine, a sched_ext scheduler via `scx_lavd`, and
@@ -42,10 +44,11 @@ Palette: background `#100A02`, secondary/lines `#A66900`, primary text `#F1B00A`
 3. **kernel** — `linux-cachyos` (recommended) or `linux-zen`
 4. **init system** — `dinit` (recommended), `runit` or `OpenRC`; every service
    is installed with the matching `-dinit`/`-runit`/`-openrc` script package
-5. **sessions** — multi-select from the 8 WMs/DEs, each with ease/lightness
-   ratings, keybinding cheat-sheet and screenshot path; Niri offers the
-   Noctalia shell as an add-on (autostarted by the session wrapper)
-6. **support toggles** — Bluetooth (BlueZ + Blueman)
+5. **sessions** — multi-select from the 6 WMs/DEs, each with ease/lightness
+   ratings, keybinding cheat-sheet and screenshot path; gluewc offers glueqs
+   or Noctalia as its shell
+6. **support toggles** — the Glue Hub store backends (repository + Flathub +
+   AUR, enabled by default) and Bluetooth (BlueZ + Blueman)
 7. **Gaming Mode** — the full Steam stack; the right Vulkan driver
    (NVIDIA open module / RADV / Intel ANV, 32-bit included) is pinned from the
    detected GPU instead of pacman's alphabetical default
@@ -69,6 +72,21 @@ audio (+ `startx` for the X11 WMs). On NVIDIA machines the installer also
 writes `/usr/local/bin/prime-run` (no `nvidia-prime` package needed) — set a
 Steam game's launch options to `prime-run %command%` to run it on the dGPU.
 
+Glue Hub itself remains installed as the system control center when its store
+toggle is disabled. With the default enabled, it adds Flatpak, Flathub,
+AppStream metadata, `yay` and update checks. AUR recipes are community-made;
+Hub asks once before the first AUR installation, and recipes that require
+systemd may not work on Glue Linux.
+
+### Glue Hub themes
+
+The appearance can be changed live from **Settings → Appearance**. The choice
+is kept for the next launch.
+
+| Glue | Vitrină | Mozaic |
+| --- | --- | --- |
+| ![Glue Hub with the Glue theme](packages/glue-hub/screenshots/glue.png) | ![Glue Hub with the Vitrină theme](packages/glue-hub/screenshots/vitrina.png) | ![Glue Hub with the Mozaic theme](packages/glue-hub/screenshots/mozaic.png) |
+
 ## Layout
 
 ```
@@ -78,13 +96,14 @@ glue-linux/
 ├── scripts/make-iso.sh      # runs inside the container: repo + buildiso
 ├── repo/pacman.conf         # base + lib32 + CachyOS + [glue] repos
 ├── packages/                # custom packages (built into the [glue] repo)
-│   ├── apeturewm/           # tiling WM (BSP, per-monitor bar)
+│   ├── gluewc/              # default Wayland compositor
+│   ├── glueqs/              # default gluewc shell/bar
 │   ├── nvwm/                # BSP tiling WM, built-in bar, media keys enabled,
 │   │                        #   user config at ~/.config/nvwm/config.conf
-│   ├── atomwm/              # the lightest monocle WM (raw X11, ~150 KB RSS)
 │   ├── st-glue/         # st patched to the Glue palette + JetBrains Mono
 │   ├── proton-ge-custom-bin/# GE-Proton for Steam, preinstalled system-wide
 │   ├── glue-installer/  # the Python curses installer + catalog
+│   ├── glue-hub/        # GTK application store + system control center
 │   └── glue-branding/   # amber TTY palette, /etc/issue, os-release, GRUB theme
 └── iso-profile/glue/    # artools profile (package lists + live overlay)
 ```
@@ -96,11 +115,10 @@ logic layers — `catalog.py` (JSON catalog + validation) → `plan.py` (selecti
 → package/service/file plan) → `executor.py` (plan → ordered steps) →
 `disks.py` / `identity.py` / `gpu.py` / `grub_filter.py` — driven by a curses
 TUI (`ui_model.py` state machine, `render.py`, `tui.py`). All I/O is injected,
-so the whole thing is covered by **520+ unit tests that run without root**:
+so the installer and Glue Hub are covered by **675+ unit tests that run without root**:
 
 ```sh
-cd packages/glue-installer
-python3 -m unittest discover -s tests
+sh scripts/gate.sh
 ```
 
 Adding a session/kernel/shell is a catalog edit (`catalog/catalog.json`), not
@@ -176,15 +194,14 @@ qemu-system-x86_64 -enable-kvm -m 4G -bios /usr/share/edk2-ovmf/OVMF_CODE.fd \
     -cdrom out/glue-runit-*-x86_64.iso
 ```
 
-On the live system you can also preview things before installing: `startx`
-launches apeturewm, `niri` starts the Wayland compositor straight from a tty.
+On the live system you can preview gluewc with glueqs or Noctalia before
+installing.
 
 ## Status / notes
 
-- Boot-tested on real hardware (UEFI, hybrid Intel+NVIDIA laptop): all 8
-  sessions start from the greeter, Steam runs on the Wayland compositors
-  through each one's own XWayland integration (Niri auto-starts
-  `xwayland-satellite`; Sway and Mutter ship their own).
+- The current catalog contains six sessions: gluewc, nvwm, KDE Plasma, XFCE,
+  GNOME and Cinnamon. Multiple sessions may be installed together and chosen
+  at login.
 - The installer is **online-only**: it always `basestrap`s a fresh system, so
   it can fit the CachyOS kernel and your chosen options. The network screen
   hard-blocks until you're connected.
@@ -200,15 +217,9 @@ launches apeturewm, `niri` starts the Wayland compositor straight from a tty.
 
 ## The window managers
 
-- **apeturewm** — tiling (BSP), per-monitor bar, workspaces, Glue palette
-  baked in.
-- **nvwm** — BSP tiling with a built-in per-monitor bar, multi-monitor via
-  Xinerama + RandR hotplug, an overview mode, and a plain-text config
-  (`~/.config/nvwm/config.conf` overrides `/etc/nvwm/config.conf`). Volume,
-  media and brightness keys work out of the box.
-- **atomwm** — the lightest possible monocle WM (raw X11 protocol on a socket,
-  zero malloc, ~150 KB of RAM).
+- **gluewc** — the default Wayland compositor, paired with glueqs or Noctalia.
+- **nvwm** — minimalist X11 tiling with a plain-text configuration and st-glue
+  as its small terminal fallback.
 
-All three are cloned from GitHub at build time and ship a session wrapper that
-starts X (via `startx`), a D-Bus session and PipeWire, so a TUI greeter like
-tuigreet can launch them with working audio.
+Session wrappers start D-Bus and PipeWire and expose every installed session
+through the login screen.
