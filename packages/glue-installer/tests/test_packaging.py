@@ -218,3 +218,23 @@ class TestFindCatalog(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# ---------------------------------------------------------------------------
+# gluewc PKGBUILD guards (Faza 5.5)
+# ---------------------------------------------------------------------------
+
+class TestGluewcPkgbuildGuards(unittest.TestCase):
+    def setUp(self):
+        self.text = (_PKG_ROOT.parent / "gluewc" / "PKGBUILD").read_text()
+
+    def test_adaptive_sync_guard(self):
+        self.assertIn("wlr_output_state_set_adaptive_sync_enabled", self.text)
+        self.assertIn("lost per-output adaptive_sync", self.text)
+
+    def test_alacritty_default_guard(self):
+        self.assertIn("bind_insert = mod+Return = spawn:alacritty", self.text)
+        self.assertIn("no longer the default terminal", self.text)
+
+    def test_source_unchanged(self):
+        self.assertIn('source=("git+https://github.com/vladbiber/gluewc.git")', self.text)

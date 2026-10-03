@@ -34,6 +34,12 @@ prepare() {
     grep -q '^bind_insert = mod+F1 = spawn:playerctl play-pause$' config.def.conf &&
         grep -q '^bind_insert = mod+shift+F1 = spawn:glue-welcome$' config.def.conf || {
         echo "ERROR: Glue Welcome keybind patch failed" >&2; exit 1; }
+    # 5.5: adaptive_sync per output (default off) and alacritty default live upstream; fail loudly if a bump drops them
+    grep -q 'adaptive_sync' config.def.conf &&
+        grep -q 'wlr_output_state_set_adaptive_sync_enabled' gluewc.c || {
+        echo "ERROR: gluewc source lost per-output adaptive_sync" >&2; exit 1; }
+    grep -q '^bind_insert = mod+Return = spawn:alacritty$' config.def.conf || {
+        echo "ERROR: alacritty is no longer the default terminal in config.def.conf" >&2; exit 1; }
 }
 
 build() {

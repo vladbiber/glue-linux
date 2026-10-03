@@ -69,6 +69,23 @@ rootfs:
     # --- Wayland preview: test a compositor on real hardware straight from
     #     the stick, before installing. From a tty: `gluewc`. ---
     - gluewc
+    # shells to preview: glueqs, and noctalia-shell with its quickshell fork
+    # (noctalia-qs provides quickshell; naming it stops pacman picking galaxy's)
+    - glueqs
+    - noctalia-shell
+    - noctalia-qs
+    # bar runtime: polkit agent, brightness/media keys, clipboard, battery, power profiles
+    - polkit-gnome
+    - brightnessctl
+    - playerctl
+    - wl-clipboard
+    - upower
+    - power-profiles-daemon
+    # portals (screen share, file dialogs) and grim for screenshots; no init pkgs, D-Bus activated
+    - xdg-desktop-portal
+    - xdg-desktop-portal-wlr
+    - xdg-desktop-portal-gtk
+    - grim
     - alacritty
     - xorg-xwayland
     - xwayland-satellite
