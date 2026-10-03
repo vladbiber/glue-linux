@@ -32,7 +32,9 @@ _DISPLAY_CLASS_PREFIX = "0x03"
 # (the catalog kernels all ship their -headers package) — without it the
 # nvidia userspace has no module to pair with and nothing renders.
 _GPU_PACKAGES = {
-    "nvidia": ["nvidia-open-dkms", "nvidia-utils", "lib32-nvidia-utils"],
+    # libva-nvidia-driver: VA-API video decode on NVIDIA (browsers, mpv)
+    "nvidia": ["nvidia-open-dkms", "nvidia-utils", "lib32-nvidia-utils",
+               "libva-nvidia-driver"],
     "amd": ["vulkan-radeon", "lib32-vulkan-radeon"],
     "intel": ["vulkan-intel", "lib32-vulkan-intel"],
 }

@@ -14,6 +14,9 @@ A small, amber-themed Linux distribution.
   **KDE Plasma**, **GNOME (minimal)**, **XFCE**
 - **Gaming Mode (optional):** Steam (+ Proton GE preinstalled), Heroic, Vulkan
   32/64-bit, GameMode, MangoHud, Gamescope, `prime-run` for hybrid NVIDIA
+  (also Lutris, Faugus, Wine, a sched_ext scheduler via `scx_lavd`, and
+  ananicy-cpp process priorities; do not wrap a game in `gamemoderun` and
+  expect ananicy to manage it too, pick one)
   laptops, and a persistent NVIDIA shader cache
 - **Theme:** amber on near-black everywhere — TTY palette, `st`, GRUB theme,
   the installer and the greeter

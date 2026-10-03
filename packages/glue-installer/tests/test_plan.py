@@ -859,5 +859,42 @@ class TestScheduler(unittest.TestCase):
                 "k-main", "dinit", [], {}, [], True, False, scheduler="bogus"))
 
 
+class TestAnanicyAndGamingExtras(unittest.TestCase):
+    """1.5: ananicy-cpp with the CachyOS rules; 1.6: the remaining gaming set."""
+
+    def _plan(self, gaming, gpu_vendors=None):
+        catalog = load_catalog(_CATALOG_PATH)
+        sel = Selection("linux-cachyos", "runit", [], {}, [], gaming, False)
+        return resolve_plan(catalog, sel, gpu_vendors=gpu_vendors)
+
+    def test_gaming_runs_ananicy_cpp_with_rules(self):
+        plan = self._plan(True)
+        self.assertIn("ananicy-cpp", plan.packages)
+        self.assertIn("cachyos-ananicy-rules", plan.packages)
+        self.assertIn("ananicy-cpp", plan.services)
+        # the package ships its own init scripts: no ananicy-cpp-runit
+        self.assertFalse([p for p in plan.packages if p.startswith("ananicy-cpp-")])
+
+    def test_gaming_has_32bit_mangohud_and_launchers(self):
+        plan = self._plan(True)
+        for pkg in ("lib32-mangohud", "mangohud", "lutris", "faugus-launcher",
+                    "goverlay", "protontricks", "winetricks", "vulkan-tools",
+                    "lib32-gtk3", "lib32-libva", "lib32-ocl-icd"):
+            self.assertIn(pkg, plan.packages, pkg)
+        self.assertNotIn("lib32-opencl-icd-loader", plan.packages)
+
+    def test_nvidia_gaming_adds_vaapi_driver(self):
+        plan = self._plan(True, gpu_vendors=frozenset({"nvidia"}))
+        self.assertIn("libva-nvidia-driver", plan.packages)
+        self.assertNotIn("libva-nvidia-driver",
+                         self._plan(True, gpu_vendors=frozenset({"amd"})).packages)
+
+    def test_no_gaming_no_ananicy(self):
+        plan = self._plan(False)
+        self.assertNotIn("ananicy-cpp", plan.packages)
+        self.assertNotIn("ananicy-cpp", plan.services)
+        self.assertNotIn("lib32-mangohud", plan.packages)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -54,7 +54,8 @@ class TestGamingGpuPackages(unittest.TestCase):
     def test_nvidia(self):
         self.assertEqual(
             gaming_gpu_packages(frozenset({"nvidia"})),
-            ["lib32-nvidia-utils", "nvidia-open-dkms", "nvidia-utils"],
+            ["lib32-nvidia-utils", "libva-nvidia-driver", "nvidia-open-dkms",
+         "nvidia-utils"],
         )
 
     def test_intel(self):

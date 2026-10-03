@@ -513,7 +513,7 @@
   ],
   "gaming": {
     "name": "Gaming Mode",
-    "description": "Fully prepares the system for plug-and-play gaming. Installs Steam (with Proton GE preinstalled), Heroic Games Launcher, Firefox, Vulkan support, GameMode, MangoHud, Gamescope, and fan/sensor tools (lm_sensors). GPU drivers are auto-detected and installed.",
+    "description": "Fully prepares the system for plug-and-play gaming: Steam with Proton (CachyOS build preselected, Proton GE too), Heroic, Lutris, Faugus, Wine with winetricks/protontricks, Vulkan 32/64-bit, GameMode, MangoHud (32/64-bit) with GOverlay, Gamescope, a sched_ext CPU scheduler and ananicy-cpp process priorities. GPU drivers are auto-detected and installed.",
     "packages": [
       "steam",
       "heroic-games-launcher-bin",
@@ -530,9 +530,34 @@
       "lib32-gamemode",
       "mangohud",
       "gamescope",
-      "lm_sensors"
+      "lm_sensors",
+      "ananicy-cpp",
+      "cachyos-ananicy-rules",
+      "lib32-mangohud",
+      "faugus-launcher",
+      "wine-cachyos-opt",
+      "lutris",
+      "goverlay",
+      "protontricks",
+      "winetricks",
+      "vulkan-tools",
+      "ttf-liberation",
+      "wqy-zenhei",
+      "openal",
+      "giflib",
+      "glfw",
+      "mpg123",
+      "gst-plugins-base-libs",
+      "libxslt",
+      "lib32-alsa-plugins",
+      "lib32-gtk3",
+      "lib32-libva",
+      "lib32-ocl-icd",
+      "lib32-libjpeg-turbo"
     ],
-    "services": [],
+    "services": [
+      "ananicy-cpp"
+    ],
     "gpu_autodetect": true,
     "schedulers": [
       {
