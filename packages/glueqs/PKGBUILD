@@ -1,0 +1,38 @@
+# Maintainer: Glue Linux
+# glueqs: the Quickshell shell gluewc is developed against. The QML tree is
+# installed system-wide and started with the `glueqs` wrapper; settings are
+# written to ~/.config/glueqs by the shell itself.
+pkgname=glueqs
+pkgver=r17.4a70e24
+pkgrel=1
+pkgdesc="Dot-matrix desktop shell for gluewc (bar, launcher, OSDs, notifications, wallpaper)"
+arch=('any')
+url="https://github.com/vladbiber/glueqs"
+license=('GPL-3.0-only')
+depends=('quickshell' 'bash' 'coreutils' 'curl' 'networkmanager' 'bluez' 'udev'
+         'elogind' 'gluewc')
+optdepends=('easyeffects: equalizer presets in the media panel')
+makedepends=('git')
+source=("git+https://github.com/vladbiber/glueqs.git")
+sha256sums=('SKIP')
+
+pkgver() {
+    cd "$pkgname"
+    printf 'r%s.%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+package() {
+    local dest="$pkgdir/etc/xdg/quickshell/glueqs"
+    install -dm755 "$dest"
+    cd "$pkgname"
+    cp -r -- *.qml *.js eq-preset.sh "$dest/"
+    chmod 755 "$dest/eq-preset.sh"
+    # upstream ships no settings.json: the shell writes its defaults to
+    # ~/.config/glueqs on first start
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+
+    install -Dm755 /dev/stdin "$pkgdir/usr/bin/glueqs" <<'EOF'
+#!/bin/sh
+exec qs -p /etc/xdg/quickshell/glueqs "$@"
+EOF
+}

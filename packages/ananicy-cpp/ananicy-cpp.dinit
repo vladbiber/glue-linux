@@ -1,0 +1,5 @@
+# ananicy-cpp: applies nice/ionice/cgroup rules from /etc/ananicy.d to running processes.
+type = process
+command = /usr/bin/ananicy-cpp start
+restart = true
+smooth-recovery = true

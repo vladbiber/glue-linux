@@ -1,0 +1,27 @@
+# Maintainer: Glue Linux
+# Arch extra cage 0.3.1 rebuilt for this repo: the greeter runs regreet under
+# cage, and cage is not packaged by the base distribution.
+pkgname=cage
+pkgver=0.3.1
+pkgrel=1
+pkgdesc="A kiosk compositor for Wayland"
+arch=('x86_64')
+url="https://www.hjdskes.nl/projects/cage/"
+license=('MIT')
+depends=('glibc' 'wayland' 'wlroots0.20' 'libxkbcommon')
+makedepends=('git' 'meson' 'scdoc' 'wayland-protocols' 'xorg-xwayland')
+optdepends=('xorg-xwayland: X11 support')
+provides=('wayland-compositor')
+source=("git+https://github.com/cage-kiosk/cage.git#tag=v${pkgver}")
+sha256sums=('SKIP')
+
+build() {
+  meson setup "$pkgname" build --prefix=/usr --buildtype=plain --wrap-mode=nodownload
+  ninja -C build
+}
+
+package() {
+  DESTDIR="$pkgdir" ninja -C build install
+  install -Dm644 "$pkgname/README.md" -t "$pkgdir/usr/share/doc/$pkgname"
+  install -Dm644 "$pkgname/LICENSE" -t "$pkgdir/usr/share/licenses/$pkgname"
+}

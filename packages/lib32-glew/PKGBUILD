@@ -1,0 +1,38 @@
+# Maintainer: Glue Linux
+# Arch multilib lib32-glew 2.3.1, needed only as a dependency of lib32-mangohud.
+_pkgbasename=glew
+pkgname=lib32-$_pkgbasename
+pkgver=2.3.1
+pkgrel=1
+pkgdesc="A cross-platform C/C++ extension loading library (32 bit)"
+arch=('x86_64')
+url="https://github.com/nigels-com/glew"
+license=("LicenseRef-$pkgname")
+depends=('lib32-libxmu' 'lib32-libxi' 'lib32-glu' "$_pkgbasename>=$pkgver")
+provides=('libGLEW.so')
+source=(https://downloads.sourceforge.net/${_pkgbasename}/${_pkgbasename}-${pkgver}.tgz
+        glew-2.3.0-install.patch
+        glew-ldflags.patch)
+sha256sums=('b64790f94b926acd7e8f84c5d6000a86cb43967bd1e688b03089079799c9e889'
+            '32581990e2f825c9f2442dfee5a319674c2c98b191f8d777125b9be25478cade'
+            '92d57a082d0a6cdd2e82ed7e3b9aa86e9d15f5f376d8c60ae7a2f4d1f2570459')
+
+prepare() {
+  cd "${_pkgbasename}-${pkgver}"
+  patch -Np1 -i ../glew-2.3.0-install.patch
+  patch -Np1 -i ../glew-ldflags.patch
+}
+
+build() {
+  cd "${_pkgbasename}-${pkgver}"
+  sed -i 's|CC = cc|CC = gcc -m32|' config/Makefile.linux
+  sed -i 's|LD = cc|LD = gcc -m32|' config/Makefile.linux
+  make
+}
+
+package() {
+  cd "${_pkgbasename}-${pkgver}"
+  make DESTDIR="$pkgdir" PKGDIR="/usr/lib32/pkgconfig" install
+  rm -rf "$pkgdir"/usr/{include,bin}
+  install -Dm644 LICENSE.txt "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

@@ -1,0 +1,44 @@
+# Maintainer: Glue Linux
+# Arch multilib lib32-mangohud 0.8.4: the 32-bit overlay libraries that the
+# base distribution does not ship, matching world's mangohud 0.8.4.
+_pkgname=MangoHud
+pkgname=lib32-mangohud
+pkgver=0.8.4
+pkgrel=1
+pkgdesc="32-bit libraries for MangoHud and MangoApp"
+arch=('x86_64')
+url="https://github.com/flightlessmango/MangoHud"
+license=('MIT')
+makedepends=('git' 'glfw' 'glslang' 'lib32-cmocka' 'lib32-libglvnd' 'libxnvctrl'
+             'lib32-libxrandr' 'meson' 'nlohmann-json' 'python-mako' 'vulkan-headers')
+depends=('lib32-dbus' 'lib32-gcc-libs' 'lib32-glew' 'lib32-libx11' 'lib32-libxkbcommon'
+         'lib32-vulkan-icd-loader' 'lib32-wayland' "mangohud=$pkgver")
+source=("$pkgname-$pkgver.tar.xz::https://github.com/flightlessmango/MangoHud/releases/download/v$pkgver/$_pkgname-v$pkgver-Source.tar.xz")
+b2sums=('06bdfcd26e14ff544e4dea4e39b8f7da6119d87fc7e14f381cf8c47bba69508a4768b8584600424adb8ca2a2f6f4c2d84d63683addeb83bd0dd9a1e055febdb8')
+
+prepare() {
+    cd "$_pkgname-v$pkgver"
+    # system cmocka instead of the bundled subproject
+    sed -i "s/  cmocka = subproject('cmocka')//g" meson.build
+    sed -i "s/cmocka_dep = cmocka.get_variable('cmocka_dep')/cmocka_dep = dependency('cmocka')/g" meson.build
+}
+
+build() {
+    export CC="gcc -m32"
+    export CXX="g++ -m32"
+    export PKG_CONFIG_PATH="/usr/lib32/pkgconfig"
+
+    meson setup "$_pkgname-v$pkgver" build \
+        --prefix=/usr --libexecdir=lib --sbindir=bin \
+        --buildtype=plain --wrap-mode=nodownload \
+        --libdir lib32 \
+        -Dinclude_doc=false
+    meson compile -C build
+}
+
+package() {
+    meson install -C build --tags runtime,mangoapp --destdir "$pkgdir"
+    # the scripts (mangohud, mangoplot) come from the 64-bit package
+    rm -rf "$pkgdir/usr/bin"
+    install -Dm644 "$srcdir/$_pkgname-v$pkgver/LICENSE" -t "$pkgdir/usr/share/licenses/$pkgname/"
+}

@@ -10,6 +10,9 @@ FROM artixlinux/artixlinux:latest
 # resulting ISO is unaffected.
 RUN sed -i '/^\[options\]/a DisableSandbox' /etc/pacman.conf
 
+# [lib32] is off in the base image; lib32-glew/lib32-mangohud build against it
+RUN printf '\n[lib32]\nInclude = /etc/pacman.d/mirrorlist\n' >> /etc/pacman.conf
+
 # base toolchain + artools (buildiso) + makepkg deps, in one coherent upgrade
 RUN pacman -Syu --noconfirm --needed \
         base-devel git sudo \

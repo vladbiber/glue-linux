@@ -1,0 +1,40 @@
+# Maintainer: Glue Linux
+# gluewc: the default Glue session. Built against the distribution's
+# wlroots0.20 and scenefx0.5, not the copies install.sh would compile.
+pkgname=gluewc
+pkgver=0.3.0.r31.94acc30
+pkgrel=1
+pkgdesc="Animated Wayland compositor with BSP, scrolling and infinite-canvas layouts"
+arch=('x86_64')
+url="https://github.com/vladbiber/gluewc"
+license=('GPL-3.0-only')
+depends=('wlroots0.20' 'scenefx0.5' 'wayland' 'libinput' 'libxkbcommon' 'pixman'
+         'libdrm' 'libxcb' 'xcb-util-wm' 'mesa' 'dbus' 'xorg-xwayland')
+makedepends=('git' 'wayland-protocols')
+optdepends=('glueqs: the shell gluewc is developed against'
+            'noctalia-shell: alternative shell'
+            'pipewire: audio in the session'
+            'wireplumber: audio session manager'
+            'pipewire-pulse: PulseAudio compatible audio'
+            'alacritty: default terminal')
+source=("git+https://github.com/vladbiber/gluewc.git")
+sha256sums=('SKIP')
+
+pkgver() {
+    cd "$pkgname"
+    printf '%s.r%s.%s' "$(sed -n 's/^_VERSION = //p' config.mk)" \
+        "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+build() {
+    cd "$pkgname"
+    make PREFIX=/usr
+}
+
+package() {
+    cd "$pkgname"
+    make PREFIX=/usr DESTDIR="$pkgdir" install
+    # the demo video and tour images are 10 MB of docs nobody reads on a live ISO
+    rm -rf "$pkgdir/usr/share/doc/gluewc/docs/media"
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

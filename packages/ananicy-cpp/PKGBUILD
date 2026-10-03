@@ -1,0 +1,48 @@
+# Maintainer: Glue Linux
+# Built from upstream without systemd (ENABLE_SYSTEMD=OFF); Arch extra's
+# ananicy-cpp links libsystemd. Rules come from cachyos-ananicy-rules.
+pkgname=ananicy-cpp
+pkgver=1.2.0
+pkgrel=1
+pkgdesc="Auto nice daemon with community rules (C++ rewrite), with dinit/runit/openrc services"
+arch=('x86_64')
+url="https://gitlab.com/ananicy-cpp/ananicy-cpp"
+license=('GPL-3.0-or-later')
+depends=('gcc-libs' 'glibc' 'libbpf' 'libelf' 'fmt' 'spdlog' 'pcre2' 'zlib')
+makedepends=('bpf' 'clang' 'cmake' 'git' 'ninja' 'nlohmann-json')
+optdepends=('cachyos-ananicy-rules: the rule set the daemon applies')
+source=("git+https://gitlab.com/ananicy-cpp/ananicy-cpp.git#tag=v${pkgver}"
+        'ananicy-cpp.dinit'
+        'ananicy-cpp.runit-run'
+        'ananicy-cpp.openrc')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP')
+
+prepare() {
+  cd "$pkgname"
+  # missing standard headers show up as errors with GCC 16
+  find src -name '*.cpp' -exec sed -i '1i #include <cstdint>\n#include <cstring>\n#include <unistd.h>' {} +
+}
+
+build() {
+  cmake -S "$pkgname" -B build -GNinja \
+        -DCMAKE_BUILD_TYPE=None \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DUSE_EXTERNAL_SPDLOG=ON \
+        -DUSE_EXTERNAL_JSON=ON \
+        -DUSE_EXTERNAL_FMTLIB=ON \
+        -DENABLE_SYSTEMD=OFF \
+        -DUSE_BPF_PROC_IMPL=ON \
+        -DBPF_BUILD_LIBBPF=OFF \
+        -DENABLE_REGEX_SUPPORT=ON \
+        -DVERSION="$pkgver"
+  cmake --build build --target ananicy-cpp
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install build --component Runtime
+  install -dm755 "$pkgdir/etc/ananicy.d"
+
+  install -Dm644 "$srcdir/ananicy-cpp.dinit"     "$pkgdir/etc/dinit.d/ananicy-cpp"
+  install -Dm755 "$srcdir/ananicy-cpp.runit-run" "$pkgdir/etc/runit/sv/ananicy-cpp/run"
+  install -Dm755 "$srcdir/ananicy-cpp.openrc"    "$pkgdir/etc/init.d/ananicy-cpp"
+}
