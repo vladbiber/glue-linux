@@ -28,8 +28,8 @@ A small, amber-themed Linux distribution.
   D3 suspend (`NVreg_DynamicPowerManagement=0x02`) on Optimus laptops so the
   GPU stays off between games. Firmware controls the fans — Glue does not
   install nbfc/fancontrol.
-- **Theme:** amber on near-black everywhere — TTY palette, `st`, GRUB theme,
-  the installer and the greeter
+- **Theme:** amber on near-black for TTY, `st`, GRUB and the installer; the
+  graphical login uses a clean light theme with a blue accent
 
 Palette: background `#100A02`, secondary/lines `#A66900`, primary text `#F1B00A`.
 
@@ -235,8 +235,8 @@ installing.
 Session wrappers start D-Bus and PipeWire and expose every installed session
 through the login screen.
 
-The login screen uses the same dark amber palette and a solid background. It
-remembers the last user and session; every desktop selected in the installer
-is available from its session chooser.
+The login screen uses a clean light palette, a solid background and a simple
+white card. It remembers the last user and session; every desktop selected in
+the installer is available from its session chooser.
 
 ![Glue Linux ReGreet login screen](screenshots/greeter.png)

@@ -31,7 +31,7 @@ _REGREET_CONFIG_CONTENT = """\
 skip_selection = false
 
 [GTK]
-application_prefer_dark_theme = true
+application_prefer_dark_theme = false
 cursor_theme_name = "Adwaita"
 cursor_blink = true
 font_name = "Cantarell 14"
@@ -51,42 +51,55 @@ format = "%a %H:%M"
 resolution = "1s"
 """
 
-# Values mirror packages/glue-branding/palette.json. A branding test keeps the
-# CSS tied to that canonical file so changing the palette cannot leave the
-# login screen behind.
 _REGREET_CSS_CONTENT = """\
-/* Glue Linux ReGreet theme — no wallpaper. */
+/* Glue Linux ReGreet theme — clean, light and without a wallpaper. */
 * {
-    color: #F1B00A;
+    color: #172033;
 }
 
 window,
 .background,
 .view {
-    background-color: #100A02;
+    background-color: #F4F6F8;
+}
+
+frame {
+    background-color: #FFFFFF;
+    border: 1px solid #D9DFE8;
+    border-radius: 16px;
 }
 
 button,
 button * {
-    color: #100A02;
+    color: #FFFFFF;
 }
 
 button {
-    background: #F1B00A;
-    border: 1px solid #A66900;
-    border-radius: 6px;
+    background: #4465E9;
+    border: 1px solid #3654C7;
+    border-radius: 10px;
 }
 
 button:hover,
 button:focus {
-    background: #FFD75F;
+    background: #3654C7;
 }
 
 entry,
 combobox button {
-    color: #F1B00A;
-    background: #100A02;
-    border: 1px solid #A66900;
+    color: #172033;
+    background: #FFFFFF;
+    border: 1px solid #C7D0DD;
+    border-radius: 10px;
+}
+
+combobox button * {
+    color: #172033;
+}
+
+entry:focus,
+combobox button:focus {
+    border-color: #4465E9;
 }
 """
 

@@ -1,6 +1,5 @@
 """Focused tests for the graphical greeter profile."""
 
-import json
 import struct
 import subprocess
 import sys
@@ -32,18 +31,19 @@ def _session(session_id: str, session_type: str) -> Session:
 
 class ReGreetConfigTest(unittest.TestCase):
 
-    def test_toml_is_dark_has_no_wallpaper_and_uses_glue_name(self):
+    def test_toml_is_light_has_no_wallpaper_and_uses_glue_name(self):
         config = tomllib.loads(_REGREET_CONFIG_CONTENT)
         self.assertNotIn("background", config)
-        self.assertTrue(config["GTK"]["application_prefer_dark_theme"])
+        self.assertFalse(config["GTK"]["application_prefer_dark_theme"])
         self.assertEqual(config["appearance"]["greeting_msg"], "Glue Linux")
         self.assertFalse(config["skip_selection"])
 
-    def test_css_colors_come_from_canonical_palette(self):
-        palette_path = _REPO_ROOT / "packages/glue-branding/palette.json"
-        palette = json.loads(palette_path.read_text())
-        for key in ("bg", "lines", "text", "amber3"):
-            self.assertIn(palette[key], _REGREET_CSS_CONTENT)
+    def test_css_uses_clean_neutral_palette_without_old_amber_theme(self):
+        for color in ("#F4F6F8", "#FFFFFF", "#172033", "#4465E9",
+                      "#D9DFE8"):
+            self.assertIn(color, _REGREET_CSS_CONTENT)
+        for old_color in ("#100A02", "#A66900", "#F1B00A"):
+            self.assertNotIn(old_color, _REGREET_CSS_CONTENT)
 
     def test_live_profile_carries_graphical_greeter_and_fallback(self):
         profile = (_REPO_ROOT / "iso-profile/glue/profile.yaml").read_text()
