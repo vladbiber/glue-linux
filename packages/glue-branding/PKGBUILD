@@ -1,11 +1,11 @@
 # Maintainer: Glue Linux
 pkgname=glue-branding
 pkgver=1
-pkgrel=4
+pkgrel=5
 pkgdesc="Glue Linux branding: amber TTY palette, /etc/issue, os-release, fastfetch logo, GRUB theme"
 arch=('any')
 url="https://github.com/Vifuddyxg"
-license=('MIT')
+license=('MIT' 'CC0-1.0')
 depends=('kbd')                 # setvtrgb
 optdepends=('fastfetch: system info splash with the Glue logo')
 backup=('etc/glue/fastfetch.jsonc')
@@ -13,8 +13,11 @@ install='glue-branding.install'
 source=('logo.txt' 'fastfetch.jsonc' 'term-neutral.sh'
         'grub-theme.txt' 'grub-background.png' 'grub-icon.png'
         'os-release' 'issue'
-        'palette.sh' 'palette.json')
-sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+        'palette.sh' 'palette.json'
+        'wallpaper.png' 'WALLPAPER-CREDITS.md')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
+            '8d8439cb8376ea46bd9ef8fcef678fc87011bbb1ef9e5d175bf8a0b7df26dfef'
+            'SKIP')
 
 package() {
     # ----- fastfetch logo + config -----
@@ -28,6 +31,12 @@ package() {
     # ----- amber palette (single source of truth for Hub, installer, regreet, Limine) -----
     install -Dm644 "$srcdir/palette.sh"   "$pkgdir/usr/share/glue/palette.sh"
     install -Dm644 "$srcdir/palette.json" "$pkgdir/usr/share/glue/palette.json"
+
+    # ----- optional default wallpaper (activation waits for user approval) -----
+    install -Dm644 "$srcdir/wallpaper.png" \
+        "$pkgdir/usr/share/backgrounds/glue/wallpaper.png"
+    install -Dm644 "$srcdir/WALLPAPER-CREDITS.md" \
+        "$pkgdir/usr/share/licenses/glue-branding/WALLPAPER-CREDITS.md"
 
     # ----- os-release (staged; the .install scriptlet copies it to
     #       /usr/lib/os-release, which is owned by the filesystem package) -----

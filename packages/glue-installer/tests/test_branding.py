@@ -309,6 +309,29 @@ class TestPkgbuildIncludesPalette(unittest.TestCase):
         self.assertIn("palette.json", self._text)
 
 
+class WallpaperCandidateTest(unittest.TestCase):
+    """The packaged wallpaper is desktop-sized and carries auditable CC0 data."""
+
+    def test_wallpaper_is_1920x1080_png(self):
+        path = _BRANDING_ROOT / "wallpaper.png"
+        data = path.read_bytes()
+        self.assertEqual(data[:8], b"\x89PNG\r\n\x1a\n")
+        self.assertEqual(data[12:16], b"IHDR")
+        self.assertEqual(struct.unpack(">II", data[16:24]), (1920, 1080))
+
+    def test_credits_record_author_source_and_cc0(self):
+        credits = (_BRANDING_ROOT / "WALLPAPER-CREDITS.md").read_text()
+        self.assertIn("Jayvee Enaguas", credits)
+        self.assertIn("commons.wikimedia.org", credits)
+        self.assertIn("CC0 1.0", credits)
+
+    def test_pkgbuild_installs_wallpaper_and_credits(self):
+        pkgbuild = (_BRANDING_ROOT / "PKGBUILD").read_text()
+        self.assertIn("wallpaper.png", pkgbuild)
+        self.assertIn("usr/share/backgrounds/glue/wallpaper.png", pkgbuild)
+        self.assertIn("WALLPAPER-CREDITS.md", pkgbuild)
+
+
 _REPO_ROOT = _PKG_ROOT.parent.parent
 _THEME_DIR = _REPO_ROOT / "iso-profile/glue/root-overlay/usr/share/grub/themes/artix"
 _LIVE_THEME_TXT = _THEME_DIR / "theme.txt"
@@ -482,6 +505,7 @@ class BrandingImagesTest(unittest.TestCase):
 
         pinned_sha256 = {
             "grub-icon.png": "374a32d644a8065f4a7da658456a3b4a3369d6fb6fb2ddbea01801381be2fb2d",
+            "wallpaper.png": "8d8439cb8376ea46bd9ef8fcef678fc87011bbb1ef9e5d175bf8a0b7df26dfef",
         }
 
         solid_backgrounds = {"grub-background.png"}
