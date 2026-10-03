@@ -1,9 +1,12 @@
-"""Tests for Glue Linux branding files: os-release, issue, default hostname, fastfetch."""
+"""Tests for Glue Linux branding files: os-release, issue, default hostname, fastfetch, PNG images."""
 
+import hashlib
 import json
 import re
+import struct
 import sys
 import unittest
+import zlib
 from pathlib import Path
 
 _PKG_ROOT = Path(__file__).parent.parent
@@ -380,6 +383,124 @@ class TestGrubThemeLive(unittest.TestCase):
         """kernels.cfg must contain 'Glue Linux (live)' as a menu entry title."""
         text = _KERNELS_CFG.read_text()
         self.assertIn("Glue Linux (live)", text)
+
+
+class BrandingImagesTest(unittest.TestCase):
+    """Test PNG images in glue-branding: solid backgrounds and pinned content."""
+
+    def _parse_png_chunks(self, data):
+        """Parse PNG file into list of (chunk_type, chunk_data) tuples.
+
+        Validates PNG signature and returns chunks without CRC validation.
+        """
+        if data[:8] != b'\x89PNG\r\n\x1a\n':
+            raise ValueError("Invalid PNG signature")
+        chunks = []
+        pos = 8
+        while pos < len(data):
+            if pos + 8 > len(data):
+                break
+            length = struct.unpack('>I', data[pos:pos+4])[0]
+            chunk_type = data[pos+4:pos+8]
+            chunk_data = data[pos+8:pos+8+length]
+            chunks.append((chunk_type, chunk_data))
+            pos += 12 + length
+        return chunks
+
+    def test_grub_background_primary_is_solid(self):
+        """grub-background.png must be 1024x768 solid #100A02."""
+        palette = json.loads(_PALETTE_JSON.read_text())
+        bg_hex = palette['bg']
+        r, g, b = tuple(int(bg_hex.lstrip('#')[i:i+2], 16) for i in (0, 2, 4))
+
+        png_path = _BRANDING_ROOT / "grub-background.png"
+        self.assertTrue(png_path.exists(), f"grub-background.png not found")
+        png_data = png_path.read_bytes()
+
+        chunks = self._parse_png_chunks(png_data)
+        self.assertGreater(len(chunks), 0, "PNG has no chunks")
+
+        # Verify IHDR
+        chunk_type, ihdr_data = chunks[0]
+        self.assertEqual(chunk_type, b'IHDR', "First chunk is not IHDR")
+        width, height, bit_depth, color_type, _, _, interlace = struct.unpack('>IIBBBBB', ihdr_data)
+        self.assertEqual(width, 1024, "Width must be 1024")
+        self.assertEqual(height, 768, "Height must be 768")
+        self.assertEqual(bit_depth, 8, "Bit depth must be 8")
+        self.assertEqual(color_type, 2, "Color type must be 2 (RGB)")
+        self.assertEqual(interlace, 0, "Must not be interlaced")
+
+        # Decompress and verify all pixels
+        idat_data = b''.join(d for t, d in chunks if t == b'IDAT')
+        raw_data = zlib.decompress(idat_data)
+
+        bytes_per_pixel = 3
+        row_size = 1 + width * bytes_per_pixel
+
+        for y in range(height):
+            row_start = y * row_size
+            filter_byte = raw_data[row_start]
+            self.assertEqual(filter_byte, 0, f"Row {y} has non-zero filter type {filter_byte}")
+
+            for x in range(width):
+                pixel_pos = row_start + 1 + x * bytes_per_pixel
+                pixel_r = raw_data[pixel_pos]
+                pixel_g = raw_data[pixel_pos + 1]
+                pixel_b = raw_data[pixel_pos + 2]
+                self.assertEqual((pixel_r, pixel_g, pixel_b), (r, g, b),
+                    f"Pixel ({x},{y}) is ({pixel_r},{pixel_g},{pixel_b}) not ({r},{g},{b})")
+
+    def test_background_copies_byte_identical(self):
+        """Both background.png files must be byte-for-byte identical."""
+        primary = _BRANDING_ROOT / "grub-background.png"
+        secondary = _REPO_ROOT / "iso-profile/glue/root-overlay/usr/share/grub/themes/artix/background.png"
+
+        self.assertTrue(primary.exists(), f"Primary background not found: {primary}")
+        self.assertTrue(secondary.exists(), f"Secondary background not found: {secondary}")
+
+        primary_bytes = primary.read_bytes()
+        secondary_bytes = secondary.read_bytes()
+
+        self.assertEqual(primary_bytes, secondary_bytes,
+            "background.png files are not byte-identical")
+
+    def test_grub_icon_sha256_pinned(self):
+        """grub-icon.png must have expected SHA256 (logo only, no text)."""
+        icon_path = _BRANDING_ROOT / "grub-icon.png"
+        self.assertTrue(icon_path.exists(), f"grub-icon.png not found")
+
+        actual_sha256 = hashlib.sha256(icon_path.read_bytes()).hexdigest()
+        # Verified manually: logo only, no text
+        expected_sha256 = "374a32d644a8065f4a7da658456a3b4a3369d6fb6fb2ddbea01801381be2fb2d"
+
+        self.assertEqual(actual_sha256, expected_sha256,
+            "grub-icon.png content changed unexpectedly")
+
+    def test_all_png_files_accounted_for(self):
+        """Every PNG in glue-branding must be either verified as solid or pinned."""
+        png_files = sorted(_BRANDING_ROOT.glob('*.png'))
+
+        pinned_sha256 = {
+            "grub-icon.png": "374a32d644a8065f4a7da658456a3b4a3369d6fb6fb2ddbea01801381be2fb2d",
+        }
+
+        solid_backgrounds = {"grub-background.png"}
+
+        for png_file in png_files:
+            filename = png_file.name
+            is_solid = filename in solid_backgrounds
+            is_pinned = filename in pinned_sha256
+
+            if is_solid:
+                # Verified by test_grub_background_primary_is_solid
+                pass
+            elif is_pinned:
+                actual_sha256 = hashlib.sha256(png_file.read_bytes()).hexdigest()
+                expected = pinned_sha256[filename]
+                self.assertEqual(actual_sha256, expected,
+                    f"{filename} SHA256 mismatch: {actual_sha256} != {expected}")
+            else:
+                self.fail(f"PNG file {filename} is not in solid backgrounds or pinned list")
 
 
 if __name__ == "__main__":
