@@ -150,7 +150,7 @@ class TestPositive(unittest.TestCase):
 
     def test_noctalia_shell_entry_without_upstream_wm_reference(self):
         noctalia = self.catalog.shells[1]
-        self.assertEqual(noctalia.packages, ["noctalia-shell"])
+        self.assertEqual(noctalia.packages, ["noctalia-shell", "noctalia-qs"])  # ADR-020
         # name assembled at runtime — see test_removed_sessions_gone_from_raw_json
         self.assertNotIn("".join(("Ni", "ri")), noctalia.description)
 
@@ -402,6 +402,28 @@ class TestSchedulers(unittest.TestCase):
         data = _load_raw()
         del data["gaming"]["schedulers"][0]["description"]
         self._assert_catalog_error(data, "description")
+
+
+class ShellProviderTest(unittest.TestCase):
+    """ADR-020: one shell per gluewc session, each naming its quickshell."""
+
+    def setUp(self):
+        self.shells = {s.id: s for s in load_catalog(_CATALOG_PATH).shells}
+
+    def test_noctalia_names_noctalia_qs_explicitly(self):
+        self.assertEqual(
+            self.shells["noctalia"].packages, ["noctalia-shell", "noctalia-qs"])
+
+    def test_glueqs_leaves_quickshell_to_its_depends(self):
+        self.assertEqual(self.shells["glueqs"].packages, ["glueqs"])
+        for sid, shell in self.shells.items():
+            with self.subTest(shell=sid):
+                self.assertNotIn("quickshell", shell.packages)
+
+    def test_providers_never_meet_in_one_shell(self):
+        for sid, shell in self.shells.items():
+            with self.subTest(shell=sid):
+                self.assertFalse({"glueqs", "noctalia-qs"} <= set(shell.packages))
 
 
 class ScreenshotFilesTest(unittest.TestCase):

@@ -16,7 +16,10 @@ optdepends=('glueqs: the shell gluewc is developed against'
             'pipewire: audio in the session'
             'wireplumber: audio session manager'
             'pipewire-pulse: PulseAudio compatible audio'
-            'alacritty: default terminal')
+            'alacritty: default terminal'
+            'brightnessctl: XF86MonBrightness keys through gluewc-backlight (light is the fallback)'
+            'playerctl: XF86Audio play/next/prev keys'
+            'wireplumber: wpctl for the XF86 volume keys')
 source=("git+https://github.com/vladbiber/gluewc.git")
 sha256sums=('SKIP')
 
@@ -40,6 +43,12 @@ prepare() {
         echo "ERROR: gluewc source lost per-output adaptive_sync" >&2; exit 1; }
     grep -q '^bind_insert = mod+Return = spawn:alacritty$' config.def.conf || {
         echo "ERROR: alacritty is no longer the default terminal in config.def.conf" >&2; exit 1; }
+    # 5.9: the bar's hardware keys live in the default config (config.def.conf:171-181
+    # at the pinned commit); a bump that drops them leaves the user with dead keys
+    grep -q '^bind_insert = XF86MonBrightnessUp = spawn:gluewc-backlight up$' config.def.conf &&
+        grep -q '^bind_insert = XF86AudioRaiseVolume = spawn:.*wpctl set-volume' config.def.conf &&
+        grep -q '^bind_insert = XF86AudioPlay = spawn:playerctl play-pause$' config.def.conf || {
+        echo "ERROR: config.def.conf lost the XF86 brightness/volume/media keybindings" >&2; exit 1; }
 }
 
 build() {

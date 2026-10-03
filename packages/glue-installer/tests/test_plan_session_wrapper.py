@@ -6,6 +6,7 @@ Run with:
   python -m unittest discover -s tests -v
 """
 
+import re
 import subprocess
 import sys
 import unittest
@@ -84,3 +85,52 @@ class TestSessionWrapperPolkit(unittest.TestCase):
             "polkit-gnome", self._plan(["gluewc"], {"gluewc": "glueqs"}).packages)
         self.assertIn("polkit-gnome", self._plan(["nvwm"], {}).packages)
         self.assertNotIn("polkit-gnome", self._plan(["kde-plasma"], {}).packages)
+
+
+class TestPortalConfig(unittest.TestCase):
+    """xdg-desktop-portal backend file for Wayland WM sessions (roadmap 5.9)."""
+
+    _DIR = "/usr/share/xdg-desktop-portal"
+
+    def setUp(self):
+        self.catalog = load_catalog(_PKG_ROOT / "catalog" / "catalog.json")
+        self.sessions = {s.id: s for s in self.catalog.sessions}
+
+    def _plan(self, session_ids, shell_choice):
+        return resolve_plan(self.catalog, Selection(
+            kernel_id="linux-cachyos", init_id="dinit",
+            session_ids=session_ids, shell_choice=shell_choice,
+            support_ids=[], gaming=False, minimal=False,
+        ))
+
+    def _portal_files(self, plan):
+        return [f for f in plan.files if f.path.startswith(self._DIR + "/")]
+
+    def test_gluewc_gets_portals_conf_named_after_its_desktop(self):
+        plan = self._plan(["gluewc"], {"gluewc": "glueqs"})
+        files = self._portal_files(plan)
+        self.assertEqual(len(files), 1)
+        conf = files[0]
+        wrapper = _session_wrapper_content(self.sessions["gluewc"], "glueqs")
+        desktop = re.search(r"^export XDG_CURRENT_DESKTOP=(\S+)$", wrapper, re.M).group(1)
+        self.assertEqual(desktop, desktop.lower())
+        self.assertEqual(conf.path, f"{self._DIR}/{desktop}-portals.conf")
+        self.assertEqual(conf.mode, 0o644)
+        self.assertIn("[preferred]\ndefault=gtk\n", conf.content)
+        self.assertIn("org.freedesktop.impl.portal.ScreenCast=wlr\n", conf.content)
+        self.assertIn("org.freedesktop.impl.portal.Screenshot=wlr\n", conf.content)
+        self.assertIn("xdg-desktop-portal-wlr", plan.packages)
+        self.assertIn("xdg-desktop-portal-gtk", plan.packages)
+
+    def test_no_portals_conf_for_desktop_environments_or_x11(self):
+        for sid in ("kde-plasma", "xfce", "gnome", "cinnamon", "nvwm"):
+            with self.subTest(session=sid):
+                self.assertEqual(self._portal_files(self._plan([sid], {})), [])
+
+    def test_uppercase_desktop_rejected(self):
+        from dataclasses import replace
+        from glue_installer.plan_greeter import _portal_file
+        wm = replace(self.sessions["gluewc"], desktop="GlueWC")
+        with self.assertRaises(ValueError):
+            _portal_file(wm)
+        self.assertIsNone(_portal_file(self.sessions["kde-plasma"]))

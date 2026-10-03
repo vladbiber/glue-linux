@@ -70,6 +70,37 @@ if ! ls /dev/dri/renderD* >/dev/null 2>&1; then
 fi
 """
 
+# xdg-desktop-portal picks its backends from
+# /usr/share/xdg-desktop-portal/<desktop>-portals.conf, <desktop> being the
+# wrapper's XDG_CURRENT_DESKTOP lowercased. A bare Wayland WM has no such
+# file, so screen sharing and file dialogs silently fail; gtk covers the
+# general interfaces, wlr the screencast/screenshot ones. DEs ship their own.
+_PORTAL_CONF_DIR = "/usr/share/xdg-desktop-portal"
+_PORTAL_CONF_CONTENT = """\
+# {desktop}-portals.conf — written by the Glue Linux installer.
+[preferred]
+default=gtk
+org.freedesktop.impl.portal.ScreenCast=wlr
+org.freedesktop.impl.portal.Screenshot=wlr
+"""
+
+
+def _portal_file(session: Session) -> Optional[PlannedFile]:
+    """Portal backend selection for a Wayland WM session, None otherwise.
+    The file name uses the exact XDG_CURRENT_DESKTOP of the wrapper."""
+    if session.kind != "wm" or session.session_type != "wayland":
+        return None
+    desktop = session.desktop or session.id
+    if desktop != desktop.lower():
+        raise ValueError(
+            f"session '{session.id}': portal config needs a lowercase desktop "
+            f"name, got '{desktop}'")
+    return PlannedFile(
+        path=f"{_PORTAL_CONF_DIR}/{desktop}-portals.conf",
+        content=_PORTAL_CONF_CONTENT.format(desktop=desktop), mode=0o644,
+    )
+
+
 # XWayland note (learned the hard way): NEVER export DISPLAY before the
 # compositor starts — wlroots compositors and mutter auto-detect a set
 # DISPLAY as "run nested inside X11" and die with "Failed to open xcb
@@ -168,4 +199,7 @@ def _greeter_files(
             ),
             mode=0o644,
         ))
+        portal = _portal_file(session)
+        if portal is not None:
+            files.append(portal)
     return files

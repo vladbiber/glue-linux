@@ -9,8 +9,13 @@ pkgdesc="Dot-matrix desktop shell for gluewc (bar, launcher, OSDs, notifications
 arch=('any')
 url="https://github.com/vladbiber/glueqs"
 license=('GPL-3.0-only')
+# runtime of the bar (roadmap 5.9): UPower + PowerProfiles over D-Bus
+# (BatteryPanel), brightnessctl (backlight writes as group video), playerctl
+# (MPRIS/media keys), wl-clipboard (clipboard panel). quickshell resolves to
+# galaxy's package on a glueqs install, noctalia-qs on a Noctalia one (ADR-020).
 depends=('quickshell' 'bash' 'coreutils' 'curl' 'networkmanager' 'bluez' 'udev'
-         'elogind' 'gluewc')
+         'elogind' 'gluewc' 'brightnessctl' 'playerctl' 'upower'
+         'power-profiles-daemon' 'wl-clipboard')
 optdepends=('easyeffects: equalizer presets in the media panel')
 makedepends=('git')
 source=("git+https://github.com/vladbiber/glueqs.git")

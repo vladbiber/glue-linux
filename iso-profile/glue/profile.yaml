@@ -82,6 +82,8 @@ rootfs:
     - wl-clipboard
     - upower
     - power-profiles-daemon
+    # notify-send for scripts; both shells own org.freedesktop.Notifications (ADR-020)
+    - libnotify
     # portals (screen share, file dialogs) and grim for screenshots; no init pkgs, D-Bus activated
     - xdg-desktop-portal
     - xdg-desktop-portal-wlr

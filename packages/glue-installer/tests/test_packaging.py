@@ -3,6 +3,7 @@
 import importlib
 import os
 import shutil
+import re
 import sys
 import tempfile
 import unittest
@@ -238,3 +239,18 @@ class TestGluewcPkgbuildGuards(unittest.TestCase):
 
     def test_source_unchanged(self):
         self.assertIn('source=("git+https://github.com/vladbiber/gluewc.git")', self.text)
+
+    # 5.9: the bar's hardware keys are guarded the same way
+    def test_xf86_keybinding_guard(self):
+        self.assertIn("XF86MonBrightnessUp = spawn:gluewc-backlight up", self.text)
+        self.assertIn("XF86AudioRaiseVolume = spawn:.*wpctl set-volume", self.text)
+        self.assertIn("XF86AudioPlay = spawn:playerctl play-pause", self.text)
+        self.assertIn("lost the XF86 brightness/volume/media keybindings", self.text)
+
+    def test_glueqs_depends_on_bar_runtime(self):
+        text = (_PKG_ROOT.parent / "glueqs" / "PKGBUILD").read_text()
+        depends = re.search(r"^depends=\((.*?)\)", text, re.S | re.M).group(1)
+        for pkg in ("brightnessctl", "playerctl", "upower",
+                    "power-profiles-daemon", "wl-clipboard", "quickshell"):
+            self.assertIn(f"'{pkg}'", depends)
+        self.assertNotIn("noctalia-qs", depends)

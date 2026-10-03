@@ -17,6 +17,7 @@ from typing import List
 
 from glue_installer.catalog import Catalog
 from glue_installer.plan_greeter import _greeter_files
+from glue_installer.plan_session import session_runtime_packages
 # Re-exported: callers import these from glue_installer.plan.
 from glue_installer.plan_types import (  # noqa: F401
     InstallPlan, PlanError, PlannedFile, Selection)
@@ -78,11 +79,9 @@ Include = /etc/pacman.d/cachyos-mirrorlist
 # no sysctl key may be defined in both places at once.
 _SYSCTL_QUIET_CONTENT = "kernel.printk = 3 3 3 3\n"
 
-# Gaming installs only. The NVIDIA driver's default shader disk cache is
-# small and auto-purged, so big games (CS2/CS:GO most visibly) recompile
-# their Vulkan/GL shaders on almost every launch — the endless "Processing
-# Vulkan shaders" and in-game stutter. Keep the cache and never purge it.
-# Harmless no-ops on AMD/Intel (mesa ignores __GL_* variables).
+# Gaming installs only. NVIDIA's default shader disk cache is small and
+# auto-purged, so big games (CS2 most visibly) recompile shaders on almost
+# every launch. Keep the cache and never purge it; no-ops on AMD/Intel.
 _GAMING_ENV_CONTENT = """\
 # /etc/profile.d/glue-gaming.sh — Glue Linux gaming defaults.
 export __GL_SHADER_DISK_CACHE=1
@@ -91,11 +90,9 @@ export MESA_SHADER_CACHE_MAX_SIZE=12G
 export __GL_SHADER_DISK_CACHE_SIZE=12000000000
 """
 
-# Hybrid (Optimus) laptops enumerate the Intel iGPU first, so Steam games
-# default to it — slow shader compiles and unstable frames on the wrong GPU.
-# Arch ships this wrapper as the nvidia-prime package; Artix has no such
-# package, so the installer writes the identical script itself.
-# Steam usage: set a game's Launch Options to:  prime-run %command%
+# Hybrid (Optimus) laptops enumerate the iGPU first, so Steam games default
+# to it. Arch ships this wrapper as nvidia-prime; Artix has no such package,
+# so the installer writes it. Steam Launch Options:  prime-run %command%
 _PRIME_RUN_CONTENT = """\
 #!/bin/sh
 # prime-run — run a program on the NVIDIA dGPU (written by the Glue
@@ -125,10 +122,9 @@ _BASELINE_FILES: List[PlannedFile] = [
 ]
 
 
-# Rule 11: every install gets a complete Artix base system. This mirrors the
-# proven basestrap set of the original shell installer — without `base` the
-# target has no coreutils/pacman, without linux-firmware no Wi-Fi/GPU blobs,
-# without the keyrings/mirrorlists the installed system cannot update.
+# Rule 11: complete Artix base on every install (the proven basestrap set:
+# base = coreutils/pacman, linux-firmware = Wi-Fi/GPU blobs, keyrings/
+# mirrorlists so the installed system can update).
 _ALWAYS_PACKAGES = frozenset({
     "base", "base-devel", "linux-firmware",
     "sudo", "nano", "vim", "git", "wget",
@@ -148,11 +144,9 @@ _ALWAYS_PACKAGES = frozenset({
     "mkinitcpio",
 })
 
-# Rule 12: sessions need a seat/session stack (dbus+elogind, enabled as
-# services) plus X/Xwayland, audio, and fonts. Applied when any session is
-# selected; a minimal install stays lean. seatd is deliberately ABSENT:
-# elogind provides seat management and seatd-<init> CONFLICTS with
-# elogind-<init> on Artix (verified: basestrap aborts on the pair).
+# Rule 12: sessions need a seat/session stack (dbus+elogind as services) plus
+# X/Xwayland, audio and fonts; a minimal install stays lean. seatd is ABSENT:
+# elogind does seats and seatd-<init> CONFLICTS with elogind-<init> on Artix.
 _DESKTOP_PACKAGES = frozenset({
     "xorg-server", "xorg-xinit", "xorg-xrandr", "xorg-xsetroot",
     "xorg-xwayland",
@@ -406,15 +400,18 @@ def resolve_plan(
     # Rule 11: complete base system on every install
     packages.update(_ALWAYS_PACKAGES)
 
-    # Rule 12: seat/session stack always (needed for login and any session);
-    # the graphical desktop set only when a session was actually selected.
-    # openntpd keeps the clock NTP-synced from first boot (every install).
+    # Rule 12: seat/session stack always; the graphical desktop set only
+    # with a session. openntpd keeps the clock NTP-synced from first boot.
     services.update({"dbus", "elogind", "openntpd"})
     if selection.session_ids:
         packages.update(_DESKTOP_PACKAGES)
         # performance modes need the daemon RUNNING, not just installed —
         # D-Bus activation alone is unreliable without systemd
         services.add("power-profiles-daemon")
+        # bar runtime of WM sessions (roadmap 5.9): upower, brightnessctl,
+        # playerctl, libnotify; wl-clipboard + wlr/gtk portals on Wayland
+        packages.update(session_runtime_packages(
+            session_map[sid] for sid in selection.session_ids))
         # Per-vendor GPU driver stack (mesa always; NVIDIA module+userspace
         # when detected) — sessions need working EGL, not just the gaming mode
         if gpu_vendors is not None:
@@ -422,9 +419,7 @@ def resolve_plan(
             packages.update(session_gpu_packages(gpu_vendors))
 
     # Rule 10: every enabled service needs its init-specific service package
-    # (Artix ships service scripts separately: e.g. greetd-dinit, bluez-runit,
-    # networkmanager-openrc). Without these, enabling the service in the chroot
-    # points at files that do not exist.
+    # (Artix ships scripts separately: greetd-dinit, bluez-runit, ...).
     for svc in sorted(services):
         base = _SERVICE_PKG_BASE.get(svc)
         if base is not None:

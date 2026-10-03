@@ -419,7 +419,8 @@
       ],
       "screenshot": "screenshots/gluewc-noctalia.png",
       "packages": [
-        "noctalia-shell"
+        "noctalia-shell",
+        "noctalia-qs"
       ],
       "exec": "qs -c noctalia-shell"
     }

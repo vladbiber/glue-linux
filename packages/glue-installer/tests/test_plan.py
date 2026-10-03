@@ -1028,3 +1028,86 @@ class TestRepoOrder(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# ---------------------------------------------------------------------------
+# Bar runtime of WM sessions (roadmap 5.9, ADR-020)
+# ---------------------------------------------------------------------------
+
+_BAR_WAYLAND = {
+    "upower", "power-profiles-daemon", "brightnessctl", "playerctl",
+    "wl-clipboard", "xdg-desktop-portal", "xdg-desktop-portal-wlr",
+    "xdg-desktop-portal-gtk", "libnotify",
+}
+_BAR_X11 = {"upower", "brightnessctl", "playerctl", "libnotify"}
+
+
+class TestSessionRuntime(unittest.TestCase):
+    """Real catalog: a gluewc install gets a WORKING bar, not just a shell."""
+
+    def setUp(self):
+        self.catalog = load_catalog(_CATALOG_PATH)
+
+    def _plan(self, sessions, shell_choice=None, init_id="dinit"):
+        return resolve_plan(self.catalog, Selection(
+            "linux-cachyos", init_id, sessions, shell_choice or {},
+            [], False, False))
+
+    def test_gluewc_glueqs_bar_runtime_every_init(self):
+        for init_id in ("dinit", "runit", "openrc"):
+            with self.subTest(init=init_id):
+                pkgs = set(self._plan(["gluewc"], {"gluewc": "glueqs"}, init_id).packages)
+                self.assertTrue(_BAR_WAYLAND <= pkgs, _BAR_WAYLAND - pkgs)
+                self.assertIn(f"power-profiles-daemon-{init_id}", pkgs)
+                self.assertIn("glueqs", pkgs)
+                self.assertNotIn("noctalia-qs", pkgs)
+                self.assertNotIn("noctalia-shell", pkgs)
+
+    def test_gluewc_noctalia_names_its_quickshell_provider(self):
+        for init_id in ("dinit", "runit", "openrc"):
+            with self.subTest(init=init_id):
+                plan = self._plan(["gluewc"], {"gluewc": "noctalia"}, init_id)
+                pkgs = set(plan.packages)
+                self.assertTrue(_BAR_WAYLAND <= pkgs, _BAR_WAYLAND - pkgs)
+                self.assertIn(f"power-profiles-daemon-{init_id}", pkgs)
+                self.assertIn("noctalia-shell", pkgs)
+                self.assertIn("noctalia-qs", pkgs)
+                self.assertNotIn("quickshell", pkgs)
+                self.assertNotIn("glueqs", pkgs)
+                self.assertIn("power-profiles-daemon", plan.services)
+
+    def test_power_profiles_service_enabled_for_gluewc(self):
+        plan = self._plan(["gluewc"], {"gluewc": "glueqs"})
+        self.assertIn("power-profiles-daemon", plan.services)
+
+    def test_nvwm_x11_gets_common_runtime_without_wayland_bits(self):
+        pkgs = set(self._plan(["nvwm"]).packages)
+        self.assertTrue(_BAR_X11 <= pkgs, _BAR_X11 - pkgs)
+        self.assertNotIn("xdg-desktop-portal-wlr", pkgs)
+        self.assertNotIn("wl-clipboard", pkgs)
+
+    def test_desktop_environments_get_no_wlr_portal(self):
+        for sid in ("kde-plasma", "xfce", "gnome", "cinnamon"):
+            with self.subTest(session=sid):
+                pkgs = set(self._plan([sid]).packages)
+                self.assertNotIn("xdg-desktop-portal-wlr", pkgs)
+                self.assertNotIn("wl-clipboard", pkgs)
+                self.assertNotIn("brightnessctl", pkgs)
+
+    def test_bluetooth_stays_behind_its_toggle(self):
+        pkgs = set(self._plan(["gluewc"], {"gluewc": "glueqs"}).packages)
+        self.assertNotIn("bluez", pkgs)
+        self.assertNotIn("blueman", pkgs)
+
+    def test_minimal_install_has_no_bar_runtime(self):
+        plan = resolve_plan(self.catalog, Selection(
+            "linux-cachyos", "dinit", [], {}, [], False, True))
+        self.assertFalse(_BAR_X11 & set(plan.packages))
+
+    def test_pure_function_rejects_bad_input(self):
+        from glue_installer.plan_session import session_runtime_packages
+        with self.assertRaises(TypeError):
+            session_runtime_packages(["gluewc"])
+        self.assertEqual(session_runtime_packages([]), set())
+        wm = next(s for s in self.catalog.sessions if s.id == "gluewc")
+        self.assertEqual(session_runtime_packages([wm]), _BAR_WAYLAND)
