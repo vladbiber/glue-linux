@@ -321,7 +321,7 @@ class WallpaperCandidateTest(unittest.TestCase):
 
     def test_credits_record_author_source_and_cc0(self):
         credits = (_BRANDING_ROOT / "WALLPAPER-CREDITS.md").read_text()
-        self.assertIn("Jayvee Enaguas", credits)
+        self.assertIn("Jaymantri", credits)
         self.assertIn("commons.wikimedia.org", credits)
         self.assertIn("CC0 1.0", credits)
 
@@ -505,7 +505,7 @@ class BrandingImagesTest(unittest.TestCase):
 
         pinned_sha256 = {
             "grub-icon.png": "374a32d644a8065f4a7da658456a3b4a3369d6fb6fb2ddbea01801381be2fb2d",
-            "wallpaper.png": "8d8439cb8376ea46bd9ef8fcef678fc87011bbb1ef9e5d175bf8a0b7df26dfef",
+            "wallpaper.png": "7ddf1027ad461ed2c703cc8e34e54151b42f5d75153ea236cb9ce813fff85f45",
         }
 
         solid_backgrounds = {"grub-background.png"}

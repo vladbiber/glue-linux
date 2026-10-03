@@ -1,7 +1,7 @@
 # Maintainer: Glue Linux
 pkgname=glue-branding
 pkgver=1
-pkgrel=5
+pkgrel=6
 pkgdesc="Glue Linux branding: amber TTY palette, /etc/issue, os-release, fastfetch logo, GRUB theme"
 arch=('any')
 url="https://github.com/Vifuddyxg"
@@ -16,7 +16,7 @@ source=('logo.txt' 'fastfetch.jsonc' 'term-neutral.sh'
         'palette.sh' 'palette.json'
         'wallpaper.png' 'WALLPAPER-CREDITS.md')
 sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
-            '8d8439cb8376ea46bd9ef8fcef678fc87011bbb1ef9e5d175bf8a0b7df26dfef'
+            '7ddf1027ad461ed2c703cc8e34e54151b42f5d75153ea236cb9ce813fff85f45'
             'SKIP')
 
 package() {
