@@ -17,9 +17,9 @@ from glue_installer.ui_model import (
 _CATALOG_PATH = _PKG_ROOT / "catalog" / "catalog.json"
 _CATALOG = load_catalog(_CATALOG_PATH)
 
-# The REAL catalog no longer ships any shell/bar (quickshell was dropped), but
-# the wizard's shell-choice machinery stays — cover it with a synthetic
-# catalog: one extra shell-capable session + two fake bars.
+# The REAL catalog only gives gluewc a shell choice (glueqs/noctalia); cover
+# the generic shell machinery with a synthetic catalog too: one extra
+# shell-capable session + two fake bars.
 import dataclasses as _dc
 
 from glue_installer.catalog import Session as _Session, Shell as _Shell
@@ -41,7 +41,7 @@ _MOCK_SESSION = _Session(
 _SHELL_CATALOG = _dc.replace(
     _CATALOG,
     sessions=list(_CATALOG.sessions) + [_MOCK_SESSION],
-    # keep the real shells too — niri's shell_choices reference "noctalia"
+    # keep the real shells too — gluewc references glueqs/noctalia
     shells=_MOCK_SHELLS + list(_CATALOG.shells),
 )
 
@@ -61,7 +61,7 @@ def _advance_to(wizard: Wizard, key: str) -> None:
     raise AssertionError(f"Never reached screen '{key}'")
 
 
-def _drive_happy_path(sessions=("niri", "sway"), shells=None,
+def _drive_happy_path(sessions=("gluewc", "nvwm"), shells=None,
                       bluetooth=True, gaming=True, catalog=_CATALOG) -> Wizard:
     """Full custom-mode walk: cachyos, dinit, given sessions/shells."""
     w = _new_wizard(catalog)
@@ -72,8 +72,12 @@ def _drive_happy_path(sessions=("niri", "sway"), shells=None,
     w.next()  # kernel -> init
     w.apply(Choose("dinit"))
     w.next()  # init -> sessions
+    # gluewc starts preselected: drop it unless asked for, toggle the rest
+    if "gluewc" not in sessions:
+        w.apply(Toggle("gluewc"))
     for sid in sessions:
-        w.apply(Toggle(sid))
+        if sid != "gluewc":
+            w.apply(Toggle(sid))
     w.next()  # sessions -> first shell screen (or support)
     shells = shells or {}
     while w.current_screen().key.startswith("shell:"):
@@ -113,18 +117,17 @@ class TestScreenSequence(unittest.TestCase):
         w.next(); visited.append(w.current_screen().key)   # init
         w.apply(Choose("dinit"))
         w.next(); visited.append(w.current_screen().key)   # sessions
-        w.apply(Toggle("mockwc"))
-        w.apply(Toggle("niri"))
+        w.apply(Toggle("mockwc"))  # gluewc already preselected
+        w.next(); visited.append(w.current_screen().key)   # shell:gluewc
+        w.apply(Choose("noctalia"))
         w.next(); visited.append(w.current_screen().key)   # shell:mockwc
         w.apply(Choose("bar-a"))
-        w.next(); visited.append(w.current_screen().key)   # shell:niri
-        w.apply(Choose("noctalia"))
         w.next(); visited.append(w.current_screen().key)   # support
         w.next(); visited.append(w.current_screen().key)   # gaming
         w.next(); visited.append(w.current_screen().key)   # summary
         self.assertEqual(visited, [
             "welcome", "network", "mode", "kernel", "init", "sessions",
-            "shell:mockwc", "shell:niri", "support", "gaming", "summary",
+            "shell:gluewc", "shell:mockwc", "support", "gaming", "summary",
         ])
 
     def test_mode_screen_preselects_custom(self):
@@ -137,9 +140,9 @@ class TestScreenSequence(unittest.TestCase):
         self.assertEqual(selected, ["custom"])
 
     def test_shell_choice_covers_exactly_the_qualifying_sessions(self):
-        w = _drive_happy_path(sessions=("mockwc", "sway"),
+        w = _drive_happy_path(sessions=("mockwc", "nvwm"),
                               catalog=_SHELL_CATALOG)
-        # only mockwc has shell_choices; sway must not appear in the mapping
+        # only mockwc has shell_choices; nvwm must not appear in the mapping
         sel = w.to_selection()
         self.assertEqual(list(sel.shell_choice.keys()), ["mockwc"])
 
@@ -148,8 +151,9 @@ class TestScreenSequence(unittest.TestCase):
         w.next(); w.next(); w.next()  # welcome -> network -> mode -> kernel
         w.apply(Choose("linux-cachyos")); w.next()
         w.apply(Choose("dinit")); w.next()
-        w.apply(Toggle("apeturewm"))
-        w.apply(Toggle("sway"))
+        w.apply(Toggle("gluewc"))  # deselect the shell-capable default
+        w.apply(Toggle("nvwm"))
+        w.apply(Toggle("kde-plasma"))
         w.next()
         self.assertEqual(w.current_screen().key, "support")
 
@@ -214,8 +218,14 @@ class TestSessionsScreen(unittest.TestCase):
     def test_notice_mentions_multiple_and_login_screen(self):
         _, screen = self._sessions_screen()
         self.assertIsNotNone(screen.notice)
-        self.assertIn("MULTIPLE", screen.notice)
-        self.assertIn("login screen", screen.notice)
+        # 5.1b: explicit multi-select + greeter wording
+        self.assertIn("several at once", screen.notice)
+        self.assertIn("login screen (greeter)", screen.notice)
+
+    def test_gluewc_preselected_by_default(self):
+        _, screen = self._sessions_screen()
+        selected = [i.id for i in screen.items if i.selected]
+        self.assertEqual(selected, ["gluewc"])
 
     def test_de_items_carry_section(self):
         _, screen = self._sessions_screen()
@@ -249,37 +259,43 @@ class TestSessionsScreen(unittest.TestCase):
 
     def test_toggle_flips_item(self):
         w, _ = self._sessions_screen()
-        w.apply(Toggle("niri"))
-        item = next(i for i in w.current_screen().items if i.id == "niri")
+        w.apply(Toggle("nvwm"))
+        item = next(i for i in w.current_screen().items if i.id == "nvwm")
         self.assertTrue(item.selected)
-        w.apply(Toggle("niri"))
-        item = next(i for i in w.current_screen().items if i.id == "niri")
+        w.apply(Toggle("nvwm"))
+        item = next(i for i in w.current_screen().items if i.id == "nvwm")
         self.assertFalse(item.selected)
 
 
 class TestShellScreens(unittest.TestCase):
-    """Shell-choice machinery, driven by the synthetic _SHELL_CATALOG (the
-    real catalog ships no shells since quickshell was dropped)."""
+    """Shell-choice machinery: real catalog (gluewc -> glueqs/noctalia) plus
+    the synthetic _SHELL_CATALOG for the generic multi-shell paths."""
 
     def _to_shell_screen(self):
         w = _new_wizard(_SHELL_CATALOG)
         _advance_to(w, "kernel")
         w.apply(Choose("linux-cachyos")); w.next()
         w.apply(Choose("dinit")); w.next()
+        w.apply(Toggle("gluewc"))  # deselect the default: mockwc only
         w.apply(Toggle("mockwc"))
         w.next()
         return w
 
-    def test_real_catalog_niri_offers_noctalia_shell(self):
+    def test_real_catalog_gluewc_offers_glueqs_then_noctalia(self):
         w = _new_wizard()
         _advance_to(w, "kernel")
         w.apply(Choose("linux-cachyos")); w.next()
         w.apply(Choose("dinit")); w.next()
-        w.apply(Toggle("niri"))
-        w.next()
+        w.next()  # gluewc preselected -> its shell screen
         screen = w.current_screen()
-        self.assertEqual(screen.key, "shell:niri")
-        self.assertEqual([i.id for i in screen.items], ["noctalia"])
+        self.assertEqual(screen.key, "shell:gluewc")
+        # exactly glueqs (recommended, preselected) + noctalia; no "none"
+        self.assertEqual([i.id for i in screen.items], ["glueqs", "noctalia"])
+        glueqs = screen.items[0]
+        self.assertTrue(glueqs.recommended)
+        self.assertTrue(glueqs.selected)
+        w.next()  # the preselected default is valid without a Choose
+        self.assertEqual(w.current_screen().key, "support")
 
     def test_shell_items_carry_catalog_data(self):
         w = self._to_shell_screen()
@@ -295,10 +311,15 @@ class TestShellScreens(unittest.TestCase):
             if shell.keybindings:
                 self.assertIsNotNone(item.keybinds)
 
-    def test_next_without_shell_choice_raises(self):
+    def test_shell_screen_preselects_recommended_first_shell(self):
+        # toggling a shell-capable session auto-picks its first (recommended)
+        # shell, so the shell screen never blocks Next
         w = self._to_shell_screen()
-        with self.assertRaises(ValidationError):
-            w.next()
+        screen = w.current_screen()
+        self.assertEqual([i.id for i in screen.items if i.selected], ["bar-a"])
+        self.assertTrue(screen.items[0].recommended)
+        w.next()
+        self.assertEqual(w.current_screen().key, "support")
 
     def test_deselect_session_drops_shell_screen_and_choice(self):
         w = self._to_shell_screen()
@@ -306,13 +327,13 @@ class TestShellScreens(unittest.TestCase):
         w.back()  # back to sessions
         self.assertEqual(w.current_screen().key, "sessions")
         w.apply(Toggle("mockwc"))   # deselect
-        w.apply(Toggle("sway"))     # keep a session so next() is valid
+        w.apply(Toggle("nvwm"))     # keep a session so next() is valid
         w.next()
         self.assertEqual(w.current_screen().key, "support")
         w.next(); w.next(); w.next()  # support -> gaming -> summary -> done
         sel = w.to_selection()
         self.assertEqual(sel.shell_choice, {})
-        self.assertEqual(sel.session_ids, ["sway"])
+        self.assertEqual(sel.session_ids, ["nvwm"])
         resolve_plan(_SHELL_CATALOG, sel)  # must not raise
 
 
@@ -337,6 +358,7 @@ class TestValidation(unittest.TestCase):
         _advance_to(w, "kernel")
         w.apply(Choose("linux-cachyos")); w.next()
         w.apply(Choose("dinit")); w.next()
+        w.apply(Toggle("gluewc"))  # deselect the preselected default
         with self.assertRaises(ValidationError) as ctx:
             w.next()
         msg = str(ctx.exception)
@@ -354,7 +376,7 @@ class TestValidation(unittest.TestCase):
         w.apply(Choose("linux-cachyos")); w.next()
         w.apply(Choose("dinit")); w.next()
         with self.assertRaises(ValidationError):
-            w.apply(Choose("niri"))
+            w.apply(Choose("nvwm"))
 
     def test_toggle_on_radio_screen_raises(self):
         w = _new_wizard()
@@ -419,7 +441,7 @@ class TestSupportAndGaming(unittest.TestCase):
         _advance_to(w, "kernel")
         w.apply(Choose("linux-cachyos")); w.next()
         w.apply(Choose("dinit")); w.next()
-        w.apply(Toggle("sway")); w.next()
+        w.apply(Toggle("gluewc")); w.apply(Toggle("nvwm")); w.next()
         screen = w.current_screen()
         self.assertEqual(screen.key, "support")
         self.assertEqual(screen.kind, "multi")
@@ -432,7 +454,7 @@ class TestSupportAndGaming(unittest.TestCase):
         _advance_to(w, "kernel")
         w.apply(Choose("linux-cachyos")); w.next()
         w.apply(Choose("dinit")); w.next()
-        w.apply(Toggle("sway")); w.next()
+        w.apply(Toggle("gluewc")); w.apply(Toggle("nvwm")); w.next()
         w.next()  # support -> gaming
         screen = w.current_screen()
         self.assertEqual(screen.kind, "toggle")
@@ -445,7 +467,7 @@ class TestSummaryAndSelection(unittest.TestCase):
 
     def test_happy_path_selection_resolves_with_expected_packages(self):
         w = _drive_happy_path(
-            sessions=("mockwc", "niri"),
+            sessions=("gluewc", "mockwc"),
             shells={"mockwc": "bar-a"},
             bluetooth=True, gaming=True,
             catalog=_SHELL_CATALOG,
@@ -453,21 +475,23 @@ class TestSummaryAndSelection(unittest.TestCase):
         sel = w.to_selection()
         self.assertEqual(sel.kernel_id, "linux-cachyos")
         self.assertEqual(sel.init_id, "dinit")
-        self.assertEqual(sel.session_ids, ["mockwc", "niri"])
-        # niri's screen got its first (only) shell by the driver's fallback
+        self.assertEqual(sel.session_ids, ["gluewc", "mockwc"])
+        # gluewc's screen keeps its preselected recommended shell (glueqs)
         self.assertEqual(sel.shell_choice,
-                         {"mockwc": "bar-a", "niri": "noctalia"})
+                         {"gluewc": "glueqs", "mockwc": "bar-a"})
         self.assertEqual(sel.support_ids, ["bluetooth"])
         self.assertTrue(sel.gaming)
         self.assertFalse(sel.minimal)
         plan = resolve_plan(_SHELL_CATALOG, sel)  # must not raise PlanError
-        for pkg in ("mockwc-pkg", "niri", "bar-a-pkg", "noctalia-shell",
+        for pkg in ("mockwc-pkg", "gluewc", "bar-a-pkg", "glueqs",
                     "linux-cachyos", "dinit", "bluez",
                     "steam", "greetd", "fastfetch"):
             self.assertIn(pkg, plan.packages)
 
     def test_summary_items_reflect_choices(self):
         w = _drive_happy_path()
+        # to_selection() is only valid while finished — capture it before back()
+        selected_ids = w.to_selection().session_ids
         w.back()  # back onto summary
         w.next()  # forward: still summary until finishing next()
         summary = w.current_screen()
@@ -475,8 +499,12 @@ class TestSummaryAndSelection(unittest.TestCase):
         labels = "\n".join(i.label for i in summary.items)
         self.assertIn("CachyOS", labels)
         self.assertIn("dinit", labels)
-        self.assertIn("Niri", labels)
-        self.assertIn("Sway", labels)
+        # 5.1b: the summary lists EVERY selected session (by display name)
+        names = {s.id: s.name for s in _CATALOG.sessions}
+        for sid in selected_ids:
+            self.assertIn(f"Session: {names[sid]}", labels)
+        self.assertIn("Session: gluewc (shell: glueqs)", labels)
+        self.assertIn("Session: nvwm", labels)
         self.assertIn("Bluetooth", labels)
         self.assertIn("Gaming Mode: on", labels)
 
@@ -486,6 +514,7 @@ class TestSummaryAndSelection(unittest.TestCase):
         _advance_to(w, "kernel")
         w.apply(Choose("linux-zen")); w.next()
         w.apply(Choose("runit")); w.next()
+        w.apply(Toggle("gluewc"))  # drop the default: no shell screen
         w.apply(Toggle("kde-plasma")); w.next()
         w.next(); w.next(); w.next()
         resolve_plan(_CATALOG, w.to_selection())  # must not raise
@@ -529,6 +558,7 @@ class TestMinimalMode(unittest.TestCase):
         _advance_to(w, "kernel")
         w.apply(Choose("linux-cachyos")); w.next()
         w.apply(Choose("dinit")); w.next()
+        w.apply(Toggle("gluewc"))  # deselect default: only mockwc's screen
         w.apply(Toggle("mockwc")); w.next()
         w.apply(Choose("bar-a"))
         w.back(); w.back(); w.back(); w.back()  # back to mode
@@ -695,7 +725,7 @@ class TestSchedulerScreen(unittest.TestCase):
         _advance_to(w, "kernel")
         w.apply(Choose("linux-cachyos")); w.next()
         w.apply(Choose("dinit")); w.next()
-        w.apply(Toggle("sway")); w.next()
+        w.apply(Toggle("gluewc")); w.apply(Toggle("nvwm")); w.next()
         self.assertEqual(w.current_screen().key, "support")
         w.next()
         self.assertEqual(w.current_screen().key, "gaming")

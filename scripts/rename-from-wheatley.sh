@@ -7,7 +7,7 @@
 # and rewrites every tracked file that mentions it: module/import names,
 # /usr/share + /etc data paths, the pacman repo name, *_NOAUTO / *_CATALOG env
 # vars, `buildiso -p`, and product strings. Case is preserved (lower/Title/
-# UPPER -> glue/Glue/GLUE). Window manager names (nvwm, apeturewm, atomwm, ...)
+# UPPER -> glue/Glue/GLUE). Window manager names (nvwm, gluewc, ...)
 # don't contain the old name and are untouched.
 #
 # Only git-tracked files are considered, so .git/ and any

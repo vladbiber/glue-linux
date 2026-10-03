@@ -33,10 +33,9 @@ def _wizard_at(key: str) -> Wizard:
         elif screen.key == "init":
             w.apply(Choose("dinit"))
         elif screen.key == "sessions":
-            w.apply(Toggle("niri"))
-            w.apply(Toggle("sway"))
+            w.apply(Toggle("nvwm"))  # gluewc starts preselected
         elif screen.key.startswith("shell:"):
-            w.apply(Choose("noctalia"))
+            w.apply(Choose("glueqs"))
         elif screen.key == "gaming":
             w.apply(SetFlag(True))
         w.next()
@@ -158,9 +157,11 @@ class TestRecommendedAndSections(unittest.TestCase):
         self.assertIn(DE_SECTION, lines[section_idx][0])
         before = _joined(lines[:section_idx])
         after = _joined(lines[section_idx:])
-        self.assertIn("Sway", before)
+        self.assertIn("gluewc", before)
+        self.assertIn("nvwm", before)
         self.assertIn("KDE Plasma", after)
         self.assertIn("XFCE", after)
+        self.assertIn("Cinnamon", after)
 
 
 class TestNoticeAndDetail(unittest.TestCase):
@@ -168,8 +169,8 @@ class TestNoticeAndDetail(unittest.TestCase):
         screen = _wizard_at("sessions").current_screen()
         lines = render_screen(screen, 0, W, 60)
         notice = " ".join(t for t, s in lines if s == "notice")
-        self.assertIn("MULTIPLE window managers", notice)
-        self.assertIn("pick which one to use at the login screen", notice)
+        self.assertIn("several at once", notice)
+        self.assertIn("login screen (greeter)", notice)
 
     def test_notice_is_word_wrapped_to_width(self):
         screen = _wizard_at("sessions").current_screen()
@@ -181,22 +182,22 @@ class TestNoticeAndDetail(unittest.TestCase):
 
     def test_detail_block_shows_ease_lightness_keys_preview(self):
         screen = _wizard_at("sessions").current_screen()
-        idx = [i.id for i in screen.items].index("niri")
+        idx = [i.id for i in screen.items].index("gluewc")
         detail = " ".join(t for t, s in render_screen(screen, idx, 200, 60)
                           if s == "detail")
         self.assertIn("Ease: 4/5", detail)
-        self.assertIn("Lightness: 4/5", detail)
+        self.assertIn("Lightness: 5/5", detail)
         self.assertIn("Keys: Super+Return — Open terminal", detail)
-        self.assertIn("Preview: screenshots/niri.png", detail)
-        self.assertIn("scrollable-tiling Wayland compositor", detail)
+        self.assertIn("Preview: screenshots/gluewc-glueqs.png", detail)
+        self.assertIn("Wayland compositor", detail)
 
     def test_detail_follows_the_cursor(self):
         screen = _wizard_at("sessions").current_screen()
         ids = [i.id for i in screen.items]
-        sway = " ".join(t for t, s in render_screen(screen, ids.index("sway"), W, 60)
+        nvwm = " ".join(t for t, s in render_screen(screen, ids.index("nvwm"), W, 60)
                         if s == "detail")
-        self.assertIn("i3-compatible", sway)
-        self.assertNotIn("niri.png", sway)
+        self.assertIn("Light and strong", nvwm)
+        self.assertNotIn("gluewc-glueqs.png", nvwm)
 
 
 class TestGeometry(unittest.TestCase):
@@ -241,7 +242,9 @@ class TestSummaryScreen(unittest.TestCase):
         text = _joined(render_screen(w.current_screen(), 0, 120, 60))
         self.assertIn("Kernel: CachyOS Kernel", text)
         self.assertIn("Init: dinit", text)
-        self.assertIn("Session: Niri", text)
+        # EVERY selected session shows up in the summary (5.1b)
+        self.assertIn("Session: gluewc (shell: glueqs)", text)
+        self.assertIn("Session: nvwm", text)
         self.assertIn("Gaming Mode: on", text)
 
 

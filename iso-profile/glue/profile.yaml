@@ -25,8 +25,6 @@ rootfs:
   packages:
     # --- Glue custom repo packages ---
     - glue-branding
-    - apeturewm
-    - atomwm
     - st-glue
     # --- TUI installer + its partitioning tools (must be runnable live) ---
     - glue-installer
@@ -63,10 +61,9 @@ rootfs:
     - rofi
     - dmenu
     # --- Wayland preview: test a compositor on real hardware straight from
-    #     the stick, before installing. From a tty: `niri`. ---
-    - niri
-    - foot
-    - fuzzel
+    #     the stick, before installing. From a tty: `gluewc`. ---
+    - gluewc
+    - alacritty
     - xorg-xwayland
     - xwayland-satellite
     - pipewire

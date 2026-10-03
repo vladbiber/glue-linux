@@ -439,14 +439,14 @@ class TestIntegration(unittest.TestCase):
     def setUp(self):
         self.catalog = load_catalog(_CATALOG_PATH)
 
-    def test_niri_sway_multi_session(self):
-        """linux-cachyos + dinit + niri (noctalia shell) + sway. mangowc and
+    def test_gluewc_nvwm_multi_session(self):
+        """linux-cachyos + dinit + gluewc (glueqs shell) + nvwm. mangowc and
         the glue-bar/imperative-qs quickshell bars stay gone."""
         sel = Selection(
             kernel_id="linux-cachyos",
             init_id="dinit",
-            session_ids=["niri", "sway"],
-            shell_choice={"niri": "noctalia"},
+            session_ids=["gluewc", "nvwm"],
+            shell_choice={"gluewc": "glueqs"},
             support_ids=[],
             gaming=False,
             minimal=False,
@@ -455,9 +455,9 @@ class TestIntegration(unittest.TestCase):
         # Required packages
         self.assertIn("greetd", plan.packages)
         self.assertIn("fastfetch", plan.packages)
-        self.assertIn("niri", plan.packages)
-        self.assertIn("sway", plan.packages)
-        self.assertIn("noctalia-shell", plan.packages)
+        self.assertIn("gluewc", plan.packages)
+        self.assertIn("nvwm", plan.packages)
+        self.assertIn("glueqs", plan.packages)
         self.assertIn("power-profiles-daemon", plan.packages)
         for gone in ("mangowm", "glue-bar", "imperative-qs"):
             self.assertNotIn(gone, plan.packages)
@@ -593,13 +593,16 @@ class TestGreeterProfile(unittest.TestCase):
         self.assertIn("rtkit", plan.packages)
         self.assertIn("alacritty", plan.packages)
 
-    def test_real_catalog_wayland_wm_sessions_have_xwayland_satellite_and_rofi(self):
+    def test_real_catalog_wm_sessions_are_usable_out_of_the_box(self):
+        # gluewc is self-contained (terminal/launcher ship with the
+        # compositor's own package set); nvwm needs an explicit terminal
+        # (st-glue, kept per ADR-016) and launcher (rofi).
         catalog = load_catalog(_CATALOG_PATH)
-        for session in catalog.sessions:
-            if session.session_type == "wayland" and session.kind == "wm":
-                self.assertIn("xwayland-satellite", session.packages, session.id)
-                self.assertIn("rofi", session.packages, session.id)
-                self.assertIn("alacritty", session.packages, session.id)
+        gluewc = next(s for s in catalog.sessions if s.id == "gluewc")
+        self.assertEqual(gluewc.packages, ["gluewc"])
+        nvwm = next(s for s in catalog.sessions if s.id == "nvwm")
+        self.assertIn("st-glue", nvwm.packages)
+        self.assertIn("rofi", nvwm.packages)
 
 
     def test_wayland_wrapper_allows_software_renderer_fallback(self):
@@ -674,7 +677,7 @@ class TestGreeterProfile(unittest.TestCase):
 
     def test_real_catalog_sessions_have_exec_and_type(self):
         catalog = load_catalog(_CATALOG_PATH)
-        wayland = {"niri", "sway", "gnome"}
+        wayland = {"gluewc", "gnome"}
         for session in catalog.sessions:
             self.assertIsNotNone(session.exec, session.id)
             expected = "wayland" if session.id in wayland else "x11"
@@ -731,13 +734,13 @@ class TestGamingFilesAndPrimeRun(unittest.TestCase):
         _, paths = self._paths(minimal, gpu_vendors=frozenset({"nvidia"}))
         self.assertNotIn("/usr/local/bin/prime-run", paths)
 
-    def test_real_catalog_niri_ships_xwayland_satellite_for_steam(self):
-        # Steam is an X11 app: niri (>=25.05) auto-starts xwayland-satellite
-        # from PATH and sets DISPLAY itself — the guarantee is the package
-        # being installed with the session, never a preset DISPLAY.
+    def test_real_catalog_gluewc_session_owns_x11_app_support(self):
+        # Steam is an X11 app: XWayland integration is gluewc's own job
+        # (shipped via its package), never a preset DISPLAY in the wrapper.
         catalog = load_catalog(_CATALOG_PATH)
-        niri = next(s for s in catalog.sessions if s.id == "niri")
-        self.assertIn("xwayland-satellite", niri.packages)
+        gluewc = next(s for s in catalog.sessions if s.id == "gluewc")
+        self.assertEqual(gluewc.session_type, "wayland")
+        self.assertEqual(gluewc.packages, ["gluewc"])
 
 
 # ---------------------------------------------------------------------------

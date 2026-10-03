@@ -4,15 +4,12 @@ Pure TUI wizard state machine for the Glue Linux installer.
 NO curses imports, NO I/O: takes a loaded Catalog and exposes a deterministic
 screen-by-screen wizard producing a plan.Selection. Screen sequence:
   welcome -> mode -> kernel -> init -> sessions -> shell:<sid>... ->
-  support -> gaming -> [scheduler] -> [disk] -> [form:hostname .. form:timezone]
-  -> summary
-Minimal mode skips 'sessions', 'shell:*' and 'gaming'. 'scheduler' (CPU
-scheduler radio) shows only when gaming is on and the catalog lists options. The 'disk' screen
-appears only when block devices are injected via Wizard(disks=...); the
-'form:*' identity screens (ADR-8) appear when ask_identity=True, backed by
-ui_forms.FormField (a password-confirm mismatch clears both fields and
-returns to form:password). A finished wizard yields a WizardResult via
-to_result(): Selection, chosen device path (or None), IdentitySpec (or None).
+  support -> gaming -> [scheduler] -> [disk] -> [form:*] -> summary
+Minimal mode skips 'sessions', 'shell:*' and 'gaming'; 'scheduler' shows only
+when gaming is on; 'disk' only when Wizard(disks=...) injects devices; the
+'form:*' identity screens (ADR-8) only with ask_identity=True (a password
+confirm mismatch clears both fields and returns to form:password). A finished
+wizard yields a WizardResult via to_result().
 """
 
 from __future__ import annotations
@@ -22,8 +19,8 @@ from typing import List, Optional
 from glue_installer.catalog import Catalog
 from glue_installer.plan import Selection
 from glue_installer.ui_forms import (
-    FormField, build_identity_fields, disk_label, masked,
-    prefill_timezone_field, submit_form)
+    FormField, build_identity_fields, build_identity_spec, disk_label,
+    masked, prefill_timezone_field, submit_form)
 # Re-exported for compat: these lived here before the ui_view split.
 from glue_installer.ui_view import (  # noqa: F401
     DE_SECTION, DISK_MANUAL_NOTICE, DISK_NOTICE, DISKMODE_NOTICE,
@@ -75,6 +72,16 @@ class Wizard:
         self._init_id: Optional[str] = None
         self._session_ids: set = set()
         self._shell_choice: dict = {}  # session_id -> shell_id
+        # The catalog's FIRST session is the Glue default (gluewc): it starts
+        # preselected, together with its first shell choice (glueqs), so
+        # accepting the defaults lands on a working desktop. Deselecting it
+        # on the sessions screen stays a single keypress.
+        if catalog.sessions:
+            default_session = catalog.sessions[0]
+            self._session_ids.add(default_session.id)
+            if default_session.shell_choices:
+                self._shell_choice[default_session.id] = \
+                    default_session.shell_choices[0]
         self._support_ids: set = {t.id for t in catalog.support if t.default}
         self._gaming: bool = False
         # catalog default preselected: the scheduler screen never blocks
@@ -257,6 +264,10 @@ class Wizard:
                 self._shell_choice.pop(item_id, None)  # drop stale choice
             else:
                 self._session_ids.add(item_id)
+                session = self._sessions_by_id[item_id]
+                if session.shell_choices and item_id not in self._shell_choice:
+                    # the first listed shell is the recommended default
+                    self._shell_choice[item_id] = session.shell_choices[0]
         elif screen.key == "support":
             self._support_ids.symmetric_difference_update({item_id})
 
@@ -382,8 +393,9 @@ class Wizard:
         session = self._sessions_by_id[session_id]
         chosen = self._shell_choice.get(session_id)
         items = [
-            shell_item(self._shells_by_id[shell_id], chosen == shell_id)
-            for shell_id in session.shell_choices
+            shell_item(self._shells_by_id[shell_id], chosen == shell_id,
+                       recommended=idx == 0)
+            for idx, shell_id in enumerate(session.shell_choices)
         ]
         return Screen(key=f"shell:{session_id}",
                       title=f"Shell / bar for {session.name}",
@@ -477,22 +489,10 @@ class Wizard:
     def to_result(self) -> WizardResult:
         """Build the final WizardResult; only valid once the wizard is finished."""
         selection = self.to_selection()
-        spec = None
-        if self._forms is not None:
-            # Imported lazily: identity pulls in the executor's subprocess
-            # machinery, which must never load at ui_model import time.
-            from glue_installer.identity import IdentityError, IdentitySpec
-            f = self._forms
-            try:
-                spec = IdentitySpec(
-                    hostname=f["hostname"].value,
-                    username=f["username"].value,
-                    password=f["password"].value,
-                    locale=f["locale"].value,
-                    timezone=f["timezone"].value,
-                )
-            except IdentityError as exc:
-                raise ValidationError(str(exc))
+        try:
+            spec = build_identity_spec(self._forms)
+        except ValueError as exc:
+            raise ValidationError(str(exc))
         return WizardResult(selection=selection, device_path=self._device_path,
                             identity=spec, disk_mode=self._disk_mode,
                             partition_path=self._partition_path)

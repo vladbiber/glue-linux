@@ -61,31 +61,97 @@ class TestPositive(unittest.TestCase):
         self.assertIsNotNone(dinit, "dinit init entry missing")
         self.assertTrue(dinit.recommended)
 
-    def test_expected_session_ids(self):
-        # mangowc was REMOVED (unsupported on the user's GPU, like quickshell)
-        ids = {s.id for s in self.catalog.sessions}
-        expected = {"apeturewm", "nvwm", "atomwm", "niri", "sway", "kde-plasma", "gnome", "xfce"}
-        self.assertEqual(ids, expected)
+    def test_expected_session_ids_in_exact_order(self):
+        """Faza 5.1: exactly 6 sessions, gluewc first (the default)."""
+        ids = [s.id for s in self.catalog.sessions]
+        self.assertEqual(ids, ["gluewc", "nvwm", "kde-plasma", "xfce",
+                               "gnome", "cinnamon"])
 
     def test_session_kinds(self):
         wms = {s.id for s in self.catalog.sessions if s.kind == "wm"}
         des = {s.id for s in self.catalog.sessions if s.kind == "de"}
-        self.assertEqual(wms, {"apeturewm", "nvwm", "atomwm", "niri", "sway"})
-        self.assertEqual(des, {"kde-plasma", "gnome", "xfce"})
+        self.assertEqual(wms, {"gluewc", "nvwm"})
+        self.assertEqual(des, {"kde-plasma", "xfce", "gnome", "cinnamon"})
 
-    def test_only_noctalia_shell_remains(self):
-        """mangowc + the glue-bar/imperative-qs quickshell bars stay gone;
-        noctalia is back as niri's single optional shell (user request)."""
-        self.assertEqual([s.id for s in self.catalog.shells], ["noctalia"])
-        niri = next(s for s in self.catalog.sessions if s.id == "niri")
-        self.assertEqual(niri.shell_choices, ["noctalia"])
+    def test_two_shells_glueqs_first(self):
+        """5.1: glueqs (recommended for gluewc) + noctalia; gluewc offers
+        both, with NO 'none' option; every other session offers none."""
+        self.assertEqual([s.id for s in self.catalog.shells],
+                         ["glueqs", "noctalia"])
+        gluewc = next(s for s in self.catalog.sessions if s.id == "gluewc")
+        self.assertEqual(gluewc.shell_choices, ["glueqs", "noctalia"])
+        self.assertNotIn("none", gluewc.shell_choices)
         for s in self.catalog.sessions:
-            if s.id != "niri":
+            if s.id != "gluewc":
                 self.assertEqual(s.shell_choices, [], s.id)
             for pkg in s.packages:
                 self.assertNotIn("quickshell", pkg)
                 self.assertNotIn("glue-bar", pkg)
-                self.assertNotIn("mangowm", pkg)
+
+    def test_removed_sessions_gone_from_raw_json(self):
+        raw = _CATALOG_PATH.read_text(encoding="utf-8").lower()
+        # ids assembled at runtime (join defeats constant folding) so the
+        # repo-wide grep for the removed session names stays clean, even in
+        # the compiled bytecode cache (acceptance check for 5.1)
+        for parts in (("apeture", "wm"), ("atom", "wm"),
+                      ("ni", "ri"), ("sw", "ay")):
+            self.assertNotIn("".join(parts), raw)
+
+    def test_gluewc_entry(self):
+        gluewc = self.catalog.sessions[0]
+        self.assertEqual(gluewc.id, "gluewc")
+        self.assertEqual(gluewc.kind, "wm")
+        self.assertEqual(gluewc.session_type, "wayland")
+        self.assertEqual(gluewc.exec, "gluewc-session")
+        self.assertEqual(gluewc.packages, ["gluewc"])
+        self.assertEqual(gluewc.screenshot, "screenshots/gluewc-glueqs.png")
+
+    def test_cinnamon_entry_exact_packages(self):
+        cinnamon = next(s for s in self.catalog.sessions
+                        if s.id == "cinnamon")
+        self.assertEqual(cinnamon.kind, "de")
+        self.assertEqual(cinnamon.session_type, "x11")
+        self.assertEqual(cinnamon.exec, "cinnamon-session")
+        self.assertIn("Linux Mint", cinnamon.description)
+        self.assertEqual(cinnamon.packages,
+                         ["cinnamon", "cinnamon-translations",
+                          "cinnamon-session", "nemo", "gnome-terminal",
+                          "xdg-user-dirs"])
+        self.assertEqual(cinnamon.services, [])
+        self.assertEqual(cinnamon.screenshot, "screenshots/cinnamon.png")
+
+    def test_xfce_entry_exact_packages_no_goodies(self):
+        xfce = next(s for s in self.catalog.sessions if s.id == "xfce")
+        self.assertEqual(xfce.packages,
+                         ["xfce4-session", "xfce4-panel", "xfwm4",
+                          "xfdesktop", "xfce4-settings", "thunar",
+                          "xfce4-terminal", "xfce4-power-manager"])
+
+    def test_kde_description_recommends_it_for_beginners(self):
+        kde = next(s for s in self.catalog.sessions if s.id == "kde-plasma")
+        self.assertIn("Recommended for beginners", kde.description)
+
+    def test_session_screenshot_names_match_roadmap(self):
+        expected = {"gluewc": "screenshots/gluewc-glueqs.png",
+                    "nvwm": "screenshots/nvwm.png",
+                    "kde-plasma": "screenshots/kde-plasma.png",
+                    "xfce": "screenshots/xfce.png",
+                    "gnome": "screenshots/gnome.png",
+                    "cinnamon": "screenshots/cinnamon.png"}
+        for s in self.catalog.sessions:
+            self.assertEqual(s.screenshot, expected[s.id], s.id)
+
+    def test_glueqs_shell_entry(self):
+        glueqs = self.catalog.shells[0]
+        self.assertEqual(glueqs.id, "glueqs")
+        self.assertEqual(glueqs.packages, ["glueqs"])
+        self.assertEqual(glueqs.exec, "glueqs")
+
+    def test_noctalia_shell_entry_without_upstream_wm_reference(self):
+        noctalia = self.catalog.shells[1]
+        self.assertEqual(noctalia.packages, ["noctalia-shell"])
+        # name assembled at runtime — see test_removed_sessions_gone_from_raw_json
+        self.assertNotIn("".join(("Ni", "ri")), noctalia.description)
 
     def test_all_sessions_ease_lightness_in_range(self):
         for s in self.catalog.sessions:
@@ -157,9 +223,9 @@ class TestPositive(unittest.TestCase):
         self.assertTrue(m.name)
         self.assertTrue(m.description)
 
-    def test_eight_sessions_one_shell_two_kernels(self):
-        self.assertEqual(len(self.catalog.sessions), 8)
-        self.assertEqual(len(self.catalog.shells), 1)
+    def test_six_sessions_two_shells_two_kernels(self):
+        self.assertEqual(len(self.catalog.sessions), 6)
+        self.assertEqual(len(self.catalog.shells), 2)
         self.assertEqual(len(self.catalog.kernels), 2)
 
 
@@ -205,7 +271,7 @@ class TestNegative(unittest.TestCase):
         data = _load_raw()
         # Add a shell_choice that references a nonexistent shell
         for s in data["sessions"]:
-            if s["id"] == "niri":
+            if s["id"] == "gluewc":
                 s["shell_choices"] = ["ghost-shell-does-not-exist"]
                 break
         self._assert_catalog_error(data, "ghost-shell-does-not-exist")

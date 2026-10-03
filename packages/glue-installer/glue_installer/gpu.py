@@ -40,7 +40,7 @@ _GPU_PACKAGES = {
 }
 
 # Driver stack any graphical session needs (Wayland compositors hard-require
-# working EGL: mango/niri die with "Failed to allocate device list" without
+# working EGL: wlroots compositors die with "Failed to allocate device list" without
 # it). mesa covers Intel/AMD GL+EGL; NVIDIA needs its module + userspace and
 # egl-wayland for Wayland compositors.
 _SESSION_GPU_PACKAGES = {

@@ -164,7 +164,7 @@ _DESKTOP_PACKAGES = frozenset({
     # RTKit: gives PipeWire its realtime priorities via D-Bus (activation
     # works without systemd) and silences the mod.rt warning spam on the VT
     "rtkit",
-    # universal terminal: several WM default configs (niri notably) bind
+    # universal terminal: several WM default configs (gluewc notably) bind
     # alacritty out of the box — every session gets a working terminal keybind
     "alacritty",
     "pipewire", "wireplumber", "pipewire-pulse", "pipewire-alsa",

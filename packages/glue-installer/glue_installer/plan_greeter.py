@@ -49,7 +49,7 @@ _SHELL_AUTOSTART_TEMPLATE = """\
 
 # The startx bootstrap for X11 sessions: greetd/tuigreet is a TUI greeter and
 # never starts an X server, so the wrapper re-execs itself under startx first
-# (same trick as the packaged apeturewm-/nvwm-/atomwm-session wrappers).
+# (same trick as the packaged nvwm-session wrapper).
 _X11_BOOTSTRAP = """\
 if [ -z "${DISPLAY:-}" ] && [ -z "${WAYLAND_DISPLAY:-}" ] && [ -z "${GLUE_XSTARTED:-}" ]; then
     GLUE_XSTARTED=1; export GLUE_XSTARTED
@@ -69,12 +69,11 @@ fi
 """
 
 # XWayland note (learned the hard way): NEVER export DISPLAY before the
-# compositor starts — wlroots/dwl (mango) and niri both auto-detect a set
+# compositor starts — wlroots compositors and mutter auto-detect a set
 # DISPLAY as "run nested inside X11" and die with "Failed to open xcb
 # connection / couldn't create backend" on a real VT. X11 apps work through
-# each compositor's OWN integration instead: mango + sway have built-in
-# XWayland (xorg-xwayland + xcb-util-wm installed), niri auto-spawns
-# xwayland-satellite from PATH, mutter (GNOME) manages its own XWayland.
+# each compositor's OWN integration instead: built-in XWayland (gluewc,
+# via xorg-xwayland) or the compositor managing its own (mutter/GNOME).
 
 
 def _session_wrapper_content(session: Session, shell_cmd: Optional[str]) -> str:

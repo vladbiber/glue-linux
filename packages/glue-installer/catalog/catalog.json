@@ -53,23 +53,23 @@
   ],
   "sessions": [
     {
-      "id": "apeturewm",
-      "name": "ApertureWM",
+      "id": "gluewc",
+      "name": "gluewc",
       "kind": "wm",
-      "description": "Aperture-themed custom window manager built for Glue Linux. Stacking WM with an amber aesthetic and minimal overhead.",
-      "ease": 3,
+      "description": "Glue's own Wayland compositor: friendly tiling with smooth animations and three layouts (bsp, scroll, drift) you can cycle with one key. The default Glue Linux session.",
+      "ease": 4,
       "lightness": 5,
       "keybindings": [
         {
           "keys": "Super+Return",
-          "action": "Open terminal"
+          "action": "Open terminal (alacritty)"
         },
         {
-          "keys": "Super+d",
+          "keys": "Super+Space",
           "action": "Open application launcher"
         },
         {
-          "keys": "Super+q",
+          "keys": "Super+c",
           "action": "Close focused window"
         },
         {
@@ -78,27 +78,40 @@
         },
         {
           "keys": "Super+Shift+h/j/k/l",
-          "action": "Move window left/down/up/right"
+          "action": "Swap window left/down/up/right"
         },
         {
           "keys": "Super+f",
           "action": "Toggle fullscreen"
         },
         {
-          "keys": "Super+Space",
-          "action": "Toggle floating mode"
+          "keys": "Super+v",
+          "action": "Toggle floating (centered)"
+        },
+        {
+          "keys": "Super+n",
+          "action": "Cycle layout (bsp / scroll / drift)"
+        },
+        {
+          "keys": "Super+1-9",
+          "action": "Switch to workspace 1-9"
+        },
+        {
+          "keys": "Super+Shift+s",
+          "action": "Screenshot a region to the clipboard"
         }
       ],
-      "screenshot": "screenshots/apeturewm.png",
+      "screenshot": "screenshots/gluewc-glueqs.png",
       "packages": [
-        "apeturewm",
-        "st-glue",
-        "rofi"
+        "gluewc"
       ],
       "services": [],
-      "shell_choices": [],
-      "session_type": "x11",
-      "exec": "apeturewm"
+      "shell_choices": [
+        "glueqs",
+        "noctalia"
+      ],
+      "session_type": "wayland",
+      "exec": "gluewc-session"
     },
     {
       "id": "nvwm",
@@ -149,174 +162,10 @@
       "exec": "nvwm"
     },
     {
-      "id": "atomwm",
-      "name": "atomwm",
-      "kind": "wm",
-      "description": "The lightest window manager in the world: raw X11 protocol, zero malloc, ~150 KB of RAM. Monocle (one window at a time), blocking 0% CPU loop. For minimalists.",
-      "ease": 2,
-      "lightness": 5,
-      "keybindings": [
-        {
-          "keys": "Super+q",
-          "action": "Open terminal (st)"
-        },
-        {
-          "keys": "Super+Space",
-          "action": "Open application launcher"
-        },
-        {
-          "keys": "Super+c",
-          "action": "Close focused window"
-        },
-        {
-          "keys": "Super+Tab",
-          "action": "Next window"
-        },
-        {
-          "keys": "Super+w",
-          "action": "Previous window"
-        },
-        {
-          "keys": "Super+Shift+q",
-          "action": "Quit atomwm"
-        }
-      ],
-      "screenshot": "screenshots/atomwm.png",
-      "packages": [
-        "atomwm",
-        "st-glue",
-        "rofi"
-      ],
-      "services": [],
-      "shell_choices": [],
-      "session_type": "x11",
-      "exec": "atomwm"
-    },
-    {
-      "id": "niri",
-      "name": "Niri",
-      "kind": "wm",
-      "description": "User-friendly scrollable-tiling Wayland compositor. Windows tile into a horizontal strip you can scroll through. Pair it with a shell/bar of your choice.",
-      "ease": 4,
-      "lightness": 4,
-      "keybindings": [
-        {
-          "keys": "Super+Return",
-          "action": "Open terminal"
-        },
-        {
-          "keys": "Super+d",
-          "action": "Open application launcher (fuzzel)"
-        },
-        {
-          "keys": "Super+q",
-          "action": "Close focused window"
-        },
-        {
-          "keys": "Super+Left/Right",
-          "action": "Focus column left/right"
-        },
-        {
-          "keys": "Super+Shift+Left/Right",
-          "action": "Move column left/right"
-        },
-        {
-          "keys": "Super+f",
-          "action": "Toggle fullscreen"
-        },
-        {
-          "keys": "Super+Shift+f",
-          "action": "Toggle floating window"
-        },
-        {
-          "keys": "Super+1-9",
-          "action": "Focus workspace 1-9"
-        }
-      ],
-      "screenshot": "screenshots/niri.png",
-      "packages": [
-        "niri",
-        "foot",
-        "fuzzel",
-        "alacritty",
-        "rofi",
-        "xwayland-satellite"
-      ],
-      "services": [],
-      "shell_choices": [
-        "noctalia"
-      ],
-      "session_type": "wayland",
-      "exec": "niri"
-    },
-    {
-      "id": "sway",
-      "name": "Sway",
-      "kind": "wm",
-      "description": "Minimal i3-compatible tiling Wayland compositor. No frills, pure keyboard-driven tiling. Great for those who know what they want.",
-      "ease": 3,
-      "lightness": 5,
-      "keybindings": [
-        {
-          "keys": "Super+Return",
-          "action": "Open terminal"
-        },
-        {
-          "keys": "Super+d",
-          "action": "Open application launcher (dmenu/wofi)"
-        },
-        {
-          "keys": "Super+Shift+q",
-          "action": "Close focused window"
-        },
-        {
-          "keys": "Super+h/j/k/l",
-          "action": "Focus left/down/up/right"
-        },
-        {
-          "keys": "Super+Shift+h/j/k/l",
-          "action": "Move window left/down/up/right"
-        },
-        {
-          "keys": "Super+f",
-          "action": "Toggle fullscreen"
-        },
-        {
-          "keys": "Super+Shift+Space",
-          "action": "Toggle floating"
-        },
-        {
-          "keys": "Super+1-9",
-          "action": "Switch to workspace 1-9"
-        },
-        {
-          "keys": "Super+Shift+1-9",
-          "action": "Move container to workspace 1-9"
-        },
-        {
-          "keys": "Super+Shift+e",
-          "action": "Exit sway"
-        }
-      ],
-      "screenshot": "screenshots/sway.png",
-      "packages": [
-        "sway",
-        "foot",
-        "dmenu",
-        "alacritty",
-        "rofi",
-        "xwayland-satellite"
-      ],
-      "services": [],
-      "shell_choices": [],
-      "session_type": "wayland",
-      "exec": "sway"
-    },
-    {
       "id": "kde-plasma",
       "name": "KDE Plasma",
       "kind": "de",
-      "description": "Optional full desktop environment. Feature-rich and highly customizable. Included for those who prefer a traditional DE experience — note this is not the Glue way.",
+      "description": "Recommended for beginners: a classic desktop, works like Windows. Pick it as well if you are not sure tiling is for you.",
       "ease": 5,
       "lightness": 2,
       "keybindings": [
@@ -360,6 +209,59 @@
       "shell_choices": [],
       "session_type": "x11",
       "exec": "startplasma-x11"
+    },
+    {
+      "id": "xfce",
+      "name": "XFCE",
+      "kind": "de",
+      "description": "Optional full desktop environment. Lightweight and traditional. Included as a friendly fallback DE — considered optional extra on top of the core Glue experience.",
+      "ease": 5,
+      "lightness": 3,
+      "keybindings": [
+        {
+          "keys": "Ctrl+Alt+T",
+          "action": "Open terminal (xfce4-terminal)"
+        },
+        {
+          "keys": "Alt+F2",
+          "action": "Open run dialog"
+        },
+        {
+          "keys": "Alt+F4",
+          "action": "Close window"
+        },
+        {
+          "keys": "Super+d",
+          "action": "Show desktop"
+        },
+        {
+          "keys": "Alt+Tab",
+          "action": "Switch windows"
+        },
+        {
+          "keys": "Super+Left/Right",
+          "action": "Tile window left/right"
+        },
+        {
+          "keys": "Print",
+          "action": "Take screenshot"
+        }
+      ],
+      "screenshot": "screenshots/xfce.png",
+      "packages": [
+        "xfce4-session",
+        "xfce4-panel",
+        "xfwm4",
+        "xfdesktop",
+        "xfce4-settings",
+        "thunar",
+        "xfce4-terminal",
+        "xfce4-power-manager"
+      ],
+      "services": [],
+      "shell_choices": [],
+      "session_type": "x11",
+      "exec": "startxfce4"
     },
     {
       "id": "gnome",
@@ -412,28 +314,24 @@
       "desktop": "GNOME"
     },
     {
-      "id": "xfce",
-      "name": "XFCE",
+      "id": "cinnamon",
+      "name": "Cinnamon",
       "kind": "de",
-      "description": "Optional full desktop environment. Lightweight and traditional. Included as a friendly fallback DE — considered optional extra on top of the core Glue experience.",
+      "description": "A classic desktop, like in Linux Mint. Familiar menu, panel and system tray.",
       "ease": 5,
       "lightness": 3,
       "keybindings": [
         {
           "keys": "Ctrl+Alt+T",
-          "action": "Open terminal (xfce4-terminal)"
+          "action": "Open terminal"
         },
         {
-          "keys": "Alt+F2",
-          "action": "Open run dialog"
+          "keys": "Super",
+          "action": "Open the menu"
         },
         {
           "keys": "Alt+F4",
           "action": "Close window"
-        },
-        {
-          "keys": "Super+d",
-          "action": "Show desktop"
         },
         {
           "keys": "Alt+Tab",
@@ -444,26 +342,43 @@
           "action": "Tile window left/right"
         },
         {
-          "keys": "Print",
-          "action": "Take screenshot"
+          "keys": "Super+D",
+          "action": "Show desktop"
         }
       ],
-      "screenshot": "screenshots/xfce.png",
+      "screenshot": "screenshots/cinnamon.png",
       "packages": [
-        "xfce4",
-        "xfce4-goodies"
+        "cinnamon",
+        "cinnamon-translations",
+        "cinnamon-session",
+        "nemo",
+        "gnome-terminal",
+        "xdg-user-dirs"
       ],
       "services": [],
       "shell_choices": [],
       "session_type": "x11",
-      "exec": "startxfce4"
+      "exec": "cinnamon-session"
     }
   ],
   "shells": [
     {
+      "id": "glueqs",
+      "name": "glueqs",
+      "description": "Glue's own desktop shell: bar, launcher, notifications and a settings panel, matched to gluewc. Recommended.",
+      "ease": 5,
+      "lightness": 4,
+      "keybindings": [],
+      "screenshot": "screenshots/gluewc-glueqs.png",
+      "packages": [
+        "glueqs"
+      ],
+      "exec": "glueqs"
+    },
+    {
       "id": "noctalia",
       "name": "Noctalia Shell",
-      "description": "Polished shell/bar for Wayland compositors like Niri. Clean amber-tinted aesthetic.",
+      "description": "Polished shell/bar for Wayland compositors. Clean amber-tinted aesthetic.",
       "ease": 4,
       "lightness": 4,
       "keybindings": [

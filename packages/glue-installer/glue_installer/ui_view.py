@@ -19,9 +19,10 @@ from glue_installer.ui_forms import FormField
 DE_SECTION = "Desktop environments (optional)"
 
 SESSIONS_NOTICE = (
-    "You can select MULTIPLE window managers and desktops at once — "
-    "install several and pick which one to use at the login screen, "
-    "every time you log in."
+    "You can tick several at once. Everything you tick gets installed, "
+    "and at the login screen (greeter) you choose which one to start "
+    "every time you log in — for example gluewc for daily use and KDE "
+    "as a backup."
 )
 
 WELCOME_NOTICE = (
@@ -141,12 +142,14 @@ def session_item(session: Session, selected: bool) -> Item:
     )
 
 
-def shell_item(shell: Shell, selected: bool) -> Item:
+def shell_item(shell: Shell, selected: bool, recommended: bool = False) -> Item:
     return Item(
-        id=shell.id, label=shell.name, description=shell.description,
+        id=shell.id,
+        label=shell.name + (" (recommended)" if recommended else ""),
+        description=shell.description,
         ease=shell.ease, lightness=shell.lightness,
         keybinds=_format_keybinds(shell.keybindings),
-        screenshot=shell.screenshot, selected=selected,
+        screenshot=shell.screenshot, recommended=recommended, selected=selected,
     )
 
 

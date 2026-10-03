@@ -390,7 +390,7 @@ class TestIntegration(unittest.TestCase):
     def _sel(self, init_id):
         return Selection(
             kernel_id="linux-cachyos", init_id=init_id,
-            session_ids=["apeturewm"], shell_choice={},
+            session_ids=["nvwm"], shell_choice={},
             support_ids=["bluetooth"], gaming=False, minimal=False,
         )
 

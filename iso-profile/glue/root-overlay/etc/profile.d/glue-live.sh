@@ -28,8 +28,8 @@ BANNER
         cat <<'DONE'
 
   Installer exited. Re-run any time with:  glue-install
-  Preview a window manager with:           startx        (apeturewm)
-  Preview a Wayland compositor with:       niri
+  Preview a window manager with:           startx        (nvwm)
+  Preview a Wayland compositor with:       gluewc
 
 DONE
     fi

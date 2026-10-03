@@ -183,6 +183,29 @@ def build_identity_fields(
     }
 
 
+def build_identity_spec(forms):
+    """IdentitySpec from completed identity forms; None when forms is None.
+
+    Raises ValueError when a value is rejected — the wizard converts it to
+    a ValidationError, same contract as build_identity_fields.
+    """
+    if forms is None:
+        return None
+    # Imported lazily: identity pulls in the executor's subprocess
+    # machinery, which must never load at ui-layer import time.
+    from glue_installer.identity import IdentityError, IdentitySpec
+    try:
+        return IdentitySpec(
+            hostname=forms["hostname"].value,
+            username=forms["username"].value,
+            password=forms["password"].value,
+            locale=forms["locale"].value,
+            timezone=forms["timezone"].value,
+        )
+    except IdentityError as exc:
+        raise ValueError(str(exc))
+
+
 def prefill_timezone_field(forms, tz) -> bool:
     """Inject the GeoIP-detected timezone into an identity form, but only
     while the field still holds the 'UTC' placeholder — never clobbers what
