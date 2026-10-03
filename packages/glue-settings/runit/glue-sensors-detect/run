@@ -1,0 +1,4 @@
+#!/bin/sh
+# glue-sensors-detect (runit oneshot): detect sensors once, then idle
+/usr/bin/glue-sensors-detect
+exec sleep infinity

@@ -193,6 +193,7 @@ _SERVICE_PKG_BASE = {
     # verified: -dinit/-runit/-openrc all ship a script named exactly
     # "power-profiles-daemon", so no _INIT_SERVICE_NAMES rename is needed
     "power-profiles-daemon": "power-profiles-daemon",
+    "thermald": "thermald",
     "zramen": "zramen",
 }
 
@@ -228,6 +229,8 @@ SCX_FLAGS=
 
 def resolve_plan(
     catalog: Catalog, selection: Selection, gpu_vendors=None, cpu_v3: bool = False,
+    is_laptop: bool = False, cpu_vendor_id: str = "other",
+    amd_pstate_active: bool = False,
 ) -> InstallPlan:
     """Resolve a Selection against a Catalog into a deterministic InstallPlan.
 
@@ -361,6 +364,19 @@ def resolve_plan(
             packages.add("scx-scheds")
             services.add("scx")
 
+    # Rule 17 (roadmap 1.11): thermal management and laptop power tuning.
+    # thermald: Intel-only thermal daemon (AMD has its own firmware path).
+    # power-profiles-daemon + lm_sensors + glue-sensors-detect: on any laptop
+    # (BAT* present), even without sessions or gaming (Rule 10 handles init pkgs).
+    if cpu_vendor_id == "intel":
+        packages.add("thermald")
+        services.add("thermald")
+    if is_laptop:
+        packages.add("power-profiles-daemon")
+        services.add("power-profiles-daemon")
+        packages.add("lm_sensors")
+        services.add("glue-sensors-detect")
+
     # Rule 13: glue-settings (CachyOS tuning without systemd) on every desktop
     # or gaming install, with its glue-tuning oneshot (THP defaults at boot).
     # The package is arch=any and ships the dinit/runit/openrc scripts itself,
@@ -455,6 +471,13 @@ def resolve_plan(
     if selection.init_id in _ZRAMEN_CONF:
         zramen_path, zramen_content = _ZRAMEN_CONF[selection.init_id]
         files.append(PlannedFile(path=zramen_path, content=zramen_content, mode=0o644))
+
+    if amd_pstate_active:
+        files.append(PlannedFile(
+            path="/etc/default/grub.d/10-amd-pstate.cfg",
+            content='GRUB_CMDLINE_LINUX_DEFAULT_EXTRA="amd_pstate=active"\n',
+            mode=0o644,
+        ))
 
     return InstallPlan(
         packages=sorted(packages),

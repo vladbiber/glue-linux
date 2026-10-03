@@ -326,9 +326,17 @@ def main(argv=None) -> int:
     try:
         from glue_installer.cpu import detect_cpu_v3
         from glue_installer.gpu import detect_gpu_vendors
+        from glue_installer.laptop import (
+            detect_laptop, detect_cpu_vendor, detect_amd_pstate_active,
+        )
         _cpu_v3 = detect_cpu_v3()
-        plan = resolve_plan(catalog, selection, gpu_vendors=detect_gpu_vendors(),
-                            cpu_v3=_cpu_v3)
+        plan = resolve_plan(
+            catalog, selection, gpu_vendors=detect_gpu_vendors(),
+            cpu_v3=_cpu_v3,
+            is_laptop=detect_laptop(),
+            cpu_vendor_id=detect_cpu_vendor(),
+            amd_pstate_active=detect_amd_pstate_active(),
+        )
     except PlanError as exc:
         return _fail(f"Plan error: {exc}", EXIT_INSTALL)
 

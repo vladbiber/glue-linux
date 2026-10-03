@@ -1,7 +1,7 @@
 # Maintainer: Glue Linux
 pkgname=glue-settings
 pkgver=1
-pkgrel=1
+pkgrel=2
 pkgdesc="Glue Linux performance defaults (CachyOS-Settings ported to Artix inits): sysctl, udev rules, modprobe, limits, THP oneshot, game-performance"
 arch=('any')
 url="https://github.com/Vifuddyxg"
@@ -16,9 +16,10 @@ source=('70-glue.conf'
         'audio-pm-ctl'
         'nvidia.conf' 'amdgpu.conf' 'blacklist.conf'
         '20-audio.conf'
-        'glue-thp-tune' 'game-performance' 'pci-latency')
+        'glue-thp-tune' 'game-performance' 'pci-latency'
+        'glue-sensors-detect')
 sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
-            'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+            'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
     # ----- sysctl (vendor dir; /etc stays free for the admin) -----
@@ -43,16 +44,24 @@ package() {
         "$pkgdir/etc/security/limits.d/20-audio.conf"
 
     # ----- tools -----
-    install -Dm755 "$srcdir/glue-thp-tune"    "$pkgdir/usr/bin/glue-thp-tune"
-    install -Dm755 "$srcdir/game-performance" "$pkgdir/usr/bin/game-performance"
-    install -Dm755 "$srcdir/pci-latency"      "$pkgdir/usr/bin/pci-latency"
+    install -Dm755 "$srcdir/glue-thp-tune"       "$pkgdir/usr/bin/glue-thp-tune"
+    install -Dm755 "$srcdir/game-performance"    "$pkgdir/usr/bin/game-performance"
+    install -Dm755 "$srcdir/pci-latency"         "$pkgdir/usr/bin/pci-latency"
+    install -Dm755 "$srcdir/glue-sensors-detect" "$pkgdir/usr/bin/glue-sensors-detect"
 
-    # ----- glue-tuning oneshot for all three inits (from $startdir: the three
-    #       files share basenames, which source= symlinks cannot represent) -----
+    # ----- glue-tuning oneshot for all three inits -----
     install -Dm644 "$startdir/dinit.d/glue-tuning" \
         "$pkgdir/etc/dinit.d/glue-tuning"
     install -Dm755 "$startdir/runit/glue-tuning/run" \
         "$pkgdir/etc/runit/sv/glue-tuning/run"
     install -Dm755 "$startdir/openrc/glue-tuning" \
         "$pkgdir/etc/init.d/glue-tuning"
+
+    # ----- glue-sensors-detect oneshot for all three inits -----
+    install -Dm644 "$startdir/dinit.d/glue-sensors-detect" \
+        "$pkgdir/etc/dinit.d/glue-sensors-detect"
+    install -Dm755 "$startdir/runit/glue-sensors-detect/run" \
+        "$pkgdir/etc/runit/sv/glue-sensors-detect/run"
+    install -Dm755 "$startdir/openrc/glue-sensors-detect" \
+        "$pkgdir/etc/init.d/glue-sensors-detect"
 }

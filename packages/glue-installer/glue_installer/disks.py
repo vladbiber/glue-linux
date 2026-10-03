@@ -379,6 +379,9 @@ def disk_steps(disk_plan: DiskPlan, *, target: str = "/mnt") -> List[Step]:
 #   * theme — the amber Glue theme shipped by glue-branding
 _GRUB_BRAND_SCRIPT = """\
 set -e
+EXTRA=""
+for _f in /etc/default/grub.d/*.cfg; do [ -f "$_f" ] && . "$_f"; done
+[ -n "${GRUB_CMDLINE_LINUX_DEFAULT_EXTRA:-}" ] && EXTRA=" $GRUB_CMDLINE_LINUX_DEFAULT_EXTRA"
 if grep -q '^GRUB_DISTRIBUTOR=' /etc/default/grub; then
     sed -i 's/^GRUB_DISTRIBUTOR=.*/GRUB_DISTRIBUTOR="Glue Linux"/' /etc/default/grub
 else
@@ -390,9 +393,9 @@ else
     echo 'GRUB_DISABLE_OS_PROBER=false' >> /etc/default/grub
 fi
 if grep -q '^GRUB_CMDLINE_LINUX_DEFAULT=' /etc/default/grub; then
-    sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT=.*/GRUB_CMDLINE_LINUX_DEFAULT="quiet loglevel=3 rd.udev.log_level=3 nowatchdog zswap.enabled=0"/' /etc/default/grub
+    sed -i "s/^GRUB_CMDLINE_LINUX_DEFAULT=.*/GRUB_CMDLINE_LINUX_DEFAULT=\\"quiet loglevel=3 rd.udev.log_level=3 nowatchdog zswap.enabled=0${EXTRA}\\"/" /etc/default/grub
 else
-    echo 'GRUB_CMDLINE_LINUX_DEFAULT="quiet loglevel=3 rd.udev.log_level=3 nowatchdog zswap.enabled=0"' >> /etc/default/grub
+    echo "GRUB_CMDLINE_LINUX_DEFAULT=\\"quiet loglevel=3 rd.udev.log_level=3 nowatchdog zswap.enabled=0${EXTRA}\\"" >> /etc/default/grub
 fi
 if [ -f /usr/share/grub/themes/glue/theme.txt ]; then
     if grep -q '^#\\?GRUB_THEME=' /etc/default/grub; then

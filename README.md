@@ -18,6 +18,14 @@ A small, amber-themed Linux distribution.
   ananicy-cpp process priorities; do not wrap a game in `gamemoderun` and
   expect ananicy to manage it too, pick one)
   laptops, and a persistent NVIDIA shader cache
+- **Laptop tuning (auto-detected):** `thermald` on Intel CPUs (RAPL thermal
+  management before hard throttling); `power-profiles-daemon` always enabled
+  on laptops — the `performance` profile raises the firmware fan curve via
+  `platform_profile`; `amd_pstate=active` on AMD Zen2+ (CPPC flag); sensors
+  auto-detected at first boot via `sensors-detect --auto`; NVIDIA dGPU runtime
+  D3 suspend (`NVreg_DynamicPowerManagement=0x02`) on Optimus laptops so the
+  GPU stays off between games. Firmware controls the fans — Glue does not
+  install nbfc/fancontrol.
 - **Theme:** amber on near-black everywhere — TTY palette, `st`, GRUB theme,
   the installer and the greeter
 
