@@ -39,6 +39,7 @@ def app_result_row(
     """Build a result row and fill a remote icon without blocking the UI."""
     row = Gtk.ListBoxRow()
     row.app_model = app
+    row.add_css_class("app-row")
     content = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
     content.set_margin_top(8); content.set_margin_bottom(8)
     content.set_margin_start(10); content.set_margin_end(10)

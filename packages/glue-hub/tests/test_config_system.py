@@ -8,7 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
 
-from glue_hub.config import HubConfig, THEMES, validate_themes
+from glue_hub.config import HubConfig, THEMES, load_layout, validate_themes
 from glue_hub.system import parse_checkupdates, parse_flatpak_updates, parse_sensors
 
 
@@ -34,6 +34,7 @@ class TestConfig(unittest.TestCase):
         theme_root = ROOT / "data" / "themes"
         self.assertEqual(validate_themes(theme_root), [])
         self.assertEqual(set(path.name for path in theme_root.iterdir()), set(THEMES))
+        self.assertFalse(load_layout(theme_root, "mozaic")["hero"])
 
 
 class TestUpdateParsers(unittest.TestCase):

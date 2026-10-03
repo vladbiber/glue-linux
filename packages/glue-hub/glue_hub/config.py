@@ -9,6 +9,8 @@ from pathlib import Path
 
 
 THEMES = ("glue", "vitrina", "mozaic")
+DEFAULT_LAYOUT = {"card_radius": 14, "density": "comfortable",
+                  "hero": True, "sidebar": "left"}
 
 
 @dataclass
@@ -62,3 +64,13 @@ def validate_themes(root: Path) -> list[str]:
         except (OSError, ValueError):
             errors.append(f"{theme}: invalid layout.json")
     return errors
+
+
+def load_layout(root: Path, theme: str) -> dict:
+    try:
+        data = json.loads((root / theme / "layout.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return dict(DEFAULT_LAYOUT)
+    result = dict(DEFAULT_LAYOUT)
+    result.update({key: data[key] for key in DEFAULT_LAYOUT if key in data})
+    return result

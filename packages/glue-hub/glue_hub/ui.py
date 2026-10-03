@@ -22,6 +22,7 @@ from .model import App, AppSource
 from .pages import base_page, home_page, keys_page, system_page
 from .remote import SearchCache, aur_details, aur_search, flathub_details, flathub_search
 from .system import update_counts
+from .theming import ThemeController
 from .widgets import app_result_row
 
 
@@ -56,8 +57,9 @@ class HubWindow(Adw.ApplicationWindow):
             ["flatpak", "list", "--user", "--app", "--columns=application"])
         self.current_app: App | None = None
         self.current_sources: tuple[AppSource, ...] = ()
-        self.css_provider = Gtk.CssProvider()
         self._build()
+        self.theme_controller = ThemeController(
+            data_root, self.sidebar, self.nav_labels, self.home_hero, self.home_tiles)
         self._apply_theme(config.theme)
         self._load_local_catalog()
 
@@ -76,19 +78,29 @@ class HubWindow(Adw.ApplicationWindow):
         self.stack = Gtk.Stack(transition_type=Gtk.StackTransitionType.CROSSFADE)
         self.stack.set_hexpand(True)
         self.stack.set_vexpand(True)
-        for key, label in PAGE_NAMES.items():
+        icons = ("go-home-symbolic", "system-software-install-symbolic",
+                 "software-update-available-symbolic", "preferences-desktop-keyboard-shortcuts-symbolic",
+                 "computer-symbolic", "emblem-system-symbolic")
+        self.nav_labels = []
+        for (key, label), icon_name in zip(PAGE_NAMES.items(), icons):
             row = Gtk.ListBoxRow()
             row.page_key = key
+            content = Gtk.Box(spacing=10)
+            content.append(Gtk.Image.new_from_icon_name(icon_name))
             text = Gtk.Label(label=label, xalign=0)
             text.set_margin_top(10); text.set_margin_bottom(10)
             text.set_margin_start(14); text.set_margin_end(14)
-            row.set_child(text)
+            self.nav_labels.append(text)
+            content.append(text)
+            row.set_child(content)
             sidebar.append(row)
         sidebar.connect("row-selected", self._page_selected)
         body.append(sidebar)
+        self.sidebar = sidebar
 
-        self.stack.add_named(home_page(
-            lambda: self.stack.set_visible_child_name("apps")), "home")
+        home, self.home_hero, self.home_tiles = home_page(
+            lambda: self.stack.set_visible_child_name("apps"))
+        self.stack.add_named(home, "home")
         self.stack.add_named(self._apps_page(), "apps")
         self.stack.add_named(self._updates_page(), "updates")
         self.stack.add_named(keys_page(), "keys")
@@ -459,14 +471,7 @@ class HubWindow(Adw.ApplicationWindow):
         self.config.save(self.config_path)
 
     def _apply_theme(self, theme: str) -> None:
-        path = self.data_root / "themes" / theme / "theme.css"
-        try:
-            self.css_provider.load_from_path(str(path))
-            Gtk.StyleContext.add_provider_for_display(
-                Gdk.Display.get_default(), self.css_provider,
-                Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
-        except GLib.Error:
-            pass
+        self.theme_controller.apply(theme)
 
 
 class HubApplication(Adw.Application):
