@@ -28,6 +28,8 @@ user = "greeter"
 _SESSIONS_DIR = "/usr/share/glue/sessions"
 _WRAPPER_DIR = "/usr/local/bin"
 
+_POLKIT_AGENT = "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1"
+
 # Poll for the compositor's Wayland socket, then start the chosen shell/bar
 # inside the same D-Bus session. Runs in the background of the wrapper's
 # inner (post-dbus) stage; gives up quietly after ~30s.
@@ -88,6 +90,12 @@ def _session_wrapper_content(session: Session, shell_cmd: Optional[str]) -> str:
     wayland_env = (
         _WAYLAND_SOFTWARE_FALLBACK if session.session_type == "wayland" else ""
     )
+    # Only WMs: KDE/GNOME start their own polkit agent, XFCE/Cinnamon get one
+    # via xdg autostart; a bare WM has nothing unless the wrapper starts it.
+    polkit_block = (
+        f"    [ -x {_POLKIT_AGENT} ] && {_POLKIT_AGENT} &\n"
+        if session.kind == "wm" else ""
+    )
     welcome_block = (
         "    command -v glue-welcome >/dev/null 2>&1 && glue-welcome --autostart &\n"
         if session.kind == "wm" else ""
@@ -102,7 +110,7 @@ if [ "${{1:-}}" = "--inner" ]; then
     command -v pipewire       >/dev/null 2>&1 && pipewire &
     command -v wireplumber    >/dev/null 2>&1 && wireplumber &
     command -v pipewire-pulse >/dev/null 2>&1 && pipewire-pulse &
-{welcome_block}{shell_block}    exec {cmd}
+{polkit_block}{welcome_block}{shell_block}    exec {cmd}
 fi
 
 {x11_block}export XDG_CURRENT_DESKTOP={desktop}

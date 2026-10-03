@@ -599,7 +599,7 @@ class TestGreeterProfile(unittest.TestCase):
         # (st-glue, kept per ADR-016) and launcher (rofi).
         catalog = load_catalog(_CATALOG_PATH)
         gluewc = next(s for s in catalog.sessions if s.id == "gluewc")
-        self.assertEqual(gluewc.packages, ["gluewc"])
+        self.assertEqual(gluewc.packages, ["gluewc", "polkit-gnome"])
         nvwm = next(s for s in catalog.sessions if s.id == "nvwm")
         self.assertIn("st-glue", nvwm.packages)
         self.assertIn("rofi", nvwm.packages)
@@ -740,7 +740,7 @@ class TestGamingFilesAndPrimeRun(unittest.TestCase):
         catalog = load_catalog(_CATALOG_PATH)
         gluewc = next(s for s in catalog.sessions if s.id == "gluewc")
         self.assertEqual(gluewc.session_type, "wayland")
-        self.assertEqual(gluewc.packages, ["gluewc"])
+        self.assertEqual(gluewc.packages, ["gluewc", "polkit-gnome"])
 
     def test_glue_apps_is_always_on_desktop_and_store_backends_follow_toggle(self):
         catalog = load_catalog(_CATALOG_PATH)
