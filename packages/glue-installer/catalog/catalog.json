@@ -73,11 +73,15 @@
           "action": "Close focused window"
         },
         {
-          "keys": "Super+h/j/k/l",
+          "keys": "Super",
+          "action": "Open the overview (tap Super alone)"
+        },
+        {
+          "keys": "Super+←↑↓→",
           "action": "Move focus left/down/up/right"
         },
         {
-          "keys": "Super+Shift+h/j/k/l",
+          "keys": "Super+Shift+←↑↓→",
           "action": "Swap window left/down/up/right"
         },
         {
@@ -102,7 +106,7 @@
         },
         {
           "keys": "Super+Shift+F1",
-          "action": "Open Glue Hub"
+          "action": "Show Welcome and shortcuts"
         }
       ],
       "screenshot": "screenshots/gluewc-glueqs.png",
@@ -138,11 +142,11 @@
           "action": "Close focused window"
         },
         {
-          "keys": "Super+h/j/k/l",
+          "keys": "Super+←↑↓→",
           "action": "Focus window left/down/up/right"
         },
         {
-          "keys": "Super+Shift+h/j/k/l",
+          "keys": "Super+Shift+←↑↓→",
           "action": "Swap window left/down/up/right"
         },
         {
@@ -155,7 +159,7 @@
         },
         {
           "keys": "Super+Shift+F1",
-          "action": "Open Glue Hub"
+          "action": "Show Welcome and shortcuts"
         }
       ],
       "screenshot": "screenshots/nvwm.png",
@@ -421,8 +425,8 @@
   "support": [
     {
       "id": "app-store",
-      "name": "Magazin de aplicații (repo + Flathub + AUR)",
-      "description": "Glue Hub caută, instalează și actualizează aplicații din depozitele sistemului, Flathub și AUR prin yay. Recomandat.",
+      "name": "App store (Pacman + Flathub + AUR)",
+      "description": "Glue Apps finds, installs and updates apps from the system repositories, Flathub and the AUR through yay. Recommended.",
       "packages": [
         "flatpak",
         "yay",

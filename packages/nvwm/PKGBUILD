@@ -35,8 +35,8 @@ prepare() {
     sed -i -E 's/^[[:space:]#]*(bind_insert = XF86)/\1/' config.conf
     grep -q '^bind_insert = mod+F1 = spawn:playerctl play-pause$' config.conf ||
         printf '\nbind_insert = mod+F1 = spawn:playerctl play-pause\n' >> config.conf
-    grep -q '^bind_insert = mod+shift+F1 = spawn:glue-hub$' config.conf ||
-        printf '\nbind_insert = mod+shift+F1 = spawn:glue-hub\n' >> config.conf
+    grep -q '^bind_insert = mod+shift+F1 = spawn:glue-welcome$' config.conf ||
+        printf '\nbind_insert = mod+shift+F1 = spawn:glue-welcome\n' >> config.conf
     # all 8 XF86 binds must be live at column 0 after normalization
     [ "$(grep -c '^bind_insert = XF86' config.conf)" -ge 8 ] || {
         echo "ERROR: XF86 keybind uncomment failed" >&2; exit 1; }

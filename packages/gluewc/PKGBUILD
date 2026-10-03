@@ -28,12 +28,12 @@ pkgver() {
 
 prepare() {
     cd "$pkgname"
-    grep -q '^bind_insert = mod+shift+F1 = spawn:glue-hub$' config.def.conf ||
-        sed -i '/^bind_insert = mod+F1 = /a bind_insert = mod+shift+F1 = spawn:glue-hub' \
+    grep -q '^bind_insert = mod+shift+F1 = spawn:glue-welcome$' config.def.conf ||
+        sed -i '/^bind_insert = mod+F1 = /a bind_insert = mod+shift+F1 = spawn:glue-welcome' \
             config.def.conf
     grep -q '^bind_insert = mod+F1 = spawn:playerctl play-pause$' config.def.conf &&
-        grep -q '^bind_insert = mod+shift+F1 = spawn:glue-hub$' config.def.conf || {
-        echo "ERROR: Glue Hub keybind patch failed" >&2; exit 1; }
+        grep -q '^bind_insert = mod+shift+F1 = spawn:glue-welcome$' config.def.conf || {
+        echo "ERROR: Glue Welcome keybind patch failed" >&2; exit 1; }
 }
 
 build() {

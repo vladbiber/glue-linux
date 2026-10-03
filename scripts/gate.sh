@@ -8,8 +8,8 @@ if [ -d "$d/tests" ]; then
     # stdout so gate consumers that capture stdout see the test count
     (cd "$d" && python -m unittest 2>&1)
 fi
-h=packages/glue-hub
+h=packages/glue-welcome
 if [ -d "$h/tests" ]; then
     (cd "$h" && python -m unittest 2>&1)
 fi
-echo "gate: installer + Glue Hub tests passed"
+echo "gate: installer + Glue Welcome tests passed"

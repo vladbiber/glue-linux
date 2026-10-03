@@ -179,9 +179,11 @@ _DESKTOP_PACKAGES = frozenset({
     # GNOME's power settings surface these only when the daemon is present
     # (WMs get them via `powerprofilesctl`); pulls upower+polkit as deps
     "power-profiles-daemon",
-    # Glue Hub is the control center on every graphical installation. Its
-    # optional store backends are controlled by the app-store support toggle.
-    "glue-hub",
+    # Glue Apps (store + system updates) and Glue Welcome (shortcuts, system,
+    # settings) are on every graphical installation; the store backends
+    # follow the app-store support toggle.
+    "glue-apps",
+    "glue-welcome",
 })
 
 # Maps a service name to the Artix package BASE that ships its init scripts;
@@ -453,12 +455,13 @@ def resolve_plan(
         ))
         store_enabled = "app-store" in selection.support_ids
         files.append(PlannedFile(
-            path="/etc/glue/hub.conf",
-            content=("[hub]\n"
+            path="/etc/glue/apps.conf",
+            content=("[apps]\n"
                      "theme=glue\n"
                      "autostart=1\n"
                      f"store={int(store_enabled)}\n"
-                     "aur_warning_seen=0\n"),
+                     "aur_warning_seen=0\n"
+                     "language=en\n"),
             mode=0o644,
         ))
     if selection.gaming:

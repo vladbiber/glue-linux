@@ -1,0 +1,8 @@
+#!/usr/bin/python3
+import sys
+
+sys.path[:0] = ["/usr/lib/glue-welcome", "/usr/lib/glue-apps"]
+
+from glue_welcome.app import main
+
+raise SystemExit(main())

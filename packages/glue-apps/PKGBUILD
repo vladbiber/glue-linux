@@ -1,0 +1,33 @@
+# Maintainer: vladbiber <https://github.com/vladbiber>
+pkgname=glue-apps
+pkgver=0.3.0
+pkgrel=1
+pkgdesc="Install apps from Pacman, Flatpak, the AUR or AppImage and keep the whole system up to date"
+arch=('any')
+url="https://github.com/vladbiber/glue-apps"
+license=('GPL-3.0-only')
+depends=('python' 'python-gobject' 'gtk4' 'libadwaita' 'polkit' 'adwaita-fonts'
+         'pacman-contrib')
+makedepends=('git')
+checkdepends=('python')
+optdepends=('flatpak: apps from Flathub'
+            'yay: apps from the AUR'
+            'paru: apps from the AUR'
+            'archlinux-appstream-data: icons and screenshots for Pacman apps on Arch and CachyOS'
+            'artixlinux-appstream-data: icons and screenshots for Pacman apps on Artix'
+            'fuse2: run AppImages without unpacking them first')
+conflicts=('glue-hub')
+replaces=('glue-hub')
+backup=('etc/glue/apps.conf')
+source=("git+https://github.com/vladbiber/glue-apps.git#tag=v$pkgver")
+sha256sums=('SKIP')
+
+check() {
+    cd "$pkgname"
+    python -m unittest discover -s tests
+}
+
+package() {
+    cd "$pkgname"
+    make DESTDIR="$pkgdir" install
+}

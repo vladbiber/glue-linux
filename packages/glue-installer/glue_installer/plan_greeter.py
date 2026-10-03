@@ -88,8 +88,8 @@ def _session_wrapper_content(session: Session, shell_cmd: Optional[str]) -> str:
     wayland_env = (
         _WAYLAND_SOFTWARE_FALLBACK if session.session_type == "wayland" else ""
     )
-    hub_block = (
-        "    command -v glue-hub >/dev/null 2>&1 && glue-hub --autostart &\n"
+    welcome_block = (
+        "    command -v glue-welcome >/dev/null 2>&1 && glue-welcome --autostart &\n"
         if session.kind == "wm" else ""
     )
     desktop = session.desktop or session.id
@@ -102,7 +102,7 @@ if [ "${{1:-}}" = "--inner" ]; then
     command -v pipewire       >/dev/null 2>&1 && pipewire &
     command -v wireplumber    >/dev/null 2>&1 && wireplumber &
     command -v pipewire-pulse >/dev/null 2>&1 && pipewire-pulse &
-{hub_block}{shell_block}    exec {cmd}
+{welcome_block}{shell_block}    exec {cmd}
 fi
 
 {x11_block}export XDG_CURRENT_DESKTOP={desktop}

@@ -11,7 +11,7 @@ A small, amber-themed Linux distribution.
 - **Sessions (pick one or more, or minimal):** **gluewc** with glueqs or
   Noctalia (default), **nvwm**, **KDE Plasma**, **XFCE**, **GNOME** and
   **Cinnamon**
-- **Glue Hub:** the single application store and control center. It searches
+- **Glue Apps:** the single application store. It searches
   the system repositories, Flathub and AUR through `yay` in one window;
   Shelly, Discover and PackageKit are not installed by default.
 - **Gaming Mode (optional):** Steam (+ Proton GE preinstalled), Heroic, Vulkan
@@ -47,7 +47,7 @@ Palette: background `#100A02`, secondary/lines `#A66900`, primary text `#F1B00A`
 5. **sessions** — multi-select from the 6 WMs/DEs, each with ease/lightness
    ratings, keybinding cheat-sheet and screenshot path; gluewc offers glueqs
    or Noctalia as its shell
-6. **support toggles** — the Glue Hub store backends (repository + Flathub +
+6. **support toggles** — the Glue Apps store backends (repository + Flathub +
    AUR, enabled by default) and Bluetooth (BlueZ + Blueman)
 7. **Gaming Mode** — the full Steam stack; the right Vulkan driver
    (NVIDIA open module / RADV / Intel ANV, 32-bit included) is pinned from the
@@ -72,27 +72,29 @@ audio (+ `startx` for the X11 WMs). On NVIDIA machines the installer also
 writes `/usr/local/bin/prime-run` (no `nvidia-prime` package needed) — set a
 Steam game's launch options to `prime-run %command%` to run it on the dGPU.
 
-Glue Hub itself remains installed as the system control center when its store
+Glue Apps and Glue Welcome stay installed when the store
 toggle is disabled. With the default enabled, it adds Flatpak, Flathub,
 AppStream metadata, `yay` and update checks. AUR recipes are community-made;
-Hub asks once before the first AUR installation, and recipes that require
+Glue Apps asks once before the first AUR installation, and recipes that require
 systemd may not work on Glue Linux.
 
-### Glue Hub themes
+### Glue Apps and Glue Welcome
 
-The appearance can be changed live from **Settings → Appearance**. The choice
-is kept for the next launch.
+**[Glue Apps](https://github.com/vladbiber/glue-apps)** is the app store, kept in
+its own repository because it also runs on plain Arch, CachyOS and Artix. It
+searches Pacman, Flathub and the AUR at once, shows every source on each app page,
+installs AppImages, and updates the whole system with one button.
 
-On a Gentoo development machine with PyGObject, GTK4 and libadwaita installed,
-preview the current interface directly from the checkout:
+**Glue Welcome** (`packages/glue-welcome`) opens at login and on Super+Shift+F1. It
+shows the shortcuts of the window manager you are running (open apps and close a
+window first), has a button that updates the whole system through Glue Apps, and
+holds the System and Settings pages. Both windows share the look chosen in
+Settings. English by default, Romanian in Settings → Language.
 
 ```sh
-sh scripts/run-glue-hub-dev.sh
+git clone https://github.com/vladbiber/glue-apps.git ../glue-apps
+sh scripts/run-glue-welcome-dev.sh
 ```
-
-| Glue | Vitrină | Mozaic |
-| --- | --- | --- |
-| ![Glue Hub with the Glue theme](packages/glue-hub/screenshots/glue.png) | ![Glue Hub with the Vitrină theme](packages/glue-hub/screenshots/vitrina.png) | ![Glue Hub with the Mozaic theme](packages/glue-hub/screenshots/mozaic.png) |
 
 ## Layout
 
@@ -110,7 +112,8 @@ glue-linux/
 │   ├── st-glue/         # st patched to the Glue palette + JetBrains Mono
 │   ├── proton-ge-custom-bin/# GE-Proton for Steam, preinstalled system-wide
 │   ├── glue-installer/  # the Python curses installer + catalog
-│   ├── glue-hub/        # GTK application store + system control center
+│   ├── glue-apps/       # PKGBUILD for the store (source: github.com/vladbiber/glue-apps)
+│   ├── glue-welcome/    # welcome window: shortcuts, system, settings
 │   └── glue-branding/   # amber TTY palette, /etc/issue, os-release, GRUB theme
 └── iso-profile/glue/    # artools profile (package lists + live overlay)
 ```
@@ -122,7 +125,7 @@ logic layers — `catalog.py` (JSON catalog + validation) → `plan.py` (selecti
 → package/service/file plan) → `executor.py` (plan → ordered steps) →
 `disks.py` / `identity.py` / `gpu.py` / `grub_filter.py` — driven by a curses
 TUI (`ui_model.py` state machine, `render.py`, `tui.py`). All I/O is injected,
-so the installer and Glue Hub are covered by **675+ unit tests that run without root**:
+so the installer and Glue Welcome are covered by **675+ unit tests that run without root**:
 
 ```sh
 sh scripts/gate.sh

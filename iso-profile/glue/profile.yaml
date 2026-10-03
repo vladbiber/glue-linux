@@ -28,7 +28,8 @@ rootfs:
     - st-glue
     # --- TUI installer + its partitioning tools (must be runnable live) ---
     - glue-installer
-    - glue-hub
+    - glue-apps
+    - glue-welcome
     - flatpak
     - yay
     - artixlinux-appstream-data

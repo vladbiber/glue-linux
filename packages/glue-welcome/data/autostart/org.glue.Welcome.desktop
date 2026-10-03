@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Glue Welcome
+Exec=glue-welcome --autostart
+Icon=org.glue.Welcome
+Terminal=false
+Type=Application
+X-GNOME-Autostart-enabled=true
+NoDisplay=true
