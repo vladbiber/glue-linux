@@ -252,7 +252,8 @@ def _loop(stdscr, wizard: Wizard, hooks: dict) -> Optional[WizardResult]:
 
 def run_tui(catalog, disks=None, partitions=None, ask_identity: bool = False,
             identity_defaults=None, net_check=None, open_net_tool=None,
-            repartition=None, detect_timezone=None) -> Optional[WizardResult]:
+            repartition=None, detect_timezone=None,
+            cpu_v3: bool = False) -> Optional[WizardResult]:
     """Run the full wizard in curses; returns a WizardResult, or None on quit.
 
     Optional I/O hooks (this module stays curses-only; subprocess work is
@@ -262,7 +263,7 @@ def run_tui(catalog, disks=None, partitions=None, ask_identity: bool = False,
     screen confirms connectivity, prefills the identity timezone field).
     """
     wizard = Wizard(catalog, disks=disks, ask_identity=ask_identity,
-                    identity_defaults=identity_defaults)
+                    identity_defaults=identity_defaults, cpu_v3=cpu_v3)
     if partitions is not None:
         wizard.set_partitions(partitions)
     hooks = {"net_check": net_check, "open_net_tool": open_net_tool,

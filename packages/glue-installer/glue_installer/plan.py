@@ -87,6 +87,8 @@ _GAMING_ENV_CONTENT = """\
 # /etc/profile.d/glue-gaming.sh — Glue Linux gaming defaults.
 export __GL_SHADER_DISK_CACHE=1
 export __GL_SHADER_DISK_CACHE_SKIP_CLEANUP=1
+export MESA_SHADER_CACHE_MAX_SIZE=12G
+export __GL_SHADER_DISK_CACHE_SIZE=12000000000
 """
 
 # Hybrid (Optimus) laptops enumerate the Intel iGPU first, so Steam games
@@ -107,8 +109,17 @@ export __NV_PRIME_RENDER_OFFLOAD __NV_PRIME_RENDER_OFFLOAD_PROVIDER \\
 exec "$@"
 """
 
+def _build_target_pacman_conf(v3: bool) -> str:
+    """Return the target /etc/pacman.conf, inserting [cachyos-v3] when v3 is active."""
+    if not v3:
+        return _TARGET_PACMAN_CONF
+    return _TARGET_PACMAN_CONF.replace(
+        "[cachyos]\n",
+        "[cachyos-v3]\nInclude = /etc/pacman.d/cachyos-v3-mirrorlist\n\n[cachyos]\n",
+    )
+
+
 _BASELINE_FILES: List[PlannedFile] = [
-    PlannedFile(path="/etc/pacman.conf", content=_TARGET_PACMAN_CONF, mode=0o644),
     PlannedFile(path="/etc/skel/.bashrc", content=_BASHRC_CONTENT, mode=0o644),
     PlannedFile(path="/etc/skel/.zshrc", content=_ZSHRC_CONTENT, mode=0o644),
 ]
@@ -216,7 +227,7 @@ SCX_FLAGS=
 # ---------------------------------------------------------------------------
 
 def resolve_plan(
-    catalog: Catalog, selection: Selection, gpu_vendors=None,
+    catalog: Catalog, selection: Selection, gpu_vendors=None, cpu_v3: bool = False,
 ) -> InstallPlan:
     """Resolve a Selection against a Catalog into a deterministic InstallPlan.
 
@@ -398,8 +409,17 @@ def resolve_plan(
         if base is not None:
             packages.add(f"{base}-{selection.init_id}")
 
+    # Rule 16 (roadmap 1.7): [cachyos-v3] repo when CPU supports x86-64-v3
+    # and the CachyOS kernel is selected (the v3 packages are built for it).
+    v3_active = cpu_v3 and selection.kernel_id == "linux-cachyos"
+    if v3_active:
+        packages.add("cachyos-v3-mirrorlist")
+
     # Greeter profile files (config.toml + per-session wrapper/entry)
-    files: List[PlannedFile] = list(_BASELINE_FILES)
+    files: List[PlannedFile] = [
+        PlannedFile(path="/etc/pacman.conf",
+                    content=_build_target_pacman_conf(v3_active), mode=0o644),
+    ] + list(_BASELINE_FILES)
     if not tuned:
         # server-like install has no glue-settings — keep the quiet console
         # sysctl as a standalone fallback file

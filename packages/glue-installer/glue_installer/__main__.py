@@ -294,6 +294,7 @@ def main(argv=None) -> int:
             except DiskError:
                 tui_disks = None  # no disk screen; install to prepared --target
         try:
+            from glue_installer.cpu import detect_cpu_v3 as _detect_cpu_v3
             wizard_result = run_tui(
                 catalog,
                 disks=tui_disks,
@@ -311,6 +312,7 @@ def main(argv=None) -> int:
                 # (installs require the network), so the identity form shows
                 # the real local timezone instead of the UTC placeholder
                 detect_timezone=detect_timezone,
+                cpu_v3=_detect_cpu_v3(),
             )
         except KeyboardInterrupt:
             wizard_result = None
@@ -322,8 +324,11 @@ def main(argv=None) -> int:
             args.disk = wizard_result.device_path
 
     try:
+        from glue_installer.cpu import detect_cpu_v3
         from glue_installer.gpu import detect_gpu_vendors
-        plan = resolve_plan(catalog, selection, gpu_vendors=detect_gpu_vendors())
+        _cpu_v3 = detect_cpu_v3()
+        plan = resolve_plan(catalog, selection, gpu_vendors=detect_gpu_vendors(),
+                            cpu_v3=_cpu_v3)
     except PlanError as exc:
         return _fail(f"Plan error: {exc}", EXIT_INSTALL)
 
@@ -363,6 +368,22 @@ def main(argv=None) -> int:
     pacman_conf_path = os.environ.get("GLUE_PACMAN_CONF")
     if pacman_conf_path is None and os.path.exists("/usr/share/glue/pacman.conf"):
         pacman_conf_path = "/usr/share/glue/pacman.conf"
+    # When v3 is active patch the staged conf so basestrap can resolve [cachyos-v3].
+    if _cpu_v3 and selection.kernel_id == "linux-cachyos" and pacman_conf_path:
+        import tempfile
+        try:
+            orig = Path(pacman_conf_path).read_text(encoding="utf-8")
+            patched = orig.replace(
+                "[cachyos]\n",
+                "[cachyos-v3]\nInclude = /etc/pacman.d/cachyos-v3-mirrorlist\n\n[cachyos]\n",
+            )
+            with tempfile.NamedTemporaryFile(
+                suffix=".conf", delete=False, mode="w", encoding="utf-8"
+            ) as tmp:
+                tmp.write(patched)
+                pacman_conf_path = tmp.name
+        except OSError:
+            pass
 
     try:
         steps = compile_steps(

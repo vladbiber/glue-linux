@@ -43,7 +43,7 @@ class Wizard:
     """Deterministic wizard state machine over a loaded Catalog."""
 
     def __init__(self, catalog: Catalog, disks=None, ask_identity: bool = False,
-                 identity_defaults=None):
+                 identity_defaults=None, cpu_v3: bool = False):
         if not isinstance(catalog, Catalog):
             raise ValidationError(
                 f"Wizard requires a Catalog, got {type(catalog).__name__}")
@@ -80,6 +80,7 @@ class Wizard:
         # catalog default preselected: the scheduler screen never blocks
         self._scheduler: str = next(
             (o.id for o in catalog.gaming.schedulers if o.default), "scx_lavd")
+        self._cpu_v3 = cpu_v3
 
         # Navigation state
         self._current_key: str = "welcome"
@@ -352,7 +353,7 @@ class Wizard:
         ordered = sorted(self._catalog.kernels, key=lambda k: not k.primary)
         items = [
             Item(id=k.id,
-                 label=k.name + (" (recommended)" if k.primary else ""),
+                 label=k.name + (" (x86-64-v3)" if k.id == "linux-cachyos" and self._cpu_v3 else " (recommended)" if k.primary else ""),
                  description=k.description, recommended=k.primary,
                  selected=self._kernel_id == k.id)
             for k in ordered

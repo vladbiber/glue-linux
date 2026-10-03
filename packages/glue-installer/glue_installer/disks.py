@@ -390,9 +390,9 @@ else
     echo 'GRUB_DISABLE_OS_PROBER=false' >> /etc/default/grub
 fi
 if grep -q '^GRUB_CMDLINE_LINUX_DEFAULT=' /etc/default/grub; then
-    sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT=.*/GRUB_CMDLINE_LINUX_DEFAULT="quiet loglevel=3 rd.udev.log_level=3"/' /etc/default/grub
+    sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT=.*/GRUB_CMDLINE_LINUX_DEFAULT="quiet loglevel=3 rd.udev.log_level=3 nowatchdog zswap.enabled=0"/' /etc/default/grub
 else
-    echo 'GRUB_CMDLINE_LINUX_DEFAULT="quiet loglevel=3 rd.udev.log_level=3"' >> /etc/default/grub
+    echo 'GRUB_CMDLINE_LINUX_DEFAULT="quiet loglevel=3 rd.udev.log_level=3 nowatchdog zswap.enabled=0"' >> /etc/default/grub
 fi
 if [ -f /usr/share/grub/themes/glue/theme.txt ]; then
     if grep -q '^#\\?GRUB_THEME=' /etc/default/grub; then

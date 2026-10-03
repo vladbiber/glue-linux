@@ -4,7 +4,7 @@ A small, amber-themed Linux distribution.
 
 - **Base:** Arch-based, **no systemd** — pick **dinit**, **runit** or **OpenRC**
   at install time
-- **Kernel:** `linux-cachyos` (CachyOS performance kernel, default) or `linux-zen`
+- **Kernel:** `linux-cachyos` (CachyOS performance kernel, EEVDF scheduler, default) or `linux-zen`
 - **Installer:** a full-screen **Python curses TUI** (`glue-install`) —
   catalog-driven wizard with Back navigation on every screen, automatic GeoIP
   timezone detection, network clock sync, and GPU driver auto-detection
