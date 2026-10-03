@@ -499,7 +499,7 @@ class TestIntegration(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Greeter profile (greetd + tuigreet + per-session wrappers)
+# Greeter profile (ReGreet + Cage, Tuigreet fallback, session wrappers)
 # ---------------------------------------------------------------------------
 
 class TestGreeterProfile(unittest.TestCase):
@@ -515,30 +515,33 @@ class TestGreeterProfile(unittest.TestCase):
     def _file(self, plan, path):
         return next(f for f in plan.files if f.path == path)
 
-    def test_tuigreet_package_with_sessions(self):
+    def test_graphical_greeter_and_fallback_packages_with_sessions(self):
         plan = self._plan(["wm-bare"])
-        self.assertIn("greetd-tuigreet", plan.packages)
+        for package in ("accountsservice", "cage", "greetd",
+                        "greetd-regreet", "greetd-tuigreet"):
+            self.assertIn(package, plan.packages)
 
     def test_no_greeter_files_on_minimal(self):
         sel = Selection("k-main", "dinit", [], {}, [], False, True)
         plan = resolve_plan(self.catalog, sel)
-        self.assertNotIn("greetd-tuigreet", plan.packages)
+        for package in ("accountsservice", "cage", "greetd-regreet",
+                        "greetd-tuigreet"):
+            self.assertNotIn(package, plan.packages)
         paths = [f.path for f in plan.files]
         self.assertNotIn("/etc/greetd/config.toml", paths)
 
-    def test_greetd_config_on_vt7_pointing_at_glue_sessions(self):
+    def test_greetd_config_on_vt7_starts_glue_wrapper(self):
         plan = self._plan(["wm-bare"])
         cfg = self._file(plan, "/etc/greetd/config.toml")
         self.assertIn("vt = 7", cfg.content)
-        self.assertIn("tuigreet", cfg.content)
-        self.assertIn("--sessions /usr/share/glue/sessions", cfg.content)
+        self.assertIn('command = "/usr/local/bin/glue-greeter"', cfg.content)
         self.assertIn('user = "greeter"', cfg.content)
         self.assertEqual(cfg.mode, 0o644)
 
     def test_greetd_config_greeting_and_no_legacy_branding(self):
         plan = self._plan(["wm-bare"])
-        cfg = self._file(plan, "/etc/greetd/config.toml")
-        self.assertIn("--greeting 'Glue Linux'", cfg.content)
+        cfg = self._file(plan, "/etc/greetd/regreet.toml")
+        self.assertIn('greeting_msg = "Glue Linux"', cfg.content)
         self.assertNotIn("wheatley", cfg.content.lower())
         self.assertNotIn("artix", cfg.content.lower())
 

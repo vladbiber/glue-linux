@@ -320,11 +320,14 @@ def resolve_plan(
             shell_id = selection.shell_choice[sid]
             packages.update(shell_map[shell_id].packages)
 
-    # Rule 7: greetd + tuigreet when any session is selected; warning at 2+.
+    # Rule 7: ReGreet under Cage, with Tuigreet fallback when there is no KMS.
     # The greeter profile (config.toml on VT7 + per-session wrappers with
     # D-Bus and PipeWire) is generated below as planned files.
     if selection.session_ids:
+        packages.add("accountsservice")
+        packages.add("cage")
         packages.add("greetd")
+        packages.add("greetd-regreet")
         packages.add("greetd-tuigreet")
         services.add("greetd")
         if len(selection.session_ids) >= 2:

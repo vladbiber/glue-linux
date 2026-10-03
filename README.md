@@ -64,8 +64,9 @@ The install itself is a single progress bar (full log in
 NetworkManager, `openntpd` (clock stays right from first boot), sudo wheel
 setup, and a **Glue-branded GRUB** — `os-prober` dual-boot entries for the
 other OSes on the machine, while the plugged-in install USB's own entries are
-filtered out of the menu. Desktop installs add greetd + **tuigreet** on a
-dedicated VT7, the PipeWire stack, `power-profiles-daemon`
+filtered out of the menu. Desktop installs add **ReGreet under Cage** on a
+dedicated VT7, with Tuigreet selected automatically on machines without KMS,
+plus the PipeWire stack and `power-profiles-daemon`
 (performance/balanced/power-saver in KDE/GNOME settings, `powerprofilesctl`
 elsewhere), fonts, portals, and per-session wrappers that bring up D-Bus +
 audio (+ `startx` for the X11 WMs). On NVIDIA machines the installer also
@@ -233,3 +234,9 @@ installing.
 
 Session wrappers start D-Bus and PipeWire and expose every installed session
 through the login screen.
+
+The login screen uses the same dark amber palette and a solid background. It
+remembers the last user and session; every desktop selected in the installer
+is available from its session chooser.
+
+![Glue Linux ReGreet login screen](screenshots/greeter.png)

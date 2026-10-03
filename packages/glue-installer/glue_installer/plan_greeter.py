@@ -11,18 +11,137 @@ from typing import Dict, List, Optional
 from glue_installer.catalog import Session
 from glue_installer.plan_types import PlannedFile
 
-# The greeter runs on a DEDICATED VT (tty7), away from the kernel console and
-# boot messages (tty1) and from the login gettys (tty1-6). This is what makes
-# tuigreet's input stay put instead of being overwritten — the gettys on
-# tty1-6 stay untouched.
+# The greeter runs on a dedicated VT (tty7), away from the kernel console and
+# boot messages (tty1) and from the login gettys (tty1-6). The launcher uses
+# ReGreet under Cage when KMS is available and falls back to Tuigreet on
+# machines without a DRM card (notably simple VMs).
 _GREETD_CONFIG_CONTENT = """\
 # /etc/greetd/config.toml — written by the Glue Linux installer.
 [terminal]
 vt = 7
 
 [default_session]
-command = "tuigreet --remember --remember-session --time --greeting 'Glue Linux' --sessions /usr/share/glue/sessions --theme 'border=yellow;text=white;prompt=yellow;time=yellow;action=yellow;button=yellow;container=black;input=white'"
+command = "/usr/local/bin/glue-greeter"
 user = "greeter"
+"""
+
+_REGREET_CONFIG_CONTENT = """\
+# /etc/greetd/regreet.toml — written by the Glue Linux installer.
+# No [background] section: the default is Glue's solid CSS background.
+skip_selection = false
+
+[GTK]
+application_prefer_dark_theme = true
+cursor_theme_name = "Adwaita"
+cursor_blink = true
+font_name = "Cantarell 14"
+icon_theme_name = "Adwaita"
+theme_name = "Adwaita"
+
+[commands]
+reboot = ["loginctl", "reboot"]
+poweroff = ["loginctl", "poweroff"]
+x11_prefix = ["startx", "/usr/bin/env"]
+
+[appearance]
+greeting_msg = "Glue Linux"
+
+[widget.clock]
+format = "%a %H:%M"
+resolution = "1s"
+"""
+
+# Values mirror packages/glue-branding/palette.json. A branding test keeps the
+# CSS tied to that canonical file so changing the palette cannot leave the
+# login screen behind.
+_REGREET_CSS_CONTENT = """\
+/* Glue Linux ReGreet theme — no wallpaper. */
+* {
+    color: #F1B00A;
+}
+
+window,
+.background,
+.view {
+    background-color: #100A02;
+}
+
+button,
+button * {
+    color: #100A02;
+}
+
+button {
+    background: #F1B00A;
+    border: 1px solid #A66900;
+    border-radius: 6px;
+}
+
+button:hover,
+button:focus {
+    background: #FFD75F;
+}
+
+entry,
+combobox button {
+    color: #F1B00A;
+    background: #100A02;
+    border: 1px solid #A66900;
+}
+"""
+
+_TUIGREET_COMMAND = (
+    "/usr/bin/tuigreet --remember --remember-session --time "
+    "--greeting 'Glue Linux' --sessions /usr/share/glue/sessions "
+    "--theme 'border=yellow;text=white;prompt=yellow;time=yellow;"
+    "action=yellow;button=yellow;container=black;input=white'"
+)
+
+_GREETER_WRAPPER_CONTENT = f"""\
+#!/bin/sh
+# Choose the graphical ReGreet login screen when KMS is available. Tuigreet
+# remains usable on VMs and unusual machines that expose no DRM card.
+set -eu
+
+fallback() {{
+    exec {_TUIGREET_COMMAND}
+}}
+
+if [ "${{GLUE_GREETER_FORCE_REGREET:-0}}" != 1 ] && ! ls /dev/dri/card* >/dev/null 2>&1; then
+    fallback
+fi
+command -v cage >/dev/null 2>&1 || fallback
+command -v regreet >/dev/null 2>&1 || fallback
+
+# ReGreet discovers $XDG_DATA_DIRS/{{x,wayland-}}sessions. Build that standard
+# view from the installer's authoritative /usr/share/glue/sessions directory.
+# The custom key records which list each generated entry belongs to.
+if [ -z "${{XDG_RUNTIME_DIR:-}}" ]; then
+    XDG_RUNTIME_DIR="/tmp/glue-greeter-runtime-$(id -u)"
+    export XDG_RUNTIME_DIR
+fi
+install -d -m 700 "$XDG_RUNTIME_DIR"
+session_data="$XDG_RUNTIME_DIR/glue-session-data"
+rm -rf "$session_data"
+install -d -m 700 "$session_data/xsessions" "$session_data/wayland-sessions"
+# Preserve normal XDG data (GTK schemas, icons, D-Bus services, fonts) without
+# exposing the session files shipped by desktop packages a second time.
+for data in /usr/share/*; do
+    [ -e "$data" ] || continue
+    case "${{data##*/}}" in xsessions|wayland-sessions) continue ;; esac
+    ln -s "$data" "$session_data/${{data##*/}}"
+done
+for entry in /usr/share/glue/sessions/*.desktop; do
+    [ -f "$entry" ] || continue
+    kind=wayland-sessions
+    grep -qx 'X-Glue-SessionType=x11' "$entry" && kind=xsessions
+    ln -s "$entry" "$session_data/$kind/${{entry##*/}}"
+done
+
+export XDG_DATA_DIRS="$session_data"
+export GTK_USE_PORTAL=0
+export GDK_DEBUG=no-portals
+exec dbus-run-session cage -s -mlast -d -- regreet
 """
 
 _SESSIONS_DIR = "/usr/share/glue/sessions"
@@ -162,18 +281,30 @@ Comment={session.description}
 Exec={_WRAPPER_DIR}/glue-session-{session.id}
 Type=Application
 DesktopNames={session.desktop or session.id}
+X-Glue-SessionType={session.session_type}
 """
 
 
 def _greeter_files(
     sessions: List[Session], shell_choice: Dict[str, str], shell_map: Dict,
 ) -> List[PlannedFile]:
-    """Greeter profile: /etc/greetd/config.toml plus, per selected session, a
-    wrapper script and the session entry tuigreet lists from _SESSIONS_DIR."""
+    """ReGreet profile plus one login wrapper and entry per selected session."""
     files: List[PlannedFile] = [
         PlannedFile(
             path="/etc/greetd/config.toml",
             content=_GREETD_CONFIG_CONTENT, mode=0o644,
+        ),
+        PlannedFile(
+            path="/etc/greetd/regreet.toml",
+            content=_REGREET_CONFIG_CONTENT, mode=0o644,
+        ),
+        PlannedFile(
+            path="/etc/greetd/regreet.css",
+            content=_REGREET_CSS_CONTENT, mode=0o644,
+        ),
+        PlannedFile(
+            path=f"{_WRAPPER_DIR}/glue-greeter",
+            content=_GREETER_WRAPPER_CONTENT, mode=0o755,
         ),
         PlannedFile(
             path="/etc/glue/session.conf",

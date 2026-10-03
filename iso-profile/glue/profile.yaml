@@ -53,11 +53,13 @@ rootfs:
     - networkmanager
     - wpa_supplicant
     - openresolv
-    # --- TUI login greeter (greetd + tuigreet). Shipped live so the OFFLINE
-    #     express install can give the installed disk a real password login too.
-    #     The live session itself still autologins via artix-live; these packages
-    #     just need to exist for the installer to configure them. ---
+    # --- graphical login (ReGreet under Cage; Tuigreet fallback without KMS).
+    #     Shipped live so the OFFLINE express install can give the installed
+    #     disk a real password login too. The live session still autologins. ---
+    - accountsservice
+    - cage
     - greetd
+    - greetd-regreet
     - greetd-tuigreet
     - greetd-runit
     # --- desktop preview bits (preview a WM from the live session) ---
