@@ -896,5 +896,97 @@ class TestAnanicyAndGamingExtras(unittest.TestCase):
         self.assertNotIn("lib32-mangohud", plan.packages)
 
 
+# ---------------------------------------------------------------------------
+# ADR-015 — Repo ordering: Artix repos always before [cachyos] / [cachyos-v3]
+# Audit (2026-10-03): 18 of 117 [cachyos]-vs-Artix overlaps have systemd* deps
+# (vulkan-radeon, vulkan-intel, gamescope, pacman, …). systemd-libs does not
+# exist in Artix, so [cachyos] MUST come AFTER system/world/galaxy/lib32.
+# ---------------------------------------------------------------------------
+
+class TestRepoOrder(unittest.TestCase):
+
+    def _target_conf(self, cpu_v3=False, gaming=False, sessions=False):
+        # Use linux-cachyos kernel so cpu_v3=True can activate [cachyos-v3]
+        cat = _make_catalog()
+        cat.kernels[0] = cat.kernels[0].__class__(
+            "linux-cachyos", cat.kernels[0].name, cat.kernels[0].description,
+            cat.kernels[0].packages, cat.kernels[0].primary,
+        )
+        sel = Selection(
+            "linux-cachyos", "dinit",
+            ["wm-bare"] if sessions else [],
+            {},
+            [],
+            gaming,
+            not sessions and not gaming,
+        )
+        plan = resolve_plan(cat, sel, cpu_v3=cpu_v3)
+        return next(f for f in plan.files if f.path == "/etc/pacman.conf").content
+
+    def _section_positions(self, conf):
+        """Return dict {section_name: position_in_string} for [section] markers."""
+        import re
+        return {m.group(1): m.start() for m in re.finditer(r'^\[(\S+)\]', conf, re.MULTILINE)}
+
+    def test_artix_repos_before_cachyos_minimal(self):
+        conf = self._target_conf()
+        pos = self._section_positions(conf)
+        self.assertIn("system", pos)
+        self.assertIn("world", pos)
+        self.assertIn("galaxy", pos)
+        self.assertIn("lib32", pos)
+        self.assertIn("cachyos", pos)
+        for artix_repo in ("system", "world", "galaxy", "lib32"):
+            self.assertLess(pos[artix_repo], pos["cachyos"],
+                            f"[{artix_repo}] must come before [cachyos]")
+
+    def test_artix_repo_order_gaming(self):
+        conf = self._target_conf(gaming=True)
+        pos = self._section_positions(conf)
+        for artix_repo in ("system", "world", "galaxy", "lib32"):
+            self.assertLess(pos[artix_repo], pos["cachyos"],
+                            f"[{artix_repo}] must come before [cachyos] (gaming)")
+
+    def test_artix_repo_order_with_sessions(self):
+        conf = self._target_conf(sessions=True)
+        pos = self._section_positions(conf)
+        for artix_repo in ("system", "world", "galaxy", "lib32"):
+            self.assertLess(pos[artix_repo], pos["cachyos"],
+                            f"[{artix_repo}] must come before [cachyos] (sessions)")
+
+    def test_v3_cachyos_v3_before_cachyos_still_after_artix(self):
+        conf = self._target_conf(cpu_v3=True)
+        pos = self._section_positions(conf)
+        self.assertIn("cachyos-v3", pos)
+        # [cachyos-v3] must appear before [cachyos] (task-011 requirement)
+        self.assertLess(pos["cachyos-v3"], pos["cachyos"])
+        # Both CachyOS repos must still appear AFTER all Artix repos
+        for artix_repo in ("system", "world", "galaxy", "lib32"):
+            self.assertLess(pos[artix_repo], pos["cachyos-v3"],
+                            f"[{artix_repo}] must come before [cachyos-v3]")
+            self.assertLess(pos[artix_repo], pos["cachyos"],
+                            f"[{artix_repo}] must come before [cachyos]")
+
+    def test_no_cachyos_core_v3_or_extra_v3_in_conf(self):
+        for v3 in (True, False):
+            conf = self._target_conf(cpu_v3=v3)
+            self.assertNotIn("cachyos-core-v3", conf)
+            self.assertNotIn("cachyos-extra-v3", conf)
+
+    def test_staged_conf_artix_before_cachyos(self):
+        """repo/pacman.conf (staged conf used by basestrap) must also be Artix-first."""
+        import pathlib
+        staged = pathlib.Path(__file__).parent.parent.parent.parent / "repo" / "pacman.conf"
+        if not staged.exists():
+            self.skipTest(f"staged conf not found at {staged}")
+        conf = staged.read_text()
+        pos = self._section_positions(conf)
+        self.assertIn("cachyos", pos, "staged conf must contain [cachyos]")
+        for artix_repo in ("system", "world", "galaxy", "lib32"):
+            self.assertIn(artix_repo, pos, f"staged conf must contain [{artix_repo}]")
+            self.assertLess(pos[artix_repo], pos["cachyos"],
+                            f"[{artix_repo}] must come before [cachyos] in staged conf")
+
+
 if __name__ == "__main__":
     unittest.main()
