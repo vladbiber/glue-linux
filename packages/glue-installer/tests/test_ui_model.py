@@ -87,7 +87,9 @@ def _drive_happy_path(sessions=("niri", "sway"), shells=None,
         w.apply(Toggle("bluetooth"))
     w.next()  # support -> gaming
     w.apply(SetFlag(gaming))
-    w.next()  # gaming -> summary
+    w.next()  # gaming -> scheduler (gaming on) or summary
+    if w.current_screen().key == "scheduler":
+        w.next()  # default scheduler preselected
     w.next()  # summary -> finished
     return w
 
@@ -406,7 +408,8 @@ class TestNavigation(unittest.TestCase):
         self.assertTrue(w.is_finished())
         w.back()
         self.assertFalse(w.is_finished())
-        self.assertEqual(w.current_screen().key, "gaming")
+        # gaming is on in the happy path: the scheduler screen precedes summary
+        self.assertEqual(w.current_screen().key, "scheduler")
 
 
 class TestSupportAndGaming(unittest.TestCase):
@@ -539,8 +542,6 @@ class TestMinimalMode(unittest.TestCase):
         resolve_plan(_SHELL_CATALOG, sel)  # must not raise
 
 
-if __name__ == "__main__":
-    unittest.main()
 
 
 class TestDiskModeAndPartitionFlow(unittest.TestCase):
@@ -684,3 +685,79 @@ class TestTimezonePrefill(unittest.TestCase):
     def test_noop_without_identity_forms(self):
         w = _new_wizard()  # ask_identity defaults to False
         self.assertFalse(w.prefill_timezone("Europe/Bucharest"))
+
+
+class TestSchedulerScreen(unittest.TestCase):
+    """1.4: CPU scheduler radio, only on gaming installs."""
+
+    def _to_gaming(self) -> Wizard:
+        w = _new_wizard()
+        _advance_to(w, "kernel")
+        w.apply(Choose("linux-cachyos")); w.next()
+        w.apply(Choose("dinit")); w.next()
+        w.apply(Toggle("sway")); w.next()
+        self.assertEqual(w.current_screen().key, "support")
+        w.next()
+        self.assertEqual(w.current_screen().key, "gaming")
+        return w
+
+    def test_no_scheduler_screen_when_gaming_off(self):
+        w = self._to_gaming()
+        w.apply(SetFlag(False)); w.next()
+        self.assertEqual(w.current_screen().key, "summary")
+
+    def test_scheduler_screen_after_gaming_with_default_preselected(self):
+        w = self._to_gaming()
+        w.apply(SetFlag(True)); w.next()
+        screen = w.current_screen()
+        self.assertEqual(screen.key, "scheduler")
+        self.assertEqual(screen.kind, "radio")
+        self.assertEqual([i.id for i in screen.items],
+                         ["scx_lavd", "scx_bpfland", "none"])
+        self.assertEqual([i.id for i in screen.items if i.selected], ["scx_lavd"])
+        lavd = next(i for i in screen.items if i.id == "scx_lavd")
+        self.assertTrue(lavd.recommended)
+        self.assertIn("recommended", lavd.label)
+        w.next()  # the default is valid without any Choose
+        self.assertEqual(w.current_screen().key, "summary")
+
+    def test_choice_reaches_summary_selection_and_plan(self):
+        w = self._to_gaming()
+        w.apply(SetFlag(True)); w.next()
+        w.apply(Choose("scx_bpfland")); w.next()
+        self.assertIn("CPU scheduler: scx_bpfland",
+                      [i.label for i in w.current_screen().items])
+        w.next()
+        sel = w.to_selection()
+        self.assertEqual(sel.scheduler, "scx_bpfland")
+        plan = resolve_plan(_CATALOG, sel)
+        self.assertIn("scx-scheds", plan.packages)
+        conf = next(f for f in plan.files if f.path == "/etc/default/scx")
+        self.assertIn("SCX_SCHEDULER=scx_bpfland", conf.content)
+
+    def test_none_keeps_kernel_scheduler(self):
+        w = self._to_gaming()
+        w.apply(SetFlag(True)); w.next()
+        w.apply(Choose("none")); w.next(); w.next()
+        plan = resolve_plan(_CATALOG, w.to_selection())
+        self.assertNotIn("scx-scheds", plan.packages)
+        self.assertNotIn("scx", plan.services)
+
+    def test_unknown_scheduler_rejected(self):
+        w = self._to_gaming()
+        w.apply(SetFlag(True)); w.next()
+        with self.assertRaises(ValidationError):
+            w.apply(Choose("scx_rusty"))
+
+    def test_gaming_off_again_drops_scheduler_from_summary(self):
+        w = self._to_gaming()
+        w.apply(SetFlag(True)); w.next(); w.next()
+        w.back(); w.back()
+        self.assertEqual(w.current_screen().key, "gaming")
+        w.apply(SetFlag(False)); w.next()
+        labels = [i.label for i in w.current_screen().items]
+        self.assertFalse(any(lb.startswith("CPU scheduler") for lb in labels))
+
+
+if __name__ == "__main__":
+    unittest.main()

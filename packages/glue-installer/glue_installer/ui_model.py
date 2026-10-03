@@ -4,8 +4,10 @@ Pure TUI wizard state machine for the Glue Linux installer.
 NO curses imports, NO I/O: takes a loaded Catalog and exposes a deterministic
 screen-by-screen wizard producing a plan.Selection. Screen sequence:
   welcome -> mode -> kernel -> init -> sessions -> shell:<sid>... ->
-  support -> gaming -> [disk] -> [form:hostname .. form:timezone] -> summary
-Minimal mode skips 'sessions', 'shell:*' and 'gaming'. The 'disk' screen
+  support -> gaming -> [scheduler] -> [disk] -> [form:hostname .. form:timezone]
+  -> summary
+Minimal mode skips 'sessions', 'shell:*' and 'gaming'. 'scheduler' (CPU
+scheduler radio) shows only when gaming is on and the catalog lists options. The 'disk' screen
 appears only when block devices are injected via Wizard(disks=...); the
 'form:*' identity screens (ADR-8) appear when ask_identity=True, backed by
 ui_forms.FormField (a password-confirm mismatch clears both fields and
@@ -25,9 +27,10 @@ from glue_installer.ui_forms import (
 # Re-exported for compat: these lived here before the ui_view split.
 from glue_installer.ui_view import (  # noqa: F401
     DE_SECTION, DISK_MANUAL_NOTICE, DISK_NOTICE, DISKMODE_NOTICE,
-    NETWORK_NOTICE_TEMPLATE, PARTITION_NOTICE, SESSIONS_NOTICE, WELCOME_NOTICE,
-    Choose, Item, Screen, SetFlag, Toggle, WizardResult,
-    partition_item, session_item, shell_item)
+    NETWORK_NOTICE_TEMPLATE, PARTITION_NOTICE, SCHEDULER_NOTICE, SESSIONS_NOTICE,
+    WELCOME_NOTICE,
+    Choose, Item, Screen, SetFlag, Toggle, WizardResult, diskmode_items,
+    mode_items, partition_item, scheduler_item, session_item, shell_item)
 
 
 class ValidationError(Exception):
@@ -74,8 +77,7 @@ class Wizard:
         self._shell_choice: dict = {}  # session_id -> shell_id
         self._support_ids: set = {t.id for t in catalog.support if t.default}
         self._gaming: bool = False
-        # CPU scheduler (roadmap 1.4): catalog default preselected, so the
-        # scheduler screen is always valid to advance past.
+        # catalog default preselected: the scheduler screen never blocks
         self._scheduler: str = next(
             (o.id for o in catalog.gaming.schedulers if o.default), "scx_lavd")
 
@@ -241,6 +243,8 @@ class Wizard:
             self._disk_mode = item_id
         elif key == "partition":
             self._partition_path = item_id
+        elif key == "scheduler":
+            self._scheduler = item_id
         elif key.startswith("shell:"):
             self._shell_choice[key.split(":", 1)[1]] = item_id
 
@@ -323,20 +327,7 @@ class Wizard:
         return self._summary_screen()
 
     def _diskmode_screen(self) -> Screen:
-        items = [
-            Item(id="erase", label="Erase a whole disk (guided)",
-                 description="Simplest: wipes the chosen disk and lets the "
-                             "installer lay out partitions automatically.",
-                 recommended=True, selected=self._disk_mode == "erase"),
-            Item(id="existing", label="Use an existing partition",
-                 description="Formats ONLY the partition you pick; everything "
-                             "else on the disk stays untouched.",
-                 selected=self._disk_mode == "existing"),
-            Item(id="manual", label="Partition manually (cfdisk)",
-                 description="Opens cfdisk on a disk of your choice to make "
-                             "room, then install into a partition you pick.",
-                 selected=self._disk_mode == "manual"),
-        ]
+        items = diskmode_items(self._disk_mode)
         return Screen(key="diskmode", title="Storage", kind="radio",
                       items=items, notice=DISKMODE_NOTICE)
 
@@ -352,20 +343,7 @@ class Wizard:
                       kind="radio", items=items, notice=PARTITION_NOTICE)
 
     def _mode_screen(self) -> Screen:
-        minimal = self._catalog.minimal
-        items = [
-            Item(
-                id="custom", label="Custom install",
-                description=(
-                    "Compose your system: kernel, init, window managers, "
-                    "support extras and gaming mode."
-                ),
-                recommended=True, selected=self._mode == "custom",
-            ),
-            Item(id="minimal", label=minimal.name,
-                 description=minimal.description,
-                 selected=self._mode == "minimal"),
-        ]
+        items = mode_items(self._mode, self._catalog.minimal)
         return Screen(key="mode", title="Installation mode",
                       kind="radio", items=items)
 
@@ -426,6 +404,12 @@ class Wizard:
         return Screen(key="gaming", title=gaming.name,
                       kind="toggle", items=[item])
 
+    def _scheduler_screen(self) -> Screen:
+        items = [scheduler_item(o, self._scheduler == o.id)
+                 for o in self._catalog.gaming.schedulers]
+        return Screen(key="scheduler", title="CPU scheduler", kind="radio",
+                      items=items, notice=SCHEDULER_NOTICE)
+
     def _summary_screen(self) -> Screen:
         kernel_map = {k.id: k for k in self._catalog.kernels}
         init_map = {i.id: i for i in self._catalog.inits}
@@ -451,6 +435,10 @@ class Wizard:
             toggle = next(t for t in self._catalog.support if t.id == tid)
             _add(f"summary:support:{tid}", f"Support: {toggle.name}")
         _add("summary:gaming", f"Gaming Mode: {'on' if self._gaming else 'off'}")
+        if self._gaming and self._catalog.gaming.schedulers:
+            sched = next(o for o in self._catalog.gaming.schedulers
+                         if o.id == self._scheduler)
+            _add("summary:scheduler", f"CPU scheduler: {sched.name}")
         if self._disks is not None:
             if self._disk_mode == "erase":
                 _add("summary:disk",
@@ -482,6 +470,7 @@ class Wizard:
             support_ids=sorted(self._support_ids),
             gaming=self._gaming,
             minimal=self._mode == "minimal",
+            scheduler=self._scheduler,
         )
 
     def to_result(self) -> WizardResult:

@@ -13,43 +13,13 @@ Warning order (documented, fixed):
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import List
 
-from glue_installer.catalog import Catalog, Session
-
-
-class PlanError(Exception):
-    """Raised for any selection validation failure. Message names the offending field/id."""
-
-
-@dataclass
-class Selection:
-    kernel_id: str
-    init_id: str
-    session_ids: List[str]
-    shell_choice: Dict[str, str]  # session_id -> shell_id, required when shell_choices non-empty
-    support_ids: List[str]
-    gaming: bool
-    minimal: bool
-    # CPU scheduler from the Gaming screen (roadmap 1.4); only consulted when
-    # gaming is True. Defaults to scx_lavd so existing callers keep working.
-    scheduler: str = "scx_lavd"
-
-
-@dataclass
-class PlannedFile:
-    path: str
-    content: str
-    mode: int  # e.g. 0o644
-
-
-@dataclass
-class InstallPlan:
-    packages: List[str]    # deduplicated, sorted alphabetically
-    services: List[str]    # deduplicated, sorted alphabetically
-    files: List[PlannedFile]  # sorted by path
-    warnings: List[str]    # in the fixed order documented above
+from glue_installer.catalog import Catalog
+from glue_installer.plan_greeter import _greeter_files
+# Re-exported: callers import these from glue_installer.plan.
+from glue_installer.plan_types import (  # noqa: F401
+    InstallPlan, PlanError, PlannedFile, Selection)
 
 
 # ---------------------------------------------------------------------------
@@ -143,150 +113,6 @@ _BASELINE_FILES: List[PlannedFile] = [
     PlannedFile(path="/etc/skel/.zshrc", content=_ZSHRC_CONTENT, mode=0o644),
 ]
 
-# ---------------------------------------------------------------------------
-# Greeter (greetd + tuigreet) — ported from the proven shell installer
-# ---------------------------------------------------------------------------
-
-# The greeter runs on a DEDICATED VT (tty7), away from the kernel console and
-# boot messages (tty1) and from the login gettys (tty1-6). This is what makes
-# tuigreet's input stay put instead of being overwritten — the gettys on
-# tty1-6 stay untouched.
-_GREETD_CONFIG_CONTENT = """\
-# /etc/greetd/config.toml — written by the Glue Linux installer.
-[terminal]
-vt = 7
-
-[default_session]
-command = "tuigreet --remember --remember-session --time --greeting 'Glue Linux' --sessions /usr/share/glue/sessions --theme 'border=yellow;text=white;prompt=yellow;time=yellow;action=yellow;button=yellow;container=black;input=white'"
-user = "greeter"
-"""
-
-_SESSIONS_DIR = "/usr/share/glue/sessions"
-_WRAPPER_DIR = "/usr/local/bin"
-
-# Poll for the compositor's Wayland socket, then start the chosen shell/bar
-# inside the same D-Bus session. Runs in the background of the wrapper's
-# inner (post-dbus) stage; gives up quietly after ~30s.
-_SHELL_AUTOSTART_TEMPLATE = """\
-    (
-        tries=0
-        while [ "$tries" -lt 150 ]; do
-            for s in "${{XDG_RUNTIME_DIR:-/run/user/$(id -u)}}"/wayland-*; do
-                if [ -S "$s" ]; then
-                    WAYLAND_DISPLAY="${{s##*/}}"; export WAYLAND_DISPLAY
-                    exec {shell_cmd}
-                fi
-            done
-            sleep 0.2
-            tries=$((tries + 1))
-        done
-    ) &
-"""
-
-# The startx bootstrap for X11 sessions: greetd/tuigreet is a TUI greeter and
-# never starts an X server, so the wrapper re-execs itself under startx first
-# (same trick as the packaged apeturewm-/nvwm-/atomwm-session wrappers).
-_X11_BOOTSTRAP = """\
-if [ -z "${DISPLAY:-}" ] && [ -z "${WAYLAND_DISPLAY:-}" ] && [ -z "${GLUE_XSTARTED:-}" ]; then
-    GLUE_XSTARTED=1; export GLUE_XSTARTED
-    exec startx "$0" -- "vt${XDG_VTNR:-1}"
-fi
-"""
-
-# Software rendering is a LAST resort: unconditionally allowing it let wlroots
-# fall back to llvmpipe on machines whose GPU merely mis-probed once — the
-# session "worked" but every client (quickshell most visibly) burned half a
-# core repainting on the CPU. Only allow the fallback when the machine truly
-# has no DRM render node (VM without virgl, exotic GPU).
-_WAYLAND_SOFTWARE_FALLBACK = """\
-if ! ls /dev/dri/renderD* >/dev/null 2>&1; then
-    export WLR_RENDERER_ALLOW_SOFTWARE=1
-fi
-"""
-
-# XWayland note (learned the hard way): NEVER export DISPLAY before the
-# compositor starts — wlroots/dwl (mango) and niri both auto-detect a set
-# DISPLAY as "run nested inside X11" and die with "Failed to open xcb
-# connection / couldn't create backend" on a real VT. X11 apps work through
-# each compositor's OWN integration instead: mango + sway have built-in
-# XWayland (xorg-xwayland + xcb-util-wm installed), niri auto-spawns
-# xwayland-satellite from PATH, mutter (GNOME) manages its own XWayland.
-
-
-def _session_wrapper_content(session: Session, shell_cmd: Optional[str]) -> str:
-    """Login-session wrapper: D-Bus session bus + PipeWire audio + the WM/DE
-    (plus startx for X11 sessions). One generated file per selected session."""
-    cmd = session.exec or session.id
-    shell_block = (
-        _SHELL_AUTOSTART_TEMPLATE.format(shell_cmd=shell_cmd)
-        if shell_cmd else ""
-    )
-    x11_block = _X11_BOOTSTRAP if session.session_type == "x11" else ""
-    wayland_env = (
-        _WAYLAND_SOFTWARE_FALLBACK if session.session_type == "wayland" else ""
-    )
-    desktop = session.desktop or session.id
-    return f"""\
-#!/bin/sh
-# glue-session-{session.id} — generated by the Glue Linux installer.
-# Brings up {'X, ' if session.session_type == 'x11' else ''}a D-Bus session bus and PipeWire audio, then starts the session.
-
-if [ "${{1:-}}" = "--inner" ]; then
-    command -v pipewire       >/dev/null 2>&1 && pipewire &
-    command -v wireplumber    >/dev/null 2>&1 && wireplumber &
-    command -v pipewire-pulse >/dev/null 2>&1 && pipewire-pulse &
-{shell_block}    exec {cmd}
-fi
-
-{x11_block}export XDG_CURRENT_DESKTOP={desktop}
-export XDG_SESSION_DESKTOP={desktop}
-export XDG_SESSION_TYPE={session.session_type}
-export XCURSOR_THEME=Adwaita
-export XCURSOR_SIZE=24
-{wayland_env}exec dbus-run-session -- sh -l "$0" --inner
-"""
-
-
-def _session_desktop_content(session: Session, shell_name: Optional[str]) -> str:
-    name = session.name if not shell_name else f"{session.name} + {shell_name}"
-    return f"""\
-[Desktop Entry]
-Name={name}
-Comment={session.description}
-Exec={_WRAPPER_DIR}/glue-session-{session.id}
-Type=Application
-DesktopNames={session.desktop or session.id}
-"""
-
-
-def _greeter_files(
-    sessions: List[Session], shell_choice: Dict[str, str], shell_map: Dict,
-) -> List[PlannedFile]:
-    """Greeter profile: /etc/greetd/config.toml plus, per selected session, a
-    wrapper script and the session entry tuigreet lists from _SESSIONS_DIR."""
-    files: List[PlannedFile] = [
-        PlannedFile(
-            path="/etc/greetd/config.toml",
-            content=_GREETD_CONFIG_CONTENT, mode=0o644,
-        ),
-    ]
-    for session in sessions:
-        shell = shell_map.get(shell_choice.get(session.id))
-        files.append(PlannedFile(
-            path=f"{_WRAPPER_DIR}/glue-session-{session.id}",
-            content=_session_wrapper_content(
-                session, shell.exec if shell else None,
-            ),
-            mode=0o755,
-        ))
-        files.append(PlannedFile(
-            path=f"{_SESSIONS_DIR}/{session.id}.desktop",
-            content=_session_desktop_content(
-                session, shell.name if shell else None,
-            ),
-            mode=0o644,
-        ))
-    return files
 
 # Rule 11: every install gets a complete Artix base system. This mirrors the
 # proven basestrap set of the original shell installer — without `base` the

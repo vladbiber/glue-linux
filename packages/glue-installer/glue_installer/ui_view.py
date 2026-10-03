@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-from glue_installer.catalog import Session, Shell
+from glue_installer.catalog import SchedulerOption, Session, Shell
 from glue_installer.ui_forms import FormField
 
 # -- notices -----------------------------------------------------------------
@@ -53,6 +53,13 @@ DISK_MANUAL_NOTICE = (
     "Choose the disk to partition. cfdisk will open on it — create or "
     "adjust partitions, write the table, and quit; you will then pick "
     "the partition to install into. Nothing else is touched."
+)
+
+SCHEDULER_NOTICE = (
+    "Gaming mode runs a sched_ext CPU scheduler on top of the CachyOS kernel. "
+    "scx_lavd is what CachyOS ships for gaming; scx_bpfland favours "
+    "interactive tasks; None keeps the kernel's built-in EEVDF scheduler. "
+    "The choice can be changed later in /etc/default/scx."
 )
 
 PARTITION_NOTICE = (
@@ -152,3 +159,37 @@ def partition_item(part, selected: bool) -> Item:
         description=f"On {part.parent_path}. Will be formatted as ext4.",
         selected=selected,
     )
+
+
+def scheduler_item(option: SchedulerOption, selected: bool) -> Item:
+    label = option.name + (" (recommended)" if option.default else "")
+    return Item(id=option.id, label=label, description=option.description,
+                recommended=option.default, selected=selected)
+
+
+def mode_items(mode: str, minimal) -> List[Item]:
+    return [
+        Item(id="custom", label="Custom install",
+             description="Compose your system: kernel, init, window managers, "
+                         "support extras and gaming mode.",
+             recommended=True, selected=mode == "custom"),
+        Item(id="minimal", label=minimal.name, description=minimal.description,
+             selected=mode == "minimal"),
+    ]
+
+
+def diskmode_items(disk_mode: str) -> List[Item]:
+    return [
+        Item(id="erase", label="Erase a whole disk (guided)",
+             description="Simplest: wipes the chosen disk and lets the "
+                         "installer lay out partitions automatically.",
+             recommended=True, selected=disk_mode == "erase"),
+        Item(id="existing", label="Use an existing partition",
+             description="Formats ONLY the partition you pick; everything "
+                         "else on the disk stays untouched.",
+             selected=disk_mode == "existing"),
+        Item(id="manual", label="Partition manually (cfdisk)",
+             description="Opens cfdisk on a disk of your choice to make "
+                         "room, then install into a partition you pick.",
+             selected=disk_mode == "manual"),
+    ]

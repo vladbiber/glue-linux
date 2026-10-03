@@ -683,8 +683,6 @@ class TestGreeterProfile(unittest.TestCase):
             self.assertIsNotNone(shell.exec, shell.id)
 
 
-if __name__ == "__main__":
-    unittest.main()
 
 
 class TestGamingFilesAndPrimeRun(unittest.TestCase):
@@ -807,3 +805,59 @@ class TestZramAndGaming(unittest.TestCase):
         for pkg in ("ntsync-autoload", "proton-cachyos-slr", "umu-launcher",
                     "proton-ge-custom-bin"):
             self.assertNotIn(pkg, plan.packages, f"Non-gaming plan has: {pkg}")
+
+
+class TestScheduler(unittest.TestCase):
+    """1.4: sched_ext scheduler package, service and config on gaming installs."""
+
+    def _plan(self, scheduler, gaming=True, init_id="dinit"):
+        catalog = load_catalog(_CATALOG_PATH)
+        sel = Selection("linux-cachyos", init_id, [], {}, [], gaming, False,
+                        scheduler=scheduler)
+        return resolve_plan(catalog, sel)
+
+    def test_default_lavd_installs_package_and_service_without_config(self):
+        plan = self._plan("scx_lavd")
+        self.assertIn("scx-scheds", plan.packages)
+        self.assertIn("scx", plan.services)
+        # the package ships its own init scripts: no scx-scheds-<init> package
+        self.assertNotIn("scx-scheds-dinit", plan.packages)
+        self.assertFalse([f for f in plan.files if f.path == "/etc/default/scx"])
+
+    def test_bpfland_writes_config_overriding_package_default(self):
+        plan = self._plan("scx_bpfland")
+        self.assertIn("scx-scheds", plan.packages)
+        conf = next(f for f in plan.files if f.path == "/etc/default/scx")
+        self.assertEqual(conf.mode, 0o644)
+        self.assertIn("SCX_SCHEDULER=scx_bpfland", conf.content)
+        self.assertIn("SCX_FLAGS=", conf.content)
+
+    def test_none_installs_nothing(self):
+        plan = self._plan("none")
+        self.assertNotIn("scx-scheds", plan.packages)
+        self.assertNotIn("scx", plan.services)
+        self.assertFalse([f for f in plan.files if f.path == "/etc/default/scx"])
+
+    def test_unknown_scheduler_is_a_plan_error(self):
+        with self.assertRaises(PlanError) as ctx:
+            self._plan("scx_rusty")
+        self.assertIn("scx_rusty", str(ctx.exception))
+
+    def test_scheduler_ignored_without_gaming(self):
+        plan = self._plan("scx_bpfland", gaming=False)
+        self.assertNotIn("scx-scheds", plan.packages)
+        self.assertNotIn("scx", plan.services)
+        self.assertFalse([f for f in plan.files if f.path == "/etc/default/scx"])
+
+    def test_synthetic_catalog_without_schedulers_uses_known_set(self):
+        sel = Selection("k-main", "dinit", [], {}, [], True, False,
+                        scheduler="scx_lavd")
+        plan = resolve_plan(_make_catalog(), sel)
+        self.assertIn("scx-scheds", plan.packages)
+        with self.assertRaises(PlanError):
+            resolve_plan(_make_catalog(), Selection(
+                "k-main", "dinit", [], {}, [], True, False, scheduler="bogus"))
+
+
+if __name__ == "__main__":
+    unittest.main()

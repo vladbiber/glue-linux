@@ -284,5 +284,49 @@ class TestNegative(unittest.TestCase):
         self._assert_catalog_error(data, "duplicate id")
 
 
+class TestSchedulers(unittest.TestCase):
+    """1.4: gaming.schedulers block."""
+
+    def _assert_catalog_error(self, data, needle):
+        path = _write_tmp(data)
+        with self.assertRaises(CatalogError) as ctx:
+            load_catalog(path)
+        self.assertIn(needle, str(ctx.exception))
+
+    def test_real_catalog_lists_lavd_bpfland_none_with_lavd_default(self):
+        cat = load_catalog(_CATALOG_PATH)
+        ids = [o.id for o in cat.gaming.schedulers]
+        self.assertEqual(ids, ["scx_lavd", "scx_bpfland", "none"])
+        self.assertEqual([o.id for o in cat.gaming.schedulers if o.default],
+                         ["scx_lavd"])
+
+    def test_schedulers_block_is_optional(self):
+        data = _load_raw()
+        del data["gaming"]["schedulers"]
+        cat = load_catalog(_write_tmp(data))
+        self.assertEqual(cat.gaming.schedulers, [])
+
+    def test_duplicate_scheduler_id(self):
+        data = _load_raw()
+        data["gaming"]["schedulers"].append(
+            copy.deepcopy(data["gaming"]["schedulers"][0]))
+        self._assert_catalog_error(data, "duplicate scheduler ids")
+
+    def test_two_defaults(self):
+        data = _load_raw()
+        data["gaming"]["schedulers"][1]["default"] = True
+        self._assert_catalog_error(data, "exactly one scheduler")
+
+    def test_no_default(self):
+        data = _load_raw()
+        data["gaming"]["schedulers"][0]["default"] = False
+        self._assert_catalog_error(data, "exactly one scheduler")
+
+    def test_scheduler_missing_field(self):
+        data = _load_raw()
+        del data["gaming"]["schedulers"][0]["description"]
+        self._assert_catalog_error(data, "description")
+
+
 if __name__ == "__main__":
     unittest.main()
