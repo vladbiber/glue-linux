@@ -417,7 +417,7 @@
           "action": "Reload bar configuration"
         }
       ],
-      "screenshot": "screenshots/noctalia.png",
+      "screenshot": "screenshots/gluewc-noctalia.png",
       "packages": [
         "noctalia-shell"
       ],

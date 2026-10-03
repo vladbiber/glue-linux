@@ -8,9 +8,11 @@ Run with:
 
 import copy
 import json
+import struct
 import sys
 import tempfile
 import unittest
+import zlib
 from pathlib import Path
 
 # Locate catalog.json relative to this file's package root
@@ -28,7 +30,6 @@ def _load_raw() -> dict:
 
 
 def _write_tmp(data: dict) -> Path:
-    """Write data as JSON to a temp file and return its Path."""
     tf = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8")
     json.dump(data, tf)
     tf.flush()
@@ -401,6 +402,97 @@ class TestSchedulers(unittest.TestCase):
         data = _load_raw()
         del data["gaming"]["schedulers"][0]["description"]
         self._assert_catalog_error(data, "description")
+
+
+class ScreenshotFilesTest(unittest.TestCase):
+    """5.6: every catalog `screenshot` is a real 1920x1080 PNG with content.
+    The runtime loader deliberately skips this (installer works without pictures)."""
+
+    SCREENSHOTS_DIR = _PKG_ROOT / "catalog" / "screenshots"
+    # the only names the roadmap allows (5.6): 3 headless + 4 DEs
+    ALLOWED = {"gluewc-glueqs.png", "gluewc-noctalia.png", "nvwm.png",
+               "kde-plasma.png", "xfce.png", "gnome.png", "cinnamon.png"}
+    # fetched from the projects' official sources in 5.6 part 2; not on disk yet
+    PENDING_FROM_WEB = {"kde-plasma.png", "xfce.png", "gnome.png", "cinnamon.png"}
+    WIDTH, HEIGHT = 1920, 1080
+
+    @staticmethod
+    def _png_chunks(data):
+        if data[:8] != b"\x89PNG\r\n\x1a\n":
+            raise ValueError("not a PNG")
+        chunks, pos = [], 8
+        while pos + 8 <= len(data):
+            length = struct.unpack(">I", data[pos:pos + 4])[0]
+            chunks.append((data[pos + 4:pos + 8], data[pos + 8:pos + 8 + length]))
+            pos += 12 + length
+        return chunks
+
+    @classmethod
+    def _distinct_pixels(cls, chunks, width, height, color_type):
+        """Decode IDAT (8-bit gray/RGB/RGBA, PNG filters 0-4) and return how
+        many distinct pixel values appear (capped at 2)."""
+        bpp = {0: 1, 2: 3, 4: 2, 6: 4}[color_type]
+        raw = zlib.decompress(b"".join(d for t, d in chunks if t == b"IDAT"))
+        stride = width * bpp
+        prev, seen = bytearray(stride), set()
+        for y in range(height):
+            off = y * (stride + 1)
+            ftype, line = raw[off], bytearray(raw[off + 1:off + 1 + stride])
+            for i in range(stride):
+                a, b = (line[i - bpp] if i >= bpp else 0), prev[i]
+                c = prev[i - bpp] if i >= bpp else 0
+                if ftype == 1:
+                    line[i] = (line[i] + a) & 0xFF
+                elif ftype == 2:
+                    line[i] = (line[i] + b) & 0xFF
+                elif ftype == 3:
+                    line[i] = (line[i] + (a + b) // 2) & 0xFF
+                elif ftype == 4:
+                    p = a + b - c
+                    pa, pb, pc = abs(p - a), abs(p - b), abs(p - c)
+                    pred = a if pa <= pb and pa <= pc else (b if pb <= pc else c)
+                    line[i] = (line[i] + pred) & 0xFF
+            for x in range(width):
+                seen.add(bytes(line[x * bpp:(x + 1) * bpp]))
+                if len(seen) >= 2:
+                    return len(seen)
+            prev = line
+        return len(seen)
+
+    def _referenced(self):
+        raw = _load_raw()
+        return [(e["id"], e["screenshot"]) for e in raw["sessions"] + raw["shells"]]
+
+    def test_pending_set_is_exactly_the_four_desktop_environments(self):
+        self.assertEqual(self.PENDING_FROM_WEB,
+                         {"kde-plasma.png", "xfce.png", "gnome.png", "cinnamon.png"})
+        self.assertTrue(self.PENDING_FROM_WEB < self.ALLOWED)
+
+    def test_every_screenshot_is_a_png_under_screenshots_dir(self):
+        for entry_id, shot in self._referenced():
+            with self.subTest(entry=entry_id):
+                self.assertEqual(shot, "screenshots/" + Path(shot).name, shot)
+                self.assertTrue(shot.endswith(".png"), shot)
+                self.assertIn(Path(shot).name, self.ALLOWED)
+
+    def test_headless_screenshots_exist_1920x1080_with_content(self):
+        checked = set()
+        for entry_id, shot in self._referenced():
+            name = Path(shot).name
+            if name in self.PENDING_FROM_WEB or name in checked:
+                continue
+            checked.add(name)
+            with self.subTest(entry=entry_id, file=name):
+                path = self.SCREENSHOTS_DIR / name
+                self.assertTrue(path.is_file(), f"{name} missing on disk")
+                chunks = self._png_chunks(path.read_bytes())
+                self.assertEqual(chunks[0][0], b"IHDR")
+                w, h, depth, ctype = struct.unpack(">IIBBBBB", chunks[0][1])[:4]
+                self.assertEqual((w, h), (self.WIDTH, self.HEIGHT), name)
+                self.assertEqual((depth, ctype in (0, 2, 4, 6)), (8, True), name)
+                self.assertGreaterEqual(self._distinct_pixels(chunks, w, h, ctype), 2,
+                                        f"{name} is a single colour, not a capture")
+        self.assertEqual(checked, {"gluewc-glueqs.png", "gluewc-noctalia.png", "nvwm.png"})
 
 
 if __name__ == "__main__":
