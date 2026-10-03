@@ -83,6 +83,13 @@ systemd may not work on Glue Linux.
 The appearance can be changed live from **Settings → Appearance**. The choice
 is kept for the next launch.
 
+On a Gentoo development machine with PyGObject, GTK4 and libadwaita installed,
+preview the current interface directly from the checkout:
+
+```sh
+sh scripts/run-glue-hub-dev.sh
+```
+
 | Glue | Vitrină | Mozaic |
 | --- | --- | --- |
 | ![Glue Hub with the Glue theme](packages/glue-hub/screenshots/glue.png) | ![Glue Hub with the Vitrină theme](packages/glue-hub/screenshots/vitrina.png) | ![Glue Hub with the Mozaic theme](packages/glue-hub/screenshots/mozaic.png) |

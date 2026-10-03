@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-import json
 import subprocess
+import json
 from pathlib import Path
 
 from gi.repository import GLib, Gtk
 
 from .system import system_summary
+from .keybindings import binding_rows, load_shell_choices
 
 
 def base_page(title: str, subtitle: str = "") -> Gtk.Box:
@@ -25,7 +26,7 @@ def base_page(title: str, subtitle: str = "") -> Gtk.Box:
     return page
 
 
-def home_page(open_apps) -> tuple[Gtk.Widget, Gtk.Widget, Gtk.Widget]:
+def home_page(open_apps, disable_autostart) -> tuple[Gtk.Widget, Gtk.Widget, Gtk.Widget]:
     page = base_page(
         "Bine ai venit", "Aplicații, actualizări și setările importante ale sistemului.")
     hero = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
@@ -40,6 +41,9 @@ def home_page(open_apps) -> tuple[Gtk.Widget, Gtk.Widget, Gtk.Widget]:
     button.add_css_class("suggested-action")
     button.connect("clicked", lambda _button: open_apps())
     hero.append(button)
+    hide = Gtk.Button(label="Nu mai arăta la pornire", halign=Gtk.Align.START)
+    hide.connect("clicked", lambda button: (disable_autostart(), button.set_visible(False)))
+    hero.append(hide)
     page.append(hero)
     tiles = Gtk.Grid(column_spacing=10, row_spacing=10)
     for index, label in enumerate(("Internet", "Media", "Jocuri", "Utilitare")):
@@ -61,14 +65,14 @@ def keys_page() -> Gtk.Widget:
     desktop = GLib.getenv("XDG_CURRENT_DESKTOP") or "gluewc"
     try:
         data = json.loads(catalog_path.read_text())
-        session = next((s for s in data["sessions"]
-                        if s["id"].casefold() in desktop.casefold()), data["sessions"][0])
-        for binding in session.get("keybindings", []):
-            page.append(Gtk.Label(
-                label=f"{binding['keys']}    {binding['action']}", xalign=0))
+        choices = load_shell_choices(Path("/etc/glue/session.conf"))
+        session_id, rows = binding_rows(data, desktop, choices)
+        for keys, action in rows:
+            page.append(Gtk.Label(label=f"{keys}    {action}", xalign=0))
     except (OSError, ValueError, KeyError, IndexError):
+        session_id = desktop.casefold().split(":", 1)[0]
         page.append(Gtk.Label(label="Catalogul de taste nu este disponibil.", xalign=0))
-    config = Path.home() / ".config" / desktop.casefold().split(":", 1)[0]
+    config = Path.home() / ".config" / session_id
     button = Gtk.Button(label="Deschide configul", halign=Gtk.Align.START)
     button.connect("clicked", lambda _button: subprocess.Popen(["xdg-open", str(config)]))
     page.append(button)

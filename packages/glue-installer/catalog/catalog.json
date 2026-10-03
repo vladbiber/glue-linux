@@ -99,6 +99,10 @@
         {
           "keys": "Super+Shift+s",
           "action": "Screenshot a region to the clipboard"
+        },
+        {
+          "keys": "Super+Shift+F1",
+          "action": "Open Glue Hub"
         }
       ],
       "screenshot": "screenshots/gluewc-glueqs.png",
@@ -148,6 +152,10 @@
         {
           "keys": "Super+1-9",
           "action": "Switch to workspace 1-9"
+        },
+        {
+          "keys": "Super+Shift+F1",
+          "action": "Open Glue Hub"
         }
       ],
       "screenshot": "screenshots/nvwm.png",

@@ -88,6 +88,10 @@ def _session_wrapper_content(session: Session, shell_cmd: Optional[str]) -> str:
     wayland_env = (
         _WAYLAND_SOFTWARE_FALLBACK if session.session_type == "wayland" else ""
     )
+    hub_block = (
+        "    command -v glue-hub >/dev/null 2>&1 && glue-hub --autostart &\n"
+        if session.kind == "wm" else ""
+    )
     desktop = session.desktop or session.id
     return f"""\
 #!/bin/sh
@@ -98,7 +102,7 @@ if [ "${{1:-}}" = "--inner" ]; then
     command -v pipewire       >/dev/null 2>&1 && pipewire &
     command -v wireplumber    >/dev/null 2>&1 && wireplumber &
     command -v pipewire-pulse >/dev/null 2>&1 && pipewire-pulse &
-{shell_block}    exec {cmd}
+{hub_block}{shell_block}    exec {cmd}
 fi
 
 {x11_block}export XDG_CURRENT_DESKTOP={desktop}
@@ -131,6 +135,13 @@ def _greeter_files(
         PlannedFile(
             path="/etc/greetd/config.toml",
             content=_GREETD_CONFIG_CONTENT, mode=0o644,
+        ),
+        PlannedFile(
+            path="/etc/glue/session.conf",
+            content=("[session]\n" + "".join(
+                f"shell.{session_id}={shell_id}\n"
+                for session_id, shell_id in sorted(shell_choice.items()))),
+            mode=0o644,
         ),
     ]
     for session in sessions:

@@ -16,6 +16,8 @@ packages/glue-installer/pacman.conf
 # git clones makepkg creates from VCS sources
 packages/apeturewm/apeturewm/
 packages/atomwm/atomwm/
+packages/gluewc/gluewc/
+packages/nvwm/nvwm/
 # tooling
 __pycache__/
 *.pyc

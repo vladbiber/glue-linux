@@ -1,7 +1,7 @@
 # Maintainer: Glue Linux
 pkgname=nvwm
-pkgver=r1
-pkgrel=2
+pkgver=r36.370f3f5
+pkgrel=1
 pkgdesc="Light and strong BSP tiling window manager for X11 with built-in per-monitor bar"
 arch=('x86_64')
 url="https://github.com/Vifuddyxg/nvwm"
@@ -33,6 +33,10 @@ prepare() {
     # whitespace (" bind_insert", current HEAD). pactl/playerctl/brightnessctl
     # are hard deps of this package so the spawns always work.
     sed -i -E 's/^[[:space:]#]*(bind_insert = XF86)/\1/' config.conf
+    grep -q '^bind_insert = mod+F1 = spawn:playerctl play-pause$' config.conf ||
+        printf '\nbind_insert = mod+F1 = spawn:playerctl play-pause\n' >> config.conf
+    grep -q '^bind_insert = mod+shift+F1 = spawn:glue-hub$' config.conf ||
+        printf '\nbind_insert = mod+shift+F1 = spawn:glue-hub\n' >> config.conf
     # all 8 XF86 binds must be live at column 0 after normalization
     [ "$(grep -c '^bind_insert = XF86' config.conf)" -ge 8 ] || {
         echo "ERROR: XF86 keybind uncomment failed" >&2; exit 1; }

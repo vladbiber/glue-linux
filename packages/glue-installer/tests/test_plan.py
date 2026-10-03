@@ -764,6 +764,18 @@ class TestGamingFilesAndPrimeRun(unittest.TestCase):
         self.assertIn("store=1", enabled_cfg.content)
         self.assertIn("store=0", disabled_cfg.content)
 
+    def test_glue_hub_autostarts_in_wm_wrapper(self):
+        catalog = load_catalog(_CATALOG_PATH)
+        plan = resolve_plan(catalog, Selection(
+            "linux-cachyos", "dinit", ["gluewc"], {"gluewc": "glueqs"},
+            ["app-store"], False, False))
+        wrapper = next(f for f in plan.files
+                       if f.path == "/usr/local/bin/glue-session-gluewc")
+        self.assertIn("glue-hub --autostart &", wrapper.content)
+        session_cfg = next(f for f in plan.files
+                           if f.path == "/etc/glue/session.conf")
+        self.assertIn("shell.gluewc=glueqs", session_cfg.content)
+
 
 # ---------------------------------------------------------------------------
 # Zram (roadmap 1.2) and gaming additions (roadmap 1.3)

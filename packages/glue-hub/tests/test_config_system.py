@@ -9,6 +9,7 @@ ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
 
 from glue_hub.config import HubConfig, THEMES, load_layout, validate_themes
+from glue_hub.keybindings import binding_rows, load_shell_choices
 from glue_hub.system import parse_checkupdates, parse_flatpak_updates, parse_sensors
 
 
@@ -73,6 +74,26 @@ class TestHelpers(unittest.TestCase):
         done = self._run("update.sh")
         self.assertEqual(done.returncode, 0)
         self.assertIn("pacman -Syu", done.stdout)
+
+
+class TestKeybindings(unittest.TestCase):
+    def test_current_session_includes_selected_shell(self):
+        data = {
+            "sessions": [{"id": "gluewc", "keybindings": [
+                {"keys": "Super+F1", "action": "Audio"}]}],
+            "shells": [{"id": "noctalia", "keybindings": [
+                {"keys": "Super+n", "action": "Notificări"}]}],
+        }
+        session, rows = binding_rows(
+            data, "gluewc", {"shell.gluewc": "noctalia"})
+        self.assertEqual(session, "gluewc")
+        self.assertEqual(rows, [("Super+F1", "Audio"), ("Super+n", "Notificări")])
+
+    def test_load_choices(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "session.conf"
+            path.write_text("[session]\nshell.gluewc=glueqs\n")
+            self.assertEqual(load_shell_choices(path), {"shell.gluewc": "glueqs"})
 
 
 if __name__ == "__main__":

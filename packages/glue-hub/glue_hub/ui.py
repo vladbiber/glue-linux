@@ -99,7 +99,7 @@ class HubWindow(Adw.ApplicationWindow):
         self.sidebar = sidebar
 
         home, self.home_hero, self.home_tiles = home_page(
-            lambda: self.stack.set_visible_child_name("apps"))
+            lambda: self.stack.set_visible_child_name("apps"), self._disable_autostart)
         self.stack.add_named(home, "home")
         self.stack.add_named(self._apps_page(), "apps")
         self.stack.add_named(self._updates_page(), "updates")
@@ -456,9 +456,10 @@ class HubWindow(Adw.ApplicationWindow):
         themes.set_selected(THEMES.index(self.config.theme))
         themes.connect("notify::selected", self._theme_selected)
         page.append(themes)
-        startup = Gtk.CheckButton(label="Arată Glue Hub la pornire", active=self.config.autostart)
-        startup.connect("toggled", self._autostart_toggled)
-        page.append(startup)
+        self.startup_toggle = Gtk.CheckButton(
+            label="Arată Glue Hub la pornire", active=self.config.autostart)
+        self.startup_toggle.connect("toggled", self._autostart_toggled)
+        page.append(self.startup_toggle)
         return page
 
     def _theme_selected(self, dropdown, _param) -> None:
@@ -469,6 +470,9 @@ class HubWindow(Adw.ApplicationWindow):
     def _autostart_toggled(self, button) -> None:
         self.config.autostart = button.get_active()
         self.config.save(self.config_path)
+
+    def _disable_autostart(self) -> None:
+        self.startup_toggle.set_active(False)
 
     def _apply_theme(self, theme: str) -> None:
         self.theme_controller.apply(theme)
