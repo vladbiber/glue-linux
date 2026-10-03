@@ -28,6 +28,7 @@ rootfs:
     - st-glue
     # --- TUI installer + its partitioning tools (must be runnable live) ---
     - glue-installer
+    - chafa
     - glue-apps
     - glue-welcome
     - flatpak

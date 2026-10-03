@@ -19,7 +19,7 @@ _REQUIRED = (
     "brightnessctl", "playerctl", "wl-clipboard", "upower",
     "power-profiles-daemon", "xdg-desktop-portal", "xdg-desktop-portal-wlr",
     "xdg-desktop-portal-gtk", "grim", "glue-installer", "glue-apps",
-    "glue-welcome", "fastfetch",
+    "glue-welcome", "fastfetch", "chafa",
 )
 _FORBIDDEN = (
     "linux-cachyos", "linux-cachyos-bore", "calamares", "gnome-software",

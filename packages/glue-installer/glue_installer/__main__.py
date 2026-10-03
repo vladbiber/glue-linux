@@ -22,6 +22,7 @@ from glue_installer.executor import (
 )
 from glue_installer.identity import IdentityError, IdentitySpec, identity_steps
 from glue_installer.plan import PlanError, Selection, resolve_plan
+from glue_installer.preview import make_show_screenshot
 from glue_installer.run_ui import (
     _INSTALL_LOG, _TZ_ENDPOINTS, autodetect_spec_timezone, detect_timezone,
     make_progress, print_log_tail, prompt_reboot, sync_clock,
@@ -313,6 +314,7 @@ def main(argv=None) -> int:
                 # the real local timezone instead of the UTC placeholder
                 detect_timezone=detect_timezone,
                 cpu_v3=_detect_cpu_v3(),
+                show_screenshot=make_show_screenshot(args.catalog.parent),
             )
         except KeyboardInterrupt:
             wizard_result = None

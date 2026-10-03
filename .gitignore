@@ -21,3 +21,5 @@ packages/nvwm/nvwm/
 # tooling
 __pycache__/
 *.pyc
+# original downloads of the DE screenshots (scripts/fetch-screenshots.sh)
+packages/glue-installer/catalog/screenshots/.cache/

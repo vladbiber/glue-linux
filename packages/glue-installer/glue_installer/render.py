@@ -28,6 +28,7 @@ STYLES = frozenset({
 
 FOOTER_TEXT = "↑/↓ move   Space toggle/choose   Enter next   B back   Q quit"
 
+PREVIEW_FOOTER_TEXT = FOOTER_TEXT + "   P preview"
 FORM_FOOTER_TEXT = "Type to edit   Backspace erase   Enter continue   ← back   Esc quit"
 
 _RECOMMENDED_SUFFIX = " (recommended)"
@@ -166,7 +167,12 @@ def render_screen(
         [(ln, "error") for ln in _wrap(str(error), width)] if error else []
     )
     detail = _detail_lines(screen.items[cursor], width) if screen.items else []
-    foot_text = FORM_FOOTER_TEXT if is_form else FOOTER_TEXT
+    if is_form:
+        foot_text = FORM_FOOTER_TEXT
+    elif screen.items and screen.items[cursor].screenshot:
+        foot_text = PREVIEW_FOOTER_TEXT
+    else:
+        foot_text = FOOTER_TEXT
     foot: List[StyledLine] = [(_fit(foot_text, width), "footer")]
 
     if is_form:

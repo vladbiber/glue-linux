@@ -12,6 +12,7 @@ from __future__ import annotations
 import curses
 from typing import Optional
 
+from glue_installer.preview import screenshot_under_cursor
 from glue_installer.render import render_screen
 from glue_installer.ui_model import (
     Choose, SetFlag, Toggle, ValidationError, Wizard, WizardResult,
@@ -244,6 +245,10 @@ def _loop(stdscr, wizard: Wizard, hooks: dict) -> Optional[WizardResult]:
         elif key in (curses.KEY_LEFT, ord("b"), ord("B")):
             wizard.back()
             cursor = 0
+        elif key in (ord("p"), ord("P")):
+            shot = screenshot_under_cursor(screen, cursor)
+            if shot and hooks.get("show_screenshot"):
+                _run_external(stdscr, lambda: hooks["show_screenshot"](shot))
         elif key in (ord("q"), ord("Q")):
             if _confirm_quit(stdscr):
                 return None
@@ -253,19 +258,21 @@ def _loop(stdscr, wizard: Wizard, hooks: dict) -> Optional[WizardResult]:
 def run_tui(catalog, disks=None, partitions=None, ask_identity: bool = False,
             identity_defaults=None, net_check=None, open_net_tool=None,
             repartition=None, detect_timezone=None,
-            cpu_v3: bool = False) -> Optional[WizardResult]:
+            cpu_v3: bool = False, show_screenshot=None) -> Optional[WizardResult]:
     """Run the full wizard in curses; returns a WizardResult, or None on quit.
 
     Optional I/O hooks (this module stays curses-only; subprocess work is
     injected by __main__): net_check() -> status str, open_net_tool() runs
     nmtui, repartition(disk_path) runs cfdisk and returns fresh partitions,
     detect_timezone() -> "Area/City" or None (GeoIP; ran once the network
-    screen confirms connectivity, prefills the identity timezone field).
+    screen confirms connectivity, prefills the identity timezone field),
+    show_screenshot(rel_path) draws a catalog screenshot (P key).
     """
     wizard = Wizard(catalog, disks=disks, ask_identity=ask_identity,
                     identity_defaults=identity_defaults, cpu_v3=cpu_v3)
     if partitions is not None:
         wizard.set_partitions(partitions)
     hooks = {"net_check": net_check, "open_net_tool": open_net_tool,
-             "repartition": repartition, "detect_timezone": detect_timezone}
+             "repartition": repartition, "detect_timezone": detect_timezone,
+             "show_screenshot": show_screenshot}
     return curses.wrapper(_loop, wizard, hooks)

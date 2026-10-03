@@ -1,0 +1,63 @@
+# Screenshot credits
+
+The pictures shown in the installer's session/shell screens (P key in the TUI).
+The four desktop-environment pictures are fetched by `scripts/fetch-screenshots.sh`
+from the URLs and hashes in `SOURCES.tsv`. Originals are not stored in the
+repository; the files here are modified copies (see "Changes" in each section).
+KDE, KDE Plasma, GNOME, Xfce and Cinnamon (and Linux Mint) names and logos are
+trademarks of their respective projects; they appear only to show what each
+session looks like and imply no endorsement of Glue Linux.
+
+## gluewc-glueqs.png
+
+- License: same license as this repository (project capture); 1920×1080 as captured
+- Source: captured headless by the Glue Linux project, `scripts/screenshots-headless.sh`
+- Shows: gluewc with the glueqs shell
+
+## gluewc-noctalia.png
+
+- License: same license as this repository (project capture); 1920×1080 as captured
+- Source: captured headless by the Glue Linux project, `scripts/screenshots-headless.sh`
+- Shows: gluewc with the Noctalia shell (Noctalia itself is a separate project, see its own license)
+
+## nvwm.png
+
+- License: same license as this repository (project capture); 1920×1080 as captured
+- Source: captured headless by the Glue Linux project, `scripts/screenshots-headless.sh`
+- Shows: nvwm with st-glue
+
+## kde-plasma.png
+
+- Original title: "Kde Plasma 6.png"
+- Author: Axo1otl (screenshot of KDE Plasma 6 software by the KDE community)
+- Source page: https://commons.wikimedia.org/wiki/File:Kde_Plasma_6.png
+- File URL: https://upload.wikimedia.org/wikipedia/commons/4/4d/Kde_Plasma_6.png
+- License: GNU GPL, as declared on the Commons file page (version not specified there): https://www.gnu.org/licenses/gpl.html
+- Changes: resized/letterboxed to 1920×1080 (background #100A02), metadata stripped
+
+## xfce.png
+
+- Original title: "XFCE 4.20.png"
+- Author: Xfce developers (author recorded as unknown on Commons; credit line points to https://www.xfce.org/about/screenshots)
+- Source page: https://commons.wikimedia.org/wiki/File:XFCE_4.20.png
+- File URL: https://upload.wikimedia.org/wikipedia/commons/e/ed/XFCE_4.20.png
+- License: GNU GPL, as declared on the Commons file page (version not specified there): https://www.gnu.org/licenses/gpl.html
+- Changes: resized/letterboxed to 1920×1080 (background #100A02), metadata stripped
+
+## gnome.png
+
+- Original title: "GNOME 43.png"
+- Author: The GNOME Project (credit on Commons: Gamingonlinux, It's FOSS)
+- Source page: https://commons.wikimedia.org/wiki/File:GNOME_43.png
+- File URL: https://upload.wikimedia.org/wikipedia/commons/f/fa/GNOME_43.png
+- License: CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0/ — this derivative is shared under the same license
+- Changes: resized/letterboxed to 1920×1080 (background #100A02), metadata stripped
+
+## cinnamon.png
+
+- Original title: "LinuxMint22-Wilma-English.png" (Cinnamon 6.2.7 on Linux Mint 22)
+- Author: Mipinggrey (own work)
+- Source page: https://commons.wikimedia.org/wiki/File:LinuxMint22-Wilma-English.png
+- File URL: https://upload.wikimedia.org/wikipedia/commons/a/ac/LinuxMint22-Wilma-English.png
+- License: GNU GPL, as declared on the Commons file page (version not specified there): https://www.gnu.org/licenses/gpl.html
+- Changes: resized/letterboxed to 1920×1080 (background #100A02), metadata stripped

@@ -412,8 +412,9 @@ class ScreenshotFilesTest(unittest.TestCase):
     # the only names the roadmap allows (5.6): 3 headless + 4 DEs
     ALLOWED = {"gluewc-glueqs.png", "gluewc-noctalia.png", "nvwm.png",
                "kde-plasma.png", "xfce.png", "gnome.png", "cinnamon.png"}
-    # fetched from the projects' official sources in 5.6 part 2; not on disk yet
-    PENDING_FROM_WEB = {"kde-plasma.png", "xfce.png", "gnome.png", "cinnamon.png"}
+    WEB = {"kde-plasma.png", "xfce.png", "gnome.png", "cinnamon.png"}
+    LICENSES = {"CC-BY-4.0", "CC-BY-SA-3.0", "CC-BY-SA-4.0", "GPL-2.0", "GPL-3.0",
+                "GPL", "CC0-1.0", "Public domain"}
     WIDTH, HEIGHT = 1920, 1080
 
     @staticmethod
@@ -463,11 +464,6 @@ class ScreenshotFilesTest(unittest.TestCase):
         raw = _load_raw()
         return [(e["id"], e["screenshot"]) for e in raw["sessions"] + raw["shells"]]
 
-    def test_pending_set_is_exactly_the_four_desktop_environments(self):
-        self.assertEqual(self.PENDING_FROM_WEB,
-                         {"kde-plasma.png", "xfce.png", "gnome.png", "cinnamon.png"})
-        self.assertTrue(self.PENDING_FROM_WEB < self.ALLOWED)
-
     def test_every_screenshot_is_a_png_under_screenshots_dir(self):
         for entry_id, shot in self._referenced():
             with self.subTest(entry=entry_id):
@@ -475,11 +471,11 @@ class ScreenshotFilesTest(unittest.TestCase):
                 self.assertTrue(shot.endswith(".png"), shot)
                 self.assertIn(Path(shot).name, self.ALLOWED)
 
-    def test_headless_screenshots_exist_1920x1080_with_content(self):
+    def test_every_referenced_screenshot_exists_and_is_1920x1080_png(self):
         checked = set()
         for entry_id, shot in self._referenced():
             name = Path(shot).name
-            if name in self.PENDING_FROM_WEB or name in checked:
+            if name in checked:
                 continue
             checked.add(name)
             with self.subTest(entry=entry_id, file=name):
@@ -492,7 +488,33 @@ class ScreenshotFilesTest(unittest.TestCase):
                 self.assertEqual((depth, ctype in (0, 2, 4, 6)), (8, True), name)
                 self.assertGreaterEqual(self._distinct_pixels(chunks, w, h, ctype), 2,
                                         f"{name} is a single colour, not a capture")
-        self.assertEqual(checked, {"gluewc-glueqs.png", "gluewc-noctalia.png", "nvwm.png"})
+        self.assertEqual(len(_load_raw()["sessions"] + _load_raw()["shells"]), 8)
+        self.assertEqual(checked, self.ALLOWED)
+
+    def test_sources_manifest_covers_web_screenshots(self):
+        lines = (self.SCREENSHOTS_DIR / "SOURCES.tsv").read_text().splitlines()
+        self.assertEqual(lines[0].split("\t"),
+                         ["file", "url", "sha256", "author", "license", "source_page"])
+        rows = [ln.split("\t") for ln in lines[1:] if ln.strip()]
+        self.assertEqual({r[0] for r in rows}, self.WEB)
+        self.assertEqual(len(rows), len(self.WEB))
+        for file, url, sha, author, lic, page in rows:
+            with self.subTest(file=file):
+                self.assertRegex(url, r"^https?://\S+$")
+                self.assertRegex(sha, r"^[0-9a-f]{64}$")
+                self.assertTrue(author.strip())
+                self.assertIn(lic, self.LICENSES)
+                self.assertRegex(page, r"^https?://\S+$")
+
+    def test_credits_mentions_every_screenshot(self):
+        text = (self.SCREENSHOTS_DIR / "CREDITS.md").read_text()
+        sections = text.split("\n## ")[1:]
+        for name in sorted(self.ALLOWED):
+            with self.subTest(file=name):
+                sec = [x for x in sections if name in x.splitlines()[0]]
+                self.assertEqual(len(sec), 1, f"{name}: need exactly one section")
+                self.assertRegex(sec[0], r"(?i)licen[sc]e")
+                self.assertIn("1920", sec[0])
 
 
 if __name__ == "__main__":

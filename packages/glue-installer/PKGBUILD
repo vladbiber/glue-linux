@@ -8,6 +8,7 @@ url="https://github.com/Vifuddyxg"
 license=('MIT')
 depends=('python' 'artools-base' 'gptfdisk' 'dosfstools' 'e2fsprogs'
          'grub' 'efibootmgr' 'util-linux')
+optdepends=('chafa: previews session screenshots in the TUI (P key)')
 # glue-install launcher and pacman.conf are staged next to this PKGBUILD
 # by scripts/make-iso.sh — makepkg won't resolve ../../ relative source paths.
 source=('glue-install'
