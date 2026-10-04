@@ -9,6 +9,8 @@
 as_root() {
     if [ "$(id -u)" = 0 ]; then "$@"; else sudo "$@"; fi
 }
+# inside the live desktop session: never start another one
+[ -n "${GLUE_LIVE_SESSION:-}" ] && return 0 2>/dev/null
 case "$(tty)" in
 /dev/tty1)
     # desktop first (once: GLUE_NOAUTO is set below, before the TUI starts);

@@ -7,3 +7,4 @@ repo/x86_64/
 packages/*/src/
 packages/*/pkg/
 packages/*/*.pkg.tar.*
+.glue-repo/

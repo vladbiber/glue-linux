@@ -3,6 +3,8 @@
 # package repo and then the ISO. Must be run with --privileged (loop devices,
 # overlayfs, squashfs) — see build.sh.
 FROM artixlinux/artixlinux:latest
+# mirror1 first: several mirrors in the default list are dead or lagging (404 on current packages)
+RUN sed -i '1i Server = https://mirror1.artixlinux.org/repos/$repo/os/$arch' /etc/pacman.d/mirrorlist
 
 # pacman's scriptlet sandbox needs network/namespace isolation that an
 # unprivileged `docker build` can't grant (landlock/unshare -> EPERM:

@@ -103,6 +103,8 @@ export XCURSOR_SIZE=24
 if ! ls /dev/dri/renderD* >/dev/null 2>&1; then
     export WLR_RENDERER_ALLOW_SOFTWARE=1
 fi
-dbus-run-session -- sh -l "$0" --inner
+# plain sh, not a login shell: that would re-run /etc/profile.d/glue-live.sh
+export GLUE_LIVE_SESSION=1
+dbus-run-session -- sh "$0" --inner
 # the desktop ended (Super+Shift+Q, crash): the caller drops to the TUI
 exit 0

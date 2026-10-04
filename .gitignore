@@ -23,3 +23,4 @@ __pycache__/
 *.pyc
 # original downloads of the DE screenshots (scripts/fetch-screenshots.sh)
 packages/glue-installer/catalog/screenshots/.cache/
+/.glue-repo/

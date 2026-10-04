@@ -13,6 +13,8 @@ OUT="$PWD/out"
 # host dir. .pkgcache persists the package cache so re-runs don't re-download.
 WORK="$PWD/.artools-work"
 PKGCACHE="$PWD/.pkgcache"
+# built [glue] packages persist here; GLUE_PKGS="a b" rebuilds only those
+GLUEREPO="$PWD/.glue-repo"
 mkdir -p "$OUT"
 
 echo ">>> building image '$IMAGE' (Artix + artools + CachyOS)"
@@ -20,7 +22,7 @@ echo ">>> building image '$IMAGE' (Artix + artools + CachyOS)"
 docker build --network=host -t "$IMAGE" .
 
 # created after the build so they don't bloat the build context
-mkdir -p "$WORK" "$PKGCACHE"
+mkdir -p "$WORK" "$PKGCACHE" "$GLUEREPO"
 
 echo ">>> running ISO build (privileged — needs loop devices / overlayfs)"
 RUN_TTY=""; [ -t 1 ] && RUN_TTY="-it"   # only attach a TTY when interactive
@@ -31,6 +33,8 @@ docker run --rm $RUN_TTY \
     -v "$OUT:/out" \
     -v "$WORK:/var/lib/artools" \
     -v "$PKGCACHE:/var/cache/pacman/pkg" \
+    -v "$GLUEREPO:/glue/repo/x86_64" \
+    -e GLUE_PKGS="${GLUE_PKGS:-}" \
     "$IMAGE"
 
 echo

@@ -135,9 +135,39 @@ class TestWrapperParity(unittest.TestCase):
         self.assertIn(polkit, self.script)
         self.assertIn("exec gluewc-session", self.wrapper)
         self.assertIn("exec gluewc-session", self.script)
-        self.assertIn('dbus-run-session -- sh -l "$0" --inner', self.script)
+        # live: plain sh, a login shell would re-source profile.d/glue-live.sh and loop
+        self.assertIn('dbus-run-session -- sh "$0" --inner', self.script)
+        self.assertNotIn("sh -l", self.script)
+        self.assertIn("export GLUE_LIVE_SESSION=1", self.script)
         self.assertIn('dbus-run-session -- sh -l "$0" --inner', self.wrapper)
         self.assertIn("/usr/bin/glue-wallpaper-init", self.script)
+
+
+class TestNoReentry(unittest.TestCase):
+    """The inner session must not start a second live session (VM boot loop, 2026-10-04)."""
+
+    def _run_hook(self, env_extra):
+        import os, subprocess, tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            marker = os.path.join(tmp, "started")
+            for name, body in (("tty", "echo /dev/tty1"),
+                               ("glue-live-session", f"touch {marker}; exit 10"),
+                               ("glue-install", "exit 0"), ("clear", "exit 0"),
+                               ("sudo", "exit 0")):
+                path = os.path.join(tmp, name)
+                with open(path, "w") as f:
+                    f.write(f"#!/bin/sh\n{body}\n")
+                os.chmod(path, 0o755)
+            env = {"PATH": f"{tmp}:/usr/bin:/bin", "HOME": tmp, **env_extra}
+            subprocess.run(["sh", "-c", f". {_PROFILE_D}"], env=env, check=False,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=20)
+            return os.path.exists(marker)
+
+    def test_tty1_login_starts_session(self):
+        self.assertTrue(self._run_hook({}))
+
+    def test_inside_session_does_not_start_again(self):
+        self.assertFalse(self._run_hook({"GLUE_LIVE_SESSION": "1"}))
 
 
 class TestProfileWiring(unittest.TestCase):
