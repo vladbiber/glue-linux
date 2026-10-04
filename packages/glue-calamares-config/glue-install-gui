@@ -1,0 +1,61 @@
+#!/bin/sh
+# glue-install-gui: start the graphical installer (Calamares) from the live ISO.
+# Live-only; without KMS use the text installer (`glue-install`).
+#
+# Test hooks (environment): GLUE_LIVE_MARKER, GLUE_KMS_GLOB,
+# GLUE_CALAMARES_CONFIG, GLUE_INSTALL_DRYRUN=1 (print the command, run nothing).
+#
+# Exit codes: 0 started / dry-run ok, 2 not on the live ISO, 3 no KMS,
+# 4 no display, 5 installer configuration missing.
+
+marker=${GLUE_LIVE_MARKER:-/run/artix/bootmnt}
+kms_glob=${GLUE_KMS_GLOB:-/dev/dri/card*}
+config_dir=${GLUE_CALAMARES_CONFIG:-/etc/calamares}
+
+if [ ! -e "$marker" ]; then
+    echo "glue-install-gui: the graphical installer only runs from the Glue Linux live ISO." >&2
+    exit 2
+fi
+
+kms=0
+# $kms_glob is expanded on purpose
+for f in $kms_glob; do
+    if [ -e "$f" ]; then
+        kms=1
+        break
+    fi
+done
+if [ "$kms" -ne 1 ]; then
+    echo "glue-install-gui: no kernel modesetting (KMS) graphics device found." >&2
+    echo "The graphical installer cannot start here. Run 'glue-install' for the text installer." >&2
+    exit 3
+fi
+
+if [ -n "$WAYLAND_DISPLAY" ]; then
+    if [ -z "$XDG_RUNTIME_DIR" ]; then
+        echo "glue-install-gui: XDG_RUNTIME_DIR is not set; cannot reach the Wayland display." >&2
+        exit 4
+    fi
+    set -- "WAYLAND_DISPLAY=$WAYLAND_DISPLAY" "XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR" \
+        "QT_QPA_PLATFORM=wayland;xcb"
+elif [ -n "$DISPLAY" ]; then
+    set -- "DISPLAY=$DISPLAY" "QT_QPA_PLATFORM=xcb"
+    [ -z "$XAUTHORITY" ] || set -- "$@" "XAUTHORITY=$XAUTHORITY"
+    [ -z "$XDG_RUNTIME_DIR" ] || set -- "$@" "XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR"
+else
+    echo "glue-install-gui: no graphical session (WAYLAND_DISPLAY and DISPLAY are unset)." >&2
+    echo "Start a desktop session first, or run 'glue-install' for the text installer." >&2
+    exit 4
+fi
+
+if [ "${GLUE_INSTALL_DRYRUN:-}" = 1 ]; then
+    echo "pkexec env $* calamares -c $config_dir"
+    exit 0
+fi
+
+if [ ! -f "$config_dir/settings.conf" ]; then
+    echo "glue-install-gui: installer configuration not found in $config_dir." >&2
+    exit 5
+fi
+
+exec pkexec env "$@" calamares -c "$config_dir"

@@ -54,6 +54,14 @@ rootfs:
     - glue-boot
     # os-prober: live-only; the installer turns its output into /etc/glue/boot.d (3.4)
     - os-prober
+    # --- graphical installer (10.2, ADR-023): Calamares, live-only. Started by
+    #     `glue-install-gui` (pkexec); the clone and the online install never
+    #     carry it (clone.py LIVE_ONLY_PACKAGES, absent from every plan) ---
+    - calamares
+    - kpmcore
+    - ckbcomp
+    - polkit
+    - glue-calamares-config
     # --- keyring/mirrorlist the installer's basestrap -C resolves on the host ---
     - cachyos-keyring
     - cachyos-mirrorlist

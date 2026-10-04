@@ -29,13 +29,15 @@ LIVE_USER = "glue"
 LIVE_ONLY_PACKAGES: Tuple[str, ...] = (
     "glue-installer", "rsync", "os-prober", "grub",
     "artix-live-dinit", "artix-live-openrc", "artix-live-runit", "artix-live-s6",
-    "artix-grub-live", "calamares", "kpmcore", "ckbcomp",
+    "artix-grub-live", "calamares", "kpmcore", "ckbcomp", "glue-calamares-config",
 )
 
 # root-overlay files of the ISO: installer autostart + passwordless sudo.
 LIVE_ONLY_FILES: Tuple[str, ...] = (
     "/etc/profile.d/glue-live.sh",
     "/etc/sudoers.d/10-glue-live",
+    "/usr/share/applications/glue-install-gui.desktop",
+    "/usr/bin/glue-install-gui",
 )
 
 # Pseudo filesystems, the target mount itself, caches/logs, the live user and

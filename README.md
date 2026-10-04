@@ -149,6 +149,10 @@ glue-linux/
 └── iso-profile/glue/    # artools profile (package lists + live overlay)
 ```
 
+The graphical installer (Calamares) is started on the live ISO with
+`glue-install-gui` (or the *Install Glue Linux* launcher); it is live-only, never
+installed on the target, and without KMS graphics it points you to the `glue-install` TUI.
+
 ## The installer, under the hood
 
 `packages/glue-installer/` is a small Python package with strictly pure

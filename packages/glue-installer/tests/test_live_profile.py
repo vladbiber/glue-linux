@@ -23,9 +23,11 @@ _REQUIRED = (
     # offline clone (3.6): rsync copies the live root; glue-boot (+limine,
     # efibootmgr) is what `glue-boot-update --deploy` needs on the target
     "rsync", "glue-boot", "limine", "efibootmgr",
+    # graphical installer (10.2)
+    "calamares", "kpmcore", "ckbcomp", "os-prober", "polkit", "glue-calamares-config",
 )
 _FORBIDDEN = (
-    "linux-cachyos", "linux-cachyos-bore", "calamares", "gnome-software",
+    "linux-cachyos", "linux-cachyos-bore", "gnome-software",
     "packagekit", "discover",
 )
 _OK_LINUX_PREFIXED = {"linux-firmware", "linux-api-headers"}

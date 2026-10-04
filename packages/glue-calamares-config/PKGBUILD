@@ -3,12 +3,12 @@
 # generated selection pages, glueinstall/gluefstab job modules and branding.
 pkgname=glue-calamares-config
 pkgver=0.2.0
-pkgrel=1
+pkgrel=2
 pkgdesc="Glue Linux installer configuration for Calamares (sequence, pages, Glue job modules, branding)"
 arch=('any')
 url="https://github.com/vladbiber/glue-linux"
 license=('GPL-3.0-or-later')
-depends=('calamares' 'glue-installer' 'glue-branding' 'glue-welcome' 'os-prober')
+depends=('calamares' 'kpmcore' 'ckbcomp' 'polkit' 'glue-installer' 'glue-branding' 'glue-welcome' 'os-prober')
 backup=('etc/calamares/settings.conf')
 source=()
 sha256sums=()
@@ -28,6 +28,10 @@ package() {
         install -Dm644 "$startdir/modules/$mod/module.desc" "$cfg/modules/$mod/module.desc"
         install -Dm644 "$startdir/modules/$mod/main.py" "$cfg/modules/$mod/main.py"
     done
+    # Launcher (live-only, ADR-023): elevates Calamares with pkexec
+    install -Dm755 "$startdir/glue-install-gui" "$pkgdir/usr/bin/glue-install-gui"
+    install -Dm644 "$startdir/glue-install-gui.desktop" \
+        "$pkgdir/usr/share/applications/glue-install-gui.desktop"
     install -Dm644 "$startdir/branding/glue/branding.desc" "$cfg/branding/glue/branding.desc"
     install -Dm644 "$startdir/branding/glue/show.qml" "$cfg/branding/glue/show.qml"
     # Logo and welcome image come from glue-welcome / glue-branding (no copies)

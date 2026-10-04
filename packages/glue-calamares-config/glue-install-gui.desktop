@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Install Glue Linux
+Comment=Install Glue Linux to this computer
+Comment[ro]=Instalează Glue Linux pe acest calculator
+Exec=glue-install-gui
+Icon=org.glue.Welcome
+Terminal=false
+Type=Application
+Categories=System;
+Keywords=install;installer;disk;
+StartupNotify=true

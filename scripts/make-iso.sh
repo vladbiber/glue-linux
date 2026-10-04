@@ -36,7 +36,7 @@ pacman -Sy --noconfirm >/dev/null 2>&1 || true
 # order matters: lib32-mangohud needs lib32-glew, glueqs needs gluewc, both from [glue]
 for pkg in glue-branding glue-settings glue-boot st-glue nvwm proton-ge-custom-bin \
            scx-scheds ananicy-cpp lib32-glew lib32-mangohud cage gluewc glueqs \
-           glue-apps glue-welcome glue-installer; do
+           glue-apps glue-welcome glue-installer glue-calamares-config; do
     echo "    -- $pkg"
     ( cd "$ROOT/packages/$pkg" && \
       sudo -u builder makepkg -f --syncdeps --noconfirm --skippgpcheck )
