@@ -1,0 +1,7 @@
+# Glue Linux: informational screenshot gallery (roadmap 5.6b lot 3).
+# QML-only view module; the packagechooser pages still own the choices.
+---
+type: "view"
+name: "gluegallery"
+interface: "qtquick"
+qmlPath: "gluegallery.qml"

@@ -22,6 +22,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Mapping, Optional
 
+from glue_installer.calamares_gallery import (
+    build_gallery_entries, render_gallery_data_js, render_gallery_qml_conf)
 from glue_installer.ui_view import SESSIONS_NOTICE
 
 
@@ -35,6 +37,7 @@ GS_PREFIX = "packagechooser_"
 SCREENSHOT_ROOT = "/usr/share/glue-installer/catalog"
 NO_SCREENSHOT = ":/images/no-selection.png"
 GAMING_ID_PREFIX = "gaming-"
+GALLERY_STEP = "gluegallery"
 
 # Calamares pages in the order the user sees them (instances of packagechooser).
 PAGE_IDS = ("gluesessions", "glueshell", "gluekernel", "glueinit", "gluegaming",
@@ -217,7 +220,10 @@ def selection_from_globalstorage(gs: Mapping, catalog) -> Dict[str, object]:
 
 def build_settings(catalog) -> Dict[str, object]:
     pages = build_pages(catalog)
-    show = list(SHOW_BEFORE) + [f"packagechooser@{p.id}" for p in pages] + list(SHOW_AFTER)
+    choosers = [f"packagechooser@{p.id}" for p in pages]
+    # Informational preview page right before the first chooser (5.6b lot 3).
+    choosers.insert(0, GALLERY_STEP)
+    show = list(SHOW_BEFORE) + choosers + list(SHOW_AFTER)
     settings: Dict[str, object] = {
         # `local` = /usr/lib/calamares/modules (system); the Glue job modules
         # (glueinstall, gluefstab) live under /etc/calamares/modules.
@@ -298,6 +304,9 @@ def render_all(catalog) -> Dict[str, str]:
     for page in pages:
         files[f"modules/{page.id}.conf"] = render_page_conf(page)
     files["gluegallery.json"] = render_gallery(pages)
+    files["modules/gluegallery.conf"] = render_gallery_qml_conf()
+    files["modules/gluegallery/GalleryData.js"] = render_gallery_data_js(
+        build_gallery_entries(pages))
     return files
 
 

@@ -49,8 +49,8 @@ class TestSequence(unittest.TestCase):
     def test_show_order_pages_between_users_and_summary(self):
         show = _phase(_SETTINGS, "show", 0)
         pages = [f"packagechooser@{p}" for p in PAGE_IDS]
-        self.assertEqual(show, ["welcome", "locale", "keyboard", "partition", "users"]
-                         + pages + ["summary"])
+        self.assertEqual(show, ["welcome", "locale", "keyboard", "partition", "users",
+                                "gluegallery"] + pages + ["summary"])
         self.assertEqual([i["id"] for i in _SETTINGS["instances"]], list(PAGE_IDS))
         for inst in _SETTINGS["instances"]:
             self.assertEqual(inst["module"], "packagechooser")
@@ -74,11 +74,14 @@ class TestSequence(unittest.TestCase):
             desc = _CFG / "modules" / name / "module.desc"
             self.assertTrue(desc.is_file(), f"{name}: neither standard nor shipped")
             self.assertIn(f'name: "{name}"', desc.read_text())
-            self.assertTrue((_CFG / "modules" / name / "main.py").is_file())
+            entry = f"{name}.qml" if name == "gluegallery" else "main.py"
+            self.assertTrue((_CFG / "modules" / name / entry).is_file())
 
     def test_committed_files_equal_generator_output(self):
         files = render_all(_CATALOG)
-        self.assertEqual(set(files), {"settings.conf", "gluegallery.json"}
+        self.assertEqual(set(files), {
+            "settings.conf", "gluegallery.json", "modules/gluegallery.conf",
+            "modules/gluegallery/GalleryData.js"}
                          | {f"modules/{p}.conf" for p in PAGE_IDS})
         for rel, text in files.items():
             self.assertEqual((_CFG / rel).read_bytes(), text.encode("utf-8"), rel)
@@ -89,6 +92,8 @@ class TestSequence(unittest.TestCase):
         except ImportError:
             self.skipTest("PyYAML not installed")
         for rel, text in render_all(_CATALOG).items():
+            if not rel.endswith(".conf"):
+                continue
             data = yaml.safe_load(text)
             self.assertIsInstance(data, dict, rel)
         settings = yaml.safe_load(render_settings_conf(_SETTINGS))
