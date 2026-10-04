@@ -120,6 +120,9 @@ GNOME/Cinnamon/nvwm and dinit/OpenRC need the online install. Once online,
 Glue Apps → *Update all* brings the system up to date (`linux-cachyos` can be
 installed from there later).
 
+On the live ISO, Glue Welcome adds an **Install Glue Linux** button that starts
+`glue-install-gui`, plus quick actions (terminal, files, browser, network).
+
 ## Terminal
 
 Every graphical session ships with **alacritty**, configured by Glue Linux

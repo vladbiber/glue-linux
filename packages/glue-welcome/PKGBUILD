@@ -1,14 +1,15 @@
 # Maintainer: Glue Linux
 pkgname=glue-welcome
 pkgver=0.3.0
-pkgrel=2
+pkgrel=3
 pkgdesc="Glue Linux welcome window: keyboard shortcuts, system information and settings"
 arch=('any')
 url="https://github.com/vladbiber/glue-linux"
 license=('GPL-3.0-only')
 depends=('glue-apps' 'python' 'polkit')
 conflicts=('glue-hub')
-optdepends=('lm_sensors: temperature on the System page'
+optdepends=('glue-calamares-config: Install button on the live ISO'
+            'lm_sensors: temperature on the System page'
             'power-profiles-daemon: power mode switch')
 source=('glue-welcome')
 sha256sums=('SKIP')

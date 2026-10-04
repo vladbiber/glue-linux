@@ -56,4 +56,39 @@ RO = {
         "Ecranul grafic de login nu este instalat.",
     "This computer uses the text login screen, which has no picture.":
         "Acest calculator folosește ecranul de login text, care nu are poză.",
+    "Welcome to Glue Linux — try it, then install it":
+        "Bun venit în Glue Linux — încearcă-l, apoi instalează-l",
+    "Install Glue Linux": "Instalează Glue Linux",
+    "Install Glue Linux on this computer. Your files on other drives are not touched "
+    "until you confirm.":
+        "Instalează Glue Linux pe acest calculator. Fișierele de pe alte discuri nu sunt "
+        "atinse până nu confirmi.",
+    "The installer is only available from the Glue Linux live USB.":
+        "Installerul este disponibil doar de pe USB-ul live Glue Linux.",
+    "The graphical installer needs a working graphics driver. Use the text installer: "
+    "open a terminal and run glue-install.":
+        "Installerul grafic are nevoie de un driver video funcțional. Folosește installerul "
+        "text: deschide un terminal și rulează glue-install.",
+    "The graphical installer is not installed on this system.":
+        "Installerul grafic nu este instalat pe acest sistem.",
+    "The installer could not reach the screen. Sign out, sign in again and try once more, "
+    "or run glue-install in a terminal.":
+        "Installerul nu a putut ajunge la ecran. Deconectează-te, reconectează-te și "
+        "încearcă din nou sau rulează glue-install într-un terminal.",
+    "The installer configuration is missing from this live USB. Run glue-install in a "
+    "terminal instead.":
+        "Configurația installerului lipsește de pe acest USB live. Rulează glue-install "
+        "într-un terminal.",
+    "The installer could not start. Run glue-install in a terminal instead.":
+        "Installerul nu a putut porni. Rulează glue-install într-un terminal.",
+    "Terminal": "Terminal",
+    "Type commands.": "Scrie comenzi.",
+    "Files": "Fișiere",
+    "Browse your files and drives.": "Răsfoiește fișierele și discurile.",
+    "Web browser": "Browser web",
+    "Go online.": "Intră pe internet.",
+    "Network": "Rețea",
+    "Connect to Wi-Fi.": "Conectează-te la Wi-Fi.",
+    "Hardware info": "Informații hardware",
+    "See what this computer has.": "Vezi ce are acest calculator.",
 }

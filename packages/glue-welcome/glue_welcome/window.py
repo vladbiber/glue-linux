@@ -5,13 +5,15 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import threading
+import time
 from pathlib import Path
 
 import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
-from gi.repository import Adw, Gio, Gtk  # noqa: E402
+from gi.repository import Adw, Gio, GLib, Gtk  # noqa: E402
 
 from glue_apps import i18n  # noqa: E402
 from glue_apps.config import AppsConfig  # noqa: E402
@@ -20,6 +22,7 @@ from glue_apps.pages import panel, panel_row, settings_page  # noqa: E402
 from glue_apps.shell import ShellWindow  # noqa: E402
 from glue_apps.widgets import clickable, grid, label  # noqa: E402
 
+from . import live
 from .login_screen import login_screen_panel
 from .keybindings import binding_rows, detect_session, load_shell_choices, running_processes
 from .strings import RO
@@ -92,26 +95,91 @@ class WelcomeWindow(ShellWindow):
     def _welcome_page(self) -> Gtk.Widget:
         page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=30,
                        css_classes=["welcome-page"])
-        page.append(self._hero())
-        page.append(self._update_banner())
+        on_live = live.is_live()
+        page.append(self._hero(on_live))
+        if on_live:
+            page.append(self._install_card())
+            page.append(self._live_actions())
+        else:
+            page.append(self._update_banner())
         page.append(self._actions())
         page.append(self._shortcuts())
         page.append(self._startup())
         return page
 
-    def _hero(self) -> Gtk.Widget:
+    def _hero(self, on_live: bool = False) -> Gtk.Widget:
         hero = Gtk.Box(spacing=24, css_classes=["welcome-hero"])
         logo = Gtk.Image.new_from_icon_name(self.ICON)
         logo.set_pixel_size(84)
         hero.append(logo)
         text = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6,
                        valign=Gtk.Align.CENTER)
-        text.append(label(_("Welcome to Glue Linux"), "welcome-title", wrap=True))
+        title = (_("Welcome to Glue Linux — try it, then install it") if on_live
+                 else _("Welcome to Glue Linux"))
+        text.append(label(title, "welcome-title", wrap=True))
         text.append(label(_("Here are the keys you will use every day. You can open this "
                             "window again with Super+Shift+F1."), "page-subtitle", wrap=True))
         hero.append(text)
         self.on_compact(lambda compact: logo.set_visible(not compact))
         return hero
+
+    def _install_card(self) -> Gtk.Widget:
+        card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10,
+                       css_classes=["panel", "update-card"])
+        card.append(label(_("Install Glue Linux"), "update-title", wrap=True))
+        card.append(label(_("Install Glue Linux on this computer. Your files on other "
+                            "drives are not touched until you confirm."),
+                          "row-subtitle", wrap=True))
+        button = Gtk.Button(label=_("Install Glue Linux"), halign=Gtk.Align.START,
+                            css_classes=["pill", "suggested-action"])
+        status = label("", "row-subtitle", wrap=True)
+        reason = live.explain_unavailable()
+        card.append(button)
+        card.append(status)
+        if reason:
+            button.set_sensitive(False)
+            status.set_text(_(reason))
+        else:
+            button.connect("clicked", lambda _b: self._spawn_install(button, status))
+        return card
+
+    def _spawn_install(self, button: Gtk.Button, status: Gtk.Label) -> None:
+        argv = live.install_command()
+        if argv is None:
+            status.set_text(_(live.explain_unavailable() or live.FAILED_TEXT))
+            return
+        try:
+            proc = subprocess.Popen(argv, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+        except OSError:
+            status.set_text(_(live.FAILED_TEXT))
+            return
+        button.set_sensitive(False)
+        status.set_text("")
+
+        def watch() -> None:
+            started = time.monotonic()
+            code = proc.wait()
+            quick_failure = code != 0 and time.monotonic() - started < 3
+            GLib.idle_add(self._install_done, button, status, code if quick_failure else 0)
+
+        threading.Thread(target=watch, daemon=True).start()
+
+    def _install_done(self, button: Gtk.Button, status: Gtk.Label, code: int) -> bool:
+        button.set_sensitive(True)
+        if code:
+            status.set_text(_(live.exit_code_message(code)))
+        return False
+
+    def _live_actions(self) -> Gtk.Widget:
+        cards = []
+        for item in live.quick_actions():
+            card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, css_classes=["action-card"])
+            card.append(label(_(item.title), "row-title"))
+            card.append(label(_(item.subtitle), "row-subtitle", wrap=True))
+            argv = list(item.argv) if item.argv else None
+            cards.append(clickable(card, (lambda a=argv: _spawn(a)) if argv
+                                   else (lambda: self.show_page("system"))))
+        return grid(cards, 2)
 
     def _update_banner(self) -> Gtk.Widget:
         banner = Gtk.Box(spacing=18, css_classes=["panel", "update-card"])
