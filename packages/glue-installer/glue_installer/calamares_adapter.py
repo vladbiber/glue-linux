@@ -255,6 +255,7 @@ def compile_adapter(
     root_bytes: int = 0, root_fstype: str = "ext4", pacman_conf: Optional[str] = None,
     gpu_vendors=None, cpu_v3: bool = False, cpu_vendor_id: str = "other",
     amd_pstate_active: bool = False, other_os: Optional[DetectResult] = None,
+    hw=None,
 ) -> AdapterResult:
     """Compile the Glue part of a Calamares install (pure).
 
@@ -302,7 +303,7 @@ def compile_adapter(
             catalog, selection, gpu_vendors=gpu_vendors, cpu_v3=cpu_v3,
             is_laptop=is_laptop, cpu_vendor_id=cpu_vendor_id,
             amd_pstate_active=amd_pstate_active, swap=swap,
-            ram_bytes=ram_bytes or None)
+            ram_bytes=ram_bytes or None, hw=hw)
     except PlanError as exc:
         raise AdapterError(f"plan error: {exc}") from exc
     warnings.extend(plan.warnings)

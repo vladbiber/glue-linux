@@ -80,10 +80,12 @@ def _host_facts():
     from glue_installer.cpu import detect_cpu_v3
     from glue_installer.disk_swap import read_ram_bytes, staged_pacman_conf
     from glue_installer.gpu import detect_gpu_vendors
+    from glue_installer.hw_compat import detect_hardware
     from glue_installer.laptop import (
         detect_amd_pstate_active, detect_cpu_vendor, detect_laptop)
     return dict(ram_bytes=read_ram_bytes(), is_laptop=detect_laptop(),
-                gpu_vendors=detect_gpu_vendors(), cpu_v3=detect_cpu_v3(),
+                gpu_vendors=detect_gpu_vendors(), hw=detect_hardware(),
+                cpu_v3=detect_cpu_v3(),
                 cpu_vendor_id=detect_cpu_vendor(),
                 amd_pstate_active=detect_amd_pstate_active(),
                 stage_conf=staged_pacman_conf)

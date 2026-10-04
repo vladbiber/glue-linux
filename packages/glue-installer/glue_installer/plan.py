@@ -16,6 +16,9 @@ from __future__ import annotations
 from typing import List
 
 from glue_installer.catalog import Catalog
+from glue_installer.plan_files import (  # noqa: F401
+    _GAMING_ENV_CONTENT, _PRIME_RUN_CONTENT, _TARGET_PACMAN_CONF,
+    _build_target_pacman_conf)
 from glue_installer.plan_greeter import _greeter_files
 from glue_installer.plan_session import session_runtime_packages
 from glue_installer.swap import ZRAMEN_CONF, SwapPlan, zramen_conf
@@ -42,80 +45,12 @@ _ZSHRC_CONTENT = """\
 [[ -o interactive ]] && command -v fastfetch >/dev/null && fastfetch
 """
 
-# The installed system's /etc/pacman.conf. basestrap -C uses the LIVE conf
-# (which also has the local file:// [glue] repo — that path does not exist
-# on the installed disk), so the target gets its own conf with the online
-# repos only. cachyos-keyring/cachyos-mirrorlist are in _ALWAYS_PACKAGES so
-# these Includes resolve and future `pacman -Syu` keeps seeing the kernel repo.
-_TARGET_PACMAN_CONF = """\
-# /etc/pacman.conf — Glue Linux (installed system)
-[options]
-HoldPkg     = pacman glibc
-Architecture = auto
-CheckSpace
-ParallelDownloads = 5
-SigLevel    = Required DatabaseOptional
-LocalFileSigLevel = Optional
-
-[system]
-Include = /etc/pacman.d/mirrorlist
-
-[world]
-Include = /etc/pacman.d/mirrorlist
-
-[galaxy]
-Include = /etc/pacman.d/mirrorlist
-
-[lib32]
-Include = /etc/pacman.d/mirrorlist
-
-[cachyos]
-Include = /etc/pacman.d/cachyos-mirrorlist
-"""
-
 # Quiet the kernel console on the installed system (ported from the proven
 # shell installer): stops kernel/udev log lines painting over the greeter's VT.
 # Written ONLY on server-like installs (no sessions, no gaming): everywhere
 # else glue-settings ships the same key in /usr/lib/sysctl.d/70-glue.conf and
 # no sysctl key may be defined in both places at once.
 _SYSCTL_QUIET_CONTENT = "kernel.printk = 3 3 3 3\n"
-
-# Gaming installs only. NVIDIA's default shader disk cache is small and
-# auto-purged, so big games (CS2 most visibly) recompile shaders on almost
-# every launch. Keep the cache and never purge it; no-ops on AMD/Intel.
-_GAMING_ENV_CONTENT = """\
-# /etc/profile.d/glue-gaming.sh — Glue Linux gaming defaults.
-export __GL_SHADER_DISK_CACHE=1
-export __GL_SHADER_DISK_CACHE_SKIP_CLEANUP=1
-export MESA_SHADER_CACHE_MAX_SIZE=12G
-export __GL_SHADER_DISK_CACHE_SIZE=12000000000
-"""
-
-# Hybrid (Optimus) laptops enumerate the iGPU first, so Steam games default
-# to it. Arch ships this wrapper as nvidia-prime; Artix has no such package,
-# so the installer writes it. Steam Launch Options:  prime-run %command%
-_PRIME_RUN_CONTENT = """\
-#!/bin/sh
-# prime-run — run a program on the NVIDIA dGPU (written by the Glue
-# Linux installer; Artix has no nvidia-prime package).
-__NV_PRIME_RENDER_OFFLOAD=1
-__NV_PRIME_RENDER_OFFLOAD_PROVIDER=NVIDIA-G0
-__GLX_VENDOR_LIBRARY_NAME=nvidia
-__VK_LAYER_NV_optimus=NVIDIA_only
-export __NV_PRIME_RENDER_OFFLOAD __NV_PRIME_RENDER_OFFLOAD_PROVIDER \\
-    __GLX_VENDOR_LIBRARY_NAME __VK_LAYER_NV_optimus
-exec "$@"
-"""
-
-def _build_target_pacman_conf(v3: bool) -> str:
-    """Return the target /etc/pacman.conf, inserting [cachyos-v3] when v3 is active."""
-    if not v3:
-        return _TARGET_PACMAN_CONF
-    return _TARGET_PACMAN_CONF.replace(
-        "[cachyos]\n",
-        "[cachyos-v3]\nInclude = /etc/pacman.d/cachyos-v3-mirrorlist\n\n[cachyos]\n",
-    )
-
 
 _BASELINE_FILES: List[PlannedFile] = [
     PlannedFile(path="/etc/skel/.bashrc", content=_BASHRC_CONTENT, mode=0o644),
@@ -223,12 +158,16 @@ def resolve_plan(
     is_laptop: bool = False, cpu_vendor_id: str = "other",
     amd_pstate_active: bool = False,
     swap: SwapPlan | None = None, ram_bytes: int | None = None,
+    hw=None,
 ) -> InstallPlan:
     """Resolve a Selection against a Catalog into a deterministic InstallPlan.
 
     gpu_vendors: detected GPU vendor set (gpu.detect_gpu_vendors()); used when
     gaming is enabled to pin explicit Vulkan drivers (catalog gpu_autodetect).
     None keeps the plan free of GPU packages (pure/unit-test contexts).
+
+    hw: optional hw_compat.HardwareProfile (NVIDIA generation, Broadcom wl,
+    firmware, microcode); None leaves the plan exactly as without it.
 
     Raises PlanError with a human-readable message naming the offending field/id
     for any validation failure.
@@ -414,6 +353,12 @@ def resolve_plan(
             from glue_installer.gpu import session_gpu_packages
             packages.update(session_gpu_packages(gpu_vendors))
 
+    # Rule 18 (roadmap 10.8): hardware compatibility packages and warnings
+    if hw is not None:
+        from glue_installer.hw_compat import apply_hw
+        warnings.extend(apply_hw(
+            packages, hw, bool(selection.session_ids), selection.gaming))
+
     # Rule 10: every enabled service needs its init-specific service package
     # (Artix ships scripts separately: greetd-dinit, bluez-runit, ...).
     for svc in sorted(services):
@@ -460,8 +405,12 @@ def resolve_plan(
             path="/etc/profile.d/glue-gaming.sh",
             content=_GAMING_ENV_CONTENT, mode=0o644,
         ))
+    if hw is not None:
+        from glue_installer.hw_compat import hw_files, proprietary_nvidia
+        files.extend(hw_files(hw))
     if gpu_vendors and "nvidia" in gpu_vendors and (
-            selection.gaming or selection.session_ids):
+            selection.gaming or selection.session_ids) and (
+            hw is None or proprietary_nvidia(hw)):
         files.append(PlannedFile(
             path="/usr/local/bin/prime-run",
             content=_PRIME_RUN_CONTENT, mode=0o755,
