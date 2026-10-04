@@ -820,6 +820,22 @@ class TestZramAndGaming(unittest.TestCase):
         self.assertIn("zstd", cfg.content)
         self.assertEqual(cfg.mode, 0o644)
 
+    def test_zramen_config_with_swap_plan_has_size(self):
+        from glue_installer.swap import GIB, swap_plan
+        catalog = _make_catalog()
+        sel = Selection("k-main", "runit", [], {}, [], False, False)
+        sp = swap_plan(16 * GIB, 500 * GIB)
+        plan = resolve_plan(catalog, sel, swap=sp, ram_bytes=16 * GIB)
+        cfg = next(f for f in plan.files if f.path == "/etc/runit/sv/zramen/conf")
+        self.assertIn("export ZRAM_COMP_ALGORITHM=zstd\n", cfg.content)
+        self.assertIn("export ZRAM_SIZE=50\n", cfg.content)
+        self.assertIn("export ZRAM_MAX_SIZE=8192\n", cfg.content)
+
+    def test_zramen_config_without_swap_plan_unchanged(self):
+        plan = self._plan("dinit")
+        cfg = next(f for f in plan.files if f.path == "/etc/dinit.d/config/zramen.conf")
+        self.assertEqual(cfg.content, "ZRAM_COMP_ALGORITHM=zstd\n")
+
     def test_zramen_config_runit_zstd(self):
         plan = self._plan("runit")
         cfg = next((f for f in plan.files if f.path == "/etc/runit/sv/zramen/conf"), None)

@@ -18,6 +18,7 @@ from typing import List
 from glue_installer.catalog import Catalog
 from glue_installer.plan_greeter import _greeter_files
 from glue_installer.plan_session import session_runtime_packages
+from glue_installer.swap import ZRAMEN_CONF, SwapPlan, zramen_conf
 # Re-exported: callers import these from glue_installer.plan.
 from glue_installer.plan_types import (  # noqa: F401
     InstallPlan, PlanError, PlannedFile, Selection)
@@ -196,16 +197,8 @@ _SERVICE_PKG_BASE = {
     "zramen": "zramen",
 }
 
-# Per-init config file path and content for zramen (zstd algorithm, Rule 14).
-# Paths verified from actual package contents (galaxy repo, 2026-09-28):
-#   zramen-dinit:  env-file = /etc/dinit.d/config/zramen.conf
-#   zramen-runit:  sourced via `. ./conf` (relative to /etc/runit/sv/zramen/)
-#   zramen-openrc: OpenRC framework sources /etc/conf.d/<service> automatically
-_ZRAMEN_CONF: dict = {
-    "dinit":  ("/etc/dinit.d/config/zramen.conf", "ZRAM_COMP_ALGORITHM=zstd\n"),
-    "runit":  ("/etc/runit/sv/zramen/conf",        "export ZRAM_COMP_ALGORITHM=zstd\n"),
-    "openrc": ("/etc/conf.d/zramen",               "ZRAM_COMP_ALGORITHM=zstd\n"),
-}
+# Per-init zramen config paths live in swap.py (single definition).
+_ZRAMEN_CONF = ZRAMEN_CONF
 
 # Rule 15 (roadmap 1.4): sched_ext CPU scheduler on gaming installs.
 # scx-scheds is a vendored [glue] package that ships its own dinit/runit/
@@ -230,6 +223,7 @@ def resolve_plan(
     catalog: Catalog, selection: Selection, gpu_vendors=None, cpu_v3: bool = False,
     is_laptop: bool = False, cpu_vendor_id: str = "other",
     amd_pstate_active: bool = False,
+    swap: SwapPlan | None = None, ram_bytes: int | None = None,
 ) -> InstallPlan:
     """Resolve a Selection against a Catalog into a deterministic InstallPlan.
 
@@ -482,8 +476,13 @@ def resolve_plan(
             mode=0o644,
         ))
 
-    if selection.init_id in _ZRAMEN_CONF:
-        zramen_path, zramen_content = _ZRAMEN_CONF[selection.init_id]
+    zramen = None
+    if swap is not None and ram_bytes:
+        zramen = zramen_conf(swap, ram_bytes, selection.init_id)
+    if zramen is None and selection.init_id in _ZRAMEN_CONF:
+        zramen = _ZRAMEN_CONF[selection.init_id]
+    if zramen is not None:
+        zramen_path, zramen_content = zramen
         files.append(PlannedFile(path=zramen_path, content=zramen_content, mode=0o644))
 
     if amd_pstate_active:
