@@ -316,6 +316,35 @@ class TestGlueinstallModule(unittest.TestCase):
         result, ran, _ = self._run({"rootMountPoint": "/", "glue_selection": {}})
         self.assertIn("refusing", result[1])
 
+    def test_missing_root_mount_is_a_clear_error(self):
+        for gs in ({"glue_selection": _SEL_KDE}, {"rootMountPoint": None, "glue_selection": _SEL_KDE},
+                   {"rootMountPoint": "", "glue_selection": _SEL_KDE}):
+            result, ran, _ = self._run(gs)
+            self.assertEqual(ran, [])
+            self.assertEqual(result[0], "Glue Linux configuration rejected")
+            self.assertIn("rootMountPoint is missing", result[1])
+        with self.assertRaises(AdapterError) as ctx:
+            check_root_mount(None, _MOUNTED)
+        self.assertIn("missing", str(ctx.exception))
+
+    def test_selection_from_packagechooser_pages(self):
+        gs = {"rootMountPoint": "/tmp/calamares-root", "firmwareType": "efi",
+              "partitions": [{"device": "/dev/sda1", "mountPoint": "/boot", "fs": "fat32"},
+                             {"device": "/dev/sda2", "mountPoint": "/", "fs": "ext4"}],
+              "packagechooser_gluesessions": "gluewc,kde-plasma",
+              "packagechooser_glueshell": "noctalia", "packagechooser_gluekernel": "linux-cachyos",
+              "packagechooser_glueinit": "openrc", "packagechooser_gluegaming": "gaming-scx_lavd",
+              "packagechooser_glueextras": "app-store,bluetooth"}
+        result, ran, _ = self._run(gs, {"selection_file": "/nonexistent.json"})
+        self.assertIsNone(result)
+        basestrap = next(s for s in ran if s.argv[0] == "basestrap").argv
+        for pkg in ("noctalia-shell", "plasma-meta", "steam", "scx-scheds", "bluez", "openrc"):
+            self.assertIn(pkg, basestrap, pkg)
+        self.assertNotIn("glueqs", basestrap)
+        result, ran, _ = self._run(dict(gs, packagechooser_gluekernel="linux-rt"))
+        self.assertEqual(ran, [])
+        self.assertIn("unknown choice", result[1])
+
     def test_selection_file_fallback_and_module_desc(self):
         import json
         import tempfile
@@ -333,7 +362,7 @@ class TestGlueinstallModule(unittest.TestCase):
                      'script: "main.py"'):
             self.assertIn(line, desc)
         self.assertIn("selection_file: /etc/glue/selection.json",
-                      (_MODULE / "glueinstall.conf").read_text())
+                      (_MODULE.parent / "glueinstall.conf").read_text())
         self.assertNotIn("import libcalamares",
                          (_PKG_ROOT / "glue_installer" / "calamares_adapter.py").read_text())
 

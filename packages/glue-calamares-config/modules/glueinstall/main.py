@@ -19,6 +19,9 @@ for _p in _PKG_PATHS:
 from glue_installer.calamares_adapter import (  # noqa: E402
     AdapterError, compile_adapter, parse_selection, swapfile_fstab_line,
 )
+from glue_installer.calamares_config import (  # noqa: E402
+    has_page_values, page_keys, selection_from_globalstorage,
+)
 from glue_installer.executor import ExecutorError, execute  # noqa: E402
 
 _DEFAULT_SELECTION_FILE = "/etc/glue/selection.json"
@@ -60,10 +63,14 @@ def _firmware(gs):
     return "uefi" if os.path.isdir("/sys/firmware/efi") else "bios"
 
 
-def _load_selection(gs, config):
+def _load_selection(gs, config, catalog):
+    """glue_selection dict > the packagechooser@glue* pages > selection_file."""
     sel = gs.value("glue_selection")
     if isinstance(sel, dict):
         return sel
+    pages = {key: gs.value(key) for key in page_keys(catalog)}
+    if has_page_values(pages):
+        return selection_from_globalstorage(pages, catalog)
     path = config.get("selection_file", _DEFAULT_SELECTION_FILE)
     with open(path, encoding="utf-8") as fh:
         return json.load(fh)
@@ -113,11 +120,14 @@ def run(execute_steps=execute, facts=None):
     config = cala.job.configuration or {}
     root_mount = gs.value("rootMountPoint")
     try:
+        if not isinstance(root_mount, str) or not root_mount:
+            raise AdapterError("rootMountPoint is missing from globalstorage: the "
+                               "mount module must run before glueinstall")
         from pathlib import Path
         from glue_installer.__main__ import find_catalog
         from glue_installer.catalog import load_catalog
         catalog = load_catalog(Path(find_catalog()))
-        selection = parse_selection(_load_selection(gs, config), catalog)
+        selection = parse_selection(_load_selection(gs, config, catalog), catalog)
         facts = dict(facts or _host_facts())
         stage_conf = facts.pop("stage_conf", None)
         firmware = _firmware(gs)

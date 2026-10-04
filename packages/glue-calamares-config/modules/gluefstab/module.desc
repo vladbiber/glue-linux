@@ -1,0 +1,7 @@
+# Glue Linux: append the swapfile line glueinstall recorded in globalstorage
+# (glue_swapfile_fstab_line) to the fstab Calamares' fstab module just wrote.
+---
+type: "job"
+name: "gluefstab"
+interface: "python"
+script: "main.py"

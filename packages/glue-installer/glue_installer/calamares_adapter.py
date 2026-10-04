@@ -164,6 +164,9 @@ def check_root_mount(root_mount: str,
     Returns the path without its trailing slash."""
     if is_mount is None:
         is_mount = os.path.ismount
+    if root_mount is None or root_mount == "":
+        raise AdapterError("rootMountPoint is missing from globalstorage: the mount "
+                           "module must run before the Glue modules")
     if not isinstance(root_mount, str) or not root_mount.startswith("/"):
         raise AdapterError(f"rootMountPoint must be an absolute path, got {root_mount!r}")
     if any(part == ".." for part in root_mount.split("/")):

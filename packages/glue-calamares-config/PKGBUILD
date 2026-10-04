@@ -1,0 +1,37 @@
+# Maintainer: Glue Linux
+# Calamares configuration for Glue Linux (roadmap 10.3, ADR-023): sequence,
+# generated selection pages, glueinstall/gluefstab job modules and branding.
+pkgname=glue-calamares-config
+pkgver=0.2.0
+pkgrel=1
+pkgdesc="Glue Linux installer configuration for Calamares (sequence, pages, Glue job modules, branding)"
+arch=('any')
+url="https://github.com/vladbiber/glue-linux"
+license=('GPL-3.0-or-later')
+depends=('calamares' 'glue-installer' 'glue-branding' 'glue-welcome' 'os-prober')
+backup=('etc/calamares/settings.conf')
+source=()
+sha256sums=()
+
+package() {
+    local cfg="$pkgdir/etc/calamares"
+    install -Dm644 "$startdir/settings.conf" "$cfg/settings.conf"
+    # Standard module configs + the generated packagechooser pages (glue*.conf)
+    local f
+    for f in "$startdir"/modules/*.conf; do
+        install -Dm644 "$f" "$cfg/modules/$(basename "$f")"
+    done
+    # Glue job modules (python): module.desc + main.py; Calamares reads their
+    # config from modules/<name>.conf (installed by the loop above)
+    local mod
+    for mod in glueinstall gluefstab; do
+        install -Dm644 "$startdir/modules/$mod/module.desc" "$cfg/modules/$mod/module.desc"
+        install -Dm644 "$startdir/modules/$mod/main.py" "$cfg/modules/$mod/main.py"
+    done
+    install -Dm644 "$startdir/branding/glue/branding.desc" "$cfg/branding/glue/branding.desc"
+    install -Dm644 "$startdir/branding/glue/show.qml" "$cfg/branding/glue/show.qml"
+    # Logo and welcome image come from glue-welcome / glue-branding (no copies)
+    ln -s /usr/share/icons/hicolor/scalable/apps/org.glue.Welcome.svg \
+        "$cfg/branding/glue/logo.svg"
+    ln -s /usr/share/backgrounds/glue/wallpaper.png "$cfg/branding/glue/welcome.png"
+}
