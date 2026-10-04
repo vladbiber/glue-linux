@@ -220,7 +220,10 @@ class TestProfileWiring(unittest.TestCase):
     def test_no_text_installer_on_live(self):
         # user request 2026-10-04: the live ISO opens the GUI installer only
         text = _PROFILE_D.read_text()
-        self.assertIn("export GLUE_NOAUTO=1", text)
+        # GLUE_NOAUTO makes glue-live-session pick the no-desktop path, so the
+        # hook must never set it before starting the session (VM boot 2026-10-04)
+        self.assertNotIn("export GLUE_NOAUTO", text)
+        self.assertLess(text.index("glue-live-session\n"), text.index("export GLUE_LIVE_TRIED=1"))
         self.assertNotIn("glue-install\n", text)
         self.assertNotIn("as_root", text)
         self.assertIn("glue-live-session", text)

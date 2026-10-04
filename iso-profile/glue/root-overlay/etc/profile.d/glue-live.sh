@@ -5,10 +5,12 @@
 [ -n "${GLUE_LIVE_SESSION:-}" ] && return 0 2>/dev/null
 case "$(tty)" in
 /dev/tty1)
-    if [ -z "${GLUE_NOAUTO:-}" ] && command -v glue-live-session >/dev/null 2>&1; then
-        export GLUE_NOAUTO=1
+    # once per login; GLUE_NOAUTO itself would make the session refuse to start
+    if [ -z "${GLUE_LIVE_TRIED:-}" ] && [ -z "${GLUE_NOAUTO:-}" ] &&
+            command -v glue-live-session >/dev/null 2>&1; then
         glue-live-session
         rc=$?
+        export GLUE_LIVE_TRIED=1
         clear
         if [ "$rc" -eq 10 ]; then
             cat <<'MSG'
