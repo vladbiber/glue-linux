@@ -254,3 +254,24 @@ class TestGluewcPkgbuildGuards(unittest.TestCase):
                     "power-profiles-daemon", "wl-clipboard", "quickshell"):
             self.assertIn(f"'{pkg}'", depends)
         self.assertNotIn("noctalia-qs", depends)
+
+
+# ---------------------------------------------------------------------------
+# nvwm PKGBUILD keeps alacritty as the default terminal (Faza 8.2)
+# ---------------------------------------------------------------------------
+
+class TestNvwmPkgbuildTerminal(unittest.TestCase):
+    def setUp(self):
+        self.text = (_PKG_ROOT.parent / "nvwm" / "PKGBUILD").read_text()
+
+    def test_no_st_rewrite(self):
+        self.assertNotIn("spawn:st", self.text)
+        self.assertNotIn("terminal       = st", self.text)
+
+    def test_alacritty_default_guard(self):
+        self.assertIn("grep -q '^terminal       = alacritty' config.conf", self.text)
+        self.assertIn("no longer defaults to alacritty", self.text)
+
+    def test_alacritty_is_a_dependency(self):
+        m = re.search(r"^depends=\((.*?)\)", self.text, re.S | re.M)
+        self.assertIn("'alacritty'", m.group(1))

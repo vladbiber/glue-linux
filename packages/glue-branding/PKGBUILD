@@ -1,23 +1,26 @@
 # Maintainer: Glue Linux
 pkgname=glue-branding
 pkgver=1
-pkgrel=7
+pkgrel=8
 pkgdesc="Glue Linux branding, default wallpaper, console palette and boot theme"
 arch=('any')
 url="https://github.com/Vifuddyxg"
 license=('MIT' 'CC0-1.0')
 depends=('kbd')                 # setvtrgb
-optdepends=('fastfetch: system info splash with the Glue logo')
-backup=('etc/glue/fastfetch.jsonc')
+optdepends=('fastfetch: system info splash with the Glue logo'
+            'alacritty: default terminal with the Glue config'
+            'ttf-liberation: terminal font (Liberation Mono)')
+backup=('etc/glue/fastfetch.jsonc' 'etc/xdg/alacritty/alacritty.toml')
 install='glue-branding.install'
 source=('logo.txt' 'fastfetch.jsonc' 'term-neutral.sh'
         'grub-theme.txt' 'grub-background.png' 'grub-icon.png'
         'os-release' 'issue'
         'palette.sh' 'palette.json'
-        'wallpaper.png' 'WALLPAPER-CREDITS.md' 'glue-wallpaper-init')
+        'wallpaper.png' 'WALLPAPER-CREDITS.md' 'glue-wallpaper-init'
+        'alacritty.toml' 'termfont')
 sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
             '29986d12aa6b234ed72eead6d7fcfb1740ac847dc9812e92b446bfd7fe5ca4ca'
-            'SKIP' 'SKIP')
+            'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
     # ----- fastfetch logo + config -----
@@ -27,6 +30,12 @@ package() {
 
     # ship fastfetch config in /etc/skel so every new user picks up the logo automatically
     install -Dm644 "$srcdir/fastfetch.jsonc" "$pkgdir/etc/skel/.config/fastfetch/config.jsonc"
+
+    # ----- alacritty: Glue config (skel for new users, /etc/xdg for the rest)
+    #       + termfont, which Ctrl+Shift +/-/Backspace call -----
+    install -Dm644 alacritty.toml "$pkgdir/etc/skel/.config/alacritty/alacritty.toml"
+    install -Dm644 alacritty.toml "$pkgdir/etc/xdg/alacritty/alacritty.toml"
+    install -Dm755 termfont "$pkgdir/usr/bin/termfont"
 
     # ----- amber palette (single source of truth for Hub, installer, regreet, Limine) -----
     install -Dm644 "$srcdir/palette.sh"   "$pkgdir/usr/share/glue/palette.sh"

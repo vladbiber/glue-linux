@@ -160,7 +160,7 @@ _DESKTOP_PACKAGES = frozenset({
     "rtkit",
     # universal terminal: several WM default configs (gluewc notably) bind
     # alacritty out of the box — every session gets a working terminal keybind
-    "alacritty",
+    "alacritty", "ttf-liberation",   # liberation = the font of the shipped alacritty.toml
     "pipewire", "wireplumber", "pipewire-pulse", "pipewire-alsa",
     "noto-fonts", "noto-fonts-emoji", "ttf-dejavu", "ttf-jetbrains-mono",
     "dunst", "dbus",

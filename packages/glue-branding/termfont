@@ -1,20 +1,18 @@
 #!/usr/bin/env bash
-# termfont - marește/micșorează persistent fontul din kitty și alacritty
+# termfont - persistently grow/shrink the alacritty font
 #
-#   termfont            # arată mărimile curente
-#   termfont +1         # ambele terminale, +1
-#   termfont -2         # ambele terminale, -2
-#   termfont kitty +1   # doar kitty
-#   termfont alacritty 12
-#   termfont reset      # kitty 14, alacritty 11
+#   termfont                  # show the current size
+#   termfont +1               # bigger by 1
+#   termfont -2               # smaller by 2
+#   termfont alacritty 12     # set an exact size
+#   termfont reset            # back to 11
 
 set -u
 
-KITTY_CONF="${KITTY_CONFIG_DIRECTORY:-$HOME/.config/kitty}/kitty.conf"
 ALA_CONF="$HOME/.config/alacritty/alacritty.toml"
+ALA_SYSTEM="/etc/xdg/alacritty/alacritty.toml"
 MIN=4
 MAX=72
-KITTY_DEFAULT=14
 ALA_DEFAULT=11
 
 die() { echo "termfont: $*" >&2; exit 1; }
@@ -24,14 +22,6 @@ clamp() { # $1 = float
         'BEGIN { if (v < lo) v = lo; if (v > hi) v = hi; printf "%.1f\n", v }'
 }
 
-get_kitty() {
-    local v
-    v=$(grep -E '^[[:space:]]*font_size[[:space:]]' "$KITTY_CONF" 2>/dev/null |
-        tail -n1 | awk '{print $2}')
-    [ -n "$v" ] || v=11.0   # default kitty
-    clamp "$v"
-}
-
 get_alacritty() {
     local v
     v=$(awk '
@@ -39,31 +29,20 @@ get_alacritty() {
         in_font && /^[[:space:]]*size[[:space:]]*=/ { gsub(/[^0-9.]/, "", $0); v = $0 }
         END { print v }
     ' "$ALA_CONF" 2>/dev/null)
-    [ -n "$v" ] || v=11.25  # default alacritty
+    [ -n "$v" ] || v=11.25  # alacritty built-in default
     clamp "$v"
-}
-
-set_kitty() {
-    local new="$1"
-    [ -f "$KITTY_CONF" ] || { mkdir -p "$(dirname "$KITTY_CONF")"; : > "$KITTY_CONF"; }
-    if grep -qE '^[[:space:]]*font_size[[:space:]]' "$KITTY_CONF"; then
-        sed -i -E "s/^[[:space:]]*font_size[[:space:]].*/font_size $new/" "$KITTY_CONF"
-    else
-        printf 'font_size %s\n' "$new" >> "$KITTY_CONF"
-    fi
-    # aplică live în ferestrele deschise (kitty reîncarcă configul la SIGUSR1)
-    local pids
-    pids=$(pidof kitty 2>/dev/null) && [ -n "$pids" ] && kill -USR1 $pids 2>/dev/null
-    echo "kitty      -> $new"
 }
 
 set_alacritty() {
     local new="$1"
-    [ -f "$ALA_CONF" ] || die "nu găsesc $ALA_CONF"
+    if [ ! -f "$ALA_CONF" ]; then
+        mkdir -p "$(dirname "$ALA_CONF")"
+        if [ -f "$ALA_SYSTEM" ]; then cp "$ALA_SYSTEM" "$ALA_CONF"; else : > "$ALA_CONF"; fi
+    fi
     if awk '/^[[:space:]]*\[/ { in_font = ($0 ~ /^[[:space:]]*\[font\][[:space:]]*$/) }
             in_font && /^[[:space:]]*size[[:space:]]*=/ { found = 1 }
             END { exit !found }' "$ALA_CONF"; then
-        # înlocuiește doar size-ul din secțiunea [font]
+        # replace only the size inside the [font] section
         awk -v new="$new" '
             /^[[:space:]]*\[/ { in_font = ($0 ~ /^[[:space:]]*\[font\][[:space:]]*$/) }
             in_font && /^[[:space:]]*size[[:space:]]*=/ && !done { print "size = " new; done = 1; next }
@@ -74,34 +53,32 @@ set_alacritty() {
     else
         printf '\n[font]\nsize = %s\n' "$new" >> "$ALA_CONF"
     fi
-    # alacritty are live_config_reload pornit implicit -> se aplică singur
+    # alacritty reloads its config live, so open windows pick this up
     echo "alacritty  -> $new"
 }
 
-apply() { # $1 = kitty|alacritty, $2 = spec
-    local term="$1" spec="$2" cur new
-    cur=$([ "$term" = kitty ] && get_kitty || get_alacritty)
+apply() { # $1 = spec
+    local spec="$1" cur new
+    cur=$(get_alacritty)
     case "$spec" in
-        show) printf '%-10s %s\n' "$term" "$cur"; return ;;
-        reset) new=$([ "$term" = kitty ] && echo "$KITTY_DEFAULT" || echo "$ALA_DEFAULT") ;;
+        show) printf '%-10s %s\n' alacritty "$cur"; return ;;
+        reset) new="$ALA_DEFAULT" ;;
         [+-]*) new=$(awk -v c="$cur" -v d="${spec#[+-]}" -v s="${spec%%[0-9.]*}" \
                     'BEGIN { print (s == "-") ? c - d : c + d }') ;;
         *)     new="$spec" ;;
     esac
-    case "$new" in ''|*[!0-9.]*) die "mărime invalidă: $spec" ;; esac
-    new=$(clamp "$new")
-    [ "$term" = kitty ] && set_kitty "$new" || set_alacritty "$new"
+    case "$new" in ''|*[!0-9.]*) die "invalid size: $spec" ;; esac
+    set_alacritty "$(clamp "$new")"
 }
 
-targets="kitty alacritty"
 spec="show"
 
 case "${1-}" in
-    kitty|alacritty) targets="$1"; spec="${2-show}" ;;
-    both|all)        spec="${2-show}" ;;
-    -h|--help)       sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
-    "")              spec="show" ;;
-    *)               spec="$1" ;;
+    alacritty)    spec="${2-show}" ;;
+    kitty)        die "only alacritty is supported" ;;
+    -h|--help)    sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    "")           spec="show" ;;
+    *)            spec="$1" ;;
 esac
 
-for t in $targets; do apply "$t" "$spec"; done
+apply "$spec"

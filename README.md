@@ -97,6 +97,13 @@ git clone https://github.com/vladbiber/glue-apps.git ../glue-apps
 sh scripts/run-glue-welcome-dev.sh
 ```
 
+## Terminal
+
+Every graphical session ships with **alacritty**, configured by Glue Linux
+(Liberation Mono 11, translucent background). Ctrl+Shift +/− changes the font size
+persistently and Ctrl+Shift+Backspace resets it. The same works from a terminal:
+`termfont +1`, `termfont -2`, `termfont 12`, `termfont reset`.
+
 ## Layout
 
 ```

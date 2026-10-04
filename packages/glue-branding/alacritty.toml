@@ -1,0 +1,72 @@
+[window]
+opacity = 0.5
+
+[font]
+size = 11.0
+
+[font.normal]
+family = "Liberation Mono"
+style = "Regular"
+
+[font.bold]
+family = "Liberation Mono"
+style = "Bold"
+
+[font.italic]
+family = "Liberation Mono"
+style = "Italic"
+
+[font.bold_italic]
+family = "Liberation Mono"
+style = "Bold Italic"
+
+[cursor.style]
+shape = "Block"
+
+[colors.primary]
+foreground = "#dddddd"
+background = "#000000"
+
+[colors.cursor]
+text = "#111111"
+cursor = "#cccccc"
+
+[colors.selection]
+text = "#000000"
+background = "#fffacd"
+
+[colors.normal]
+black = "#000000"
+red = "#cc0403"
+green = "#19cb00"
+yellow = "#cecb00"
+blue = "#0d73cc"
+magenta = "#cb1ed1"
+cyan = "#0dcdcd"
+white = "#dddddd"
+
+[colors.bright]
+black = "#767676"
+red = "#f2201f"
+green = "#23fd00"
+yellow = "#fffd00"
+blue = "#1a8fff"
+magenta = "#fd28ff"
+cyan = "#14ffff"
+white = "#ffffff"
+
+# Ctrl+Shift +/- = persistent font size (Ctrl +/- stays per-session only)
+[[keyboard.bindings]]
+key = "="
+mods = "Control|Shift"
+command = { program = "termfont", args = ["alacritty", "+1"] }
+
+[[keyboard.bindings]]
+key = "-"
+mods = "Control|Shift"
+command = { program = "termfont", args = ["alacritty", "-1"] }
+
+[[keyboard.bindings]]
+key = "Backspace"
+mods = "Control|Shift"
+command = { program = "termfont", args = ["alacritty", "reset"] }
