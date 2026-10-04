@@ -1,7 +1,7 @@
 #!/bin/sh
 # glue-live-session: tty1 of the live ISO. Starts the gluewc desktop (glueqs
-# bar + Glue Welcome) when the machine has KMS, otherwise exits 10 so that
-# /etc/profile.d/glue-live.sh falls back to the text installer. The rules are
+# bar + the graphical installer, then Glue Welcome) when the machine has KMS,
+# otherwise exits 10 and /etc/profile.d/glue-live.sh explains why. The rules are
 # the same as glue_installer/live_session.py (tests compare both).
 #
 #   glue-live-session            decide, then run the desktop or exit 10
@@ -69,7 +69,10 @@ if [ "${1:-}" = "--inner" ]; then
     start_once pipewire-pulse
     [ -x "$POLKIT_AGENT" ] && "$POLKIT_AGENT" &
     # Wayland clients need the compositor socket first
-    (wait_wayland && command -v glue-welcome >/dev/null 2>&1 && exec glue-welcome --autostart) &
+    # the live desktop opens straight into the graphical installer; Glue
+    # Welcome follows when it is closed (and stays on Super+Shift+F1)
+    (wait_wayland && { command -v glue-install-gui >/dev/null 2>&1 && glue-install-gui
+        command -v glue-welcome >/dev/null 2>&1 && exec glue-welcome --autostart; }) &
     (wait_wayland && [ -x "$WALLPAPER_INIT" ] && exec "$WALLPAPER_INIT" gluewc glueqs) &
     if command -v glueqs >/dev/null 2>&1; then
     (

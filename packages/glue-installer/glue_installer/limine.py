@@ -28,6 +28,7 @@ from glue_installer.executor import RunCommand, Step
 _CONFIG_KEYS = frozenset({
     "timeout", "default_entry", "interface_branding",
     "interface_branding_colour", "interface_help_colour", "backdrop",
+    "wallpaper", "wallpaper_style",
     "term_background", "term_foreground", "term_palette",
     "term_palette_bright", "comment", "protocol", "kernel_path",
     "module_path", "cmdline",
@@ -36,10 +37,13 @@ _CONFIG_KEYS = frozenset({
     "image_path", "partition", "mbr_id", "gpt_uuid",
 })
 
-# packages/glue-branding/palette.json: bg, lines, text (RRGGBB, no '#').
-_PALETTE_BG = "100A02"
-_PALETTE_LINES = "A66900"
-_PALETTE_TEXT = "F1B00A"
+# packages/glue-branding/palette.json boot_* colours (RRGGBB, no '#'): the
+# menu sits on the Stillwater wallpaper that glue-boot-update copies to /boot.
+_PALETTE_BG = "E9E9E7"
+_PALETTE_LINES = "3A3F44"
+_PALETTE_TEXT = "2B2F33"
+WALLPAPER_SRC = "/usr/share/backgrounds/glue/wallpaper.png"
+WALLPAPER_ESP = "glue-wallpaper.png"
 
 BASE_CMDLINE: Tuple[str, ...] = (
     "rw", "quiet", "loglevel=3", "rd.udev.log_level=3", "nowatchdog",
@@ -142,7 +146,9 @@ def limine_conf(spec: BootSpec, root_uuid: str,
         f"interface_branding_colour: {_PALETTE_TEXT}",
         f"interface_help_colour: {_PALETTE_LINES}",
         f"backdrop: {_PALETTE_BG}",
-        f"term_background: 00{_PALETTE_BG}",
+        f"wallpaper: boot():/{WALLPAPER_ESP}",
+        "wallpaper_style: stretched",
+        f"term_background: 30{_PALETTE_BG}",
         f"term_foreground: {_PALETTE_TEXT}",
         "",
         *_entry("Glue Linux", k, f"initramfs-{k}.img", cmdline),

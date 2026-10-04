@@ -1,20 +1,22 @@
+# Glue Linux live boot menu: the Stillwater wallpaper with dark grey text
+# and the red accent of the login screen.
 message-font: "Unifont Regular 16"
-message-color: "#F1B00A"
-message-bg-color: "#100A02"
+message-color: "#2B2F33"
+message-bg-color: "#E9E9E7"
 terminal-font: "Unifont Regular 16"
 desktop-image: "background.png"
-desktop-color: "#100A02"
+desktop-color: "#E9E9E7"
 title-text: ""
 
 + boot_menu {
     left = 15%
     top = 38%
-    width = 75%
+    width = 70%
     height = 45%
     item_font = "Unifont Regular 16"
-    item_color = "#A66900"
+    item_color = "#3A3F44"
     selected_item_font = "Unifont Regular 16"
-    selected_item_color= "#F1B00A"
+    selected_item_color= "#B5484D"
     icon_height = 28
     icon_width = 28
     item_height = 32

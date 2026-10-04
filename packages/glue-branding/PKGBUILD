@@ -1,12 +1,11 @@
 # Maintainer: Glue Linux
 pkgname=glue-branding
 pkgver=1
-pkgrel=10
-pkgdesc="Glue Linux branding, default wallpaper, console palette and boot theme"
+pkgrel=11
+pkgdesc="Glue Linux branding, default wallpaper and boot theme"
 arch=('any')
 url="https://github.com/Vifuddyxg"
 license=('MIT' 'CC0-1.0')
-depends=('kbd')                 # setvtrgb
 optdepends=('fastfetch: system info splash with the Glue logo'
             'alacritty: default terminal with the Glue config'
             'ttf-liberation: terminal font (Liberation Mono)'
@@ -68,27 +67,7 @@ package() {
     #       /usr/lib/os-release, which is owned by the filesystem package) -----
     install -Dm644 "$srcdir/os-release" "$pkgdir/usr/share/glue/os-release"
 
-    # ----- amber console palette (setvtrgb: red / green / blue lines) -----
-    # Color 7 = the default TTY foreground; set it to apeturewm's primary text
-    # color COL_TEXT #F1B00A (241,176,10) so console text matches the WM.
-    install -Dm644 /dev/stdin "$pkgdir/etc/glue/console-colors" <<'EOF'
-16,179,138,166,107,154,192,241,90,217,182,241,138,196,224,241
-10,64,122,105,90,90,134,176,68,88,160,176,116,114,165,176
-2,42,31,0,42,58,26,10,34,58,42,10,58,74,42,10
-EOF
-
-    # apply the palette on real TTYs at login
-    install -Dm644 /dev/stdin "$pkgdir/etc/profile.d/glue-console.sh" <<'EOF'
-# Glue amber console palette — only on real virtual terminals
-case "$(tty)" in
-    /dev/tty[0-9]*)
-        command -v setvtrgb >/dev/null 2>&1 && \
-            setvtrgb /etc/glue/console-colors 2>/dev/null
-        ;;
-esac
-EOF
-
-    # ----- issue with amber Glue banner (agetty \e escape notation); staged,
+    # ----- issue with the Glue banner (agetty \e escape notation); staged,
     #       the .install scriptlet copies it to /etc/issue (owned by filesystem) -----
     install -Dm644 "$srcdir/issue" "$pkgdir/usr/share/glue/issue"
 

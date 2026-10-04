@@ -126,14 +126,18 @@ class TestLimineConf(unittest.TestCase):
             self.assertTrue(keys)
             self.assertTrue(set(keys) <= _CONFIG_KEYS, set(keys) - _CONFIG_KEYS)
 
-    def test_amber_palette_and_no_artix(self):
+    def test_neutral_palette_wallpaper_and_no_artix(self):
         text = limine_conf(_HIB, _ROOT, _RESUME)
         self.assertNotIn("artix", text.lower())
-        self.assertIn("interface_branding_colour: F1B00A", text)
-        self.assertIn("backdrop: 100A02", text)
-        self.assertIn("term_background: 00100A02", text)
-        self.assertIn("term_foreground: F1B00A", text)
-        self.assertIn("interface_help_colour: A66900", text)
+        self.assertIn("interface_branding_colour: 2B2F33", text)
+        self.assertIn("backdrop: E9E9E7", text)
+        self.assertIn("wallpaper: boot():/glue-wallpaper.png", text)
+        self.assertIn("wallpaper_style: stretched", text)
+        self.assertIn("term_background: 30E9E9E7", text)
+        self.assertIn("term_foreground: 2B2F33", text)
+        self.assertIn("interface_help_colour: 3A3F44", text)
+        for amber in ("F1B00A", "A66900", "100A02"):
+            self.assertNotIn(amber, text)
 
     def test_comments_only_on_own_lines(self):
         for line in limine_conf(_HIB, _ROOT, _RESUME).splitlines():

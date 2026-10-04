@@ -129,9 +129,12 @@ class TestWrapperParity(unittest.TestCase):
         for tool in ("pipewire", "wireplumber", "pipewire-pulse"):
             self.assertIn(f"start_once {tool}", self.script)
             self.assertIn(f"{tool} &", self.wrapper)
-        self.assertIn("exec glue-welcome --autostart) &", self.script)
+        # live: the graphical installer first, Welcome after it closes
+        self.assertIn("(wait_wayland && { command -v glue-install-gui", self.script)
+        self.assertIn("exec glue-welcome --autostart; }) &", self.script)
+        self.assertLess(self.script.index("glue-install-gui"),
+                        self.script.index("exec glue-welcome --autostart"))
         self.assertIn("exec glue-welcome --autostart) &", self.wrapper)
-        self.assertIn("(wait_wayland && command -v glue-welcome", self.script)
         self.assertIn("(wait_wayland && command -v glue-welcome", self.wrapper)
         polkit = re.search(r"/usr/lib/polkit-gnome/\S+", self.wrapper).group(0)
         self.assertIn(polkit, self.script)
@@ -214,13 +217,14 @@ class TestProfileWiring(unittest.TestCase):
             self.assertNotIn("greetd", p.read_text(), p.name)
             self.assertNotIn("greetd", p.read_text().lower())
 
-    def test_tui_path_unchanged(self):
+    def test_no_text_installer_on_live(self):
+        # user request 2026-10-04: the live ISO opens the GUI installer only
         text = _PROFILE_D.read_text()
         self.assertIn("export GLUE_NOAUTO=1", text)
-        self.assertIn("as_root glue-install", text)
+        self.assertNotIn("glue-install\n", text)
+        self.assertNotIn("as_root", text)
         self.assertIn("glue-live-session", text)
-        # desktop attempt happens before the TUI is armed with GLUE_NOAUTO
-        self.assertLess(text.index("glue-live-session ||"), text.index("export GLUE_NOAUTO=1"))
+        self.assertIn("no /dev/dri/card*", text)
 
     def test_no_artix_in_new_texts(self):
         for p in (_SCRIPT, _LIVE_CONF, _AGETTY, _PROFILE_D):

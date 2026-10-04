@@ -155,11 +155,13 @@ emit_conf() {
     printf '# Glue Linux boot menu (written by the installer; glue-boot-update regenerates it)\n'
     printf 'timeout: %s\n' "$GLUE_BOOT_TIMEOUT"
     printf 'interface_branding: Glue Linux\n'
-    printf 'interface_branding_colour: F1B00A\n'
-    printf 'interface_help_colour: A66900\n'
-    printf 'backdrop: 100A02\n'
-    printf 'term_background: 00100A02\n'
-    printf 'term_foreground: F1B00A\n'
+    printf 'interface_branding_colour: 2B2F33\n'
+    printf 'interface_help_colour: 3A3F44\n'
+    printf 'backdrop: E9E9E7\n'
+    printf 'wallpaper: boot():/glue-wallpaper.png\n'
+    printf 'wallpaper_style: stretched\n'
+    printf 'term_background: 30E9E9E7\n'
+    printf 'term_foreground: 2B2F33\n'
     kernel_entries "$PRIMARY" "Glue Linux" "Glue Linux (fallback initramfs)"
     for k in $OTHERS; do
         kernel_entries "$k" "Glue Linux ($k)" "Glue Linux ($k, fallback initramfs)"
@@ -182,6 +184,13 @@ exec >&3 3>&-
 mv -f "$OUT.new" "$OUT"
 trap - EXIT
 log "wrote $OUT ($PRIMARY${OTHERS:+ +$OTHERS}; $FOREIGN other OS entries)"
+
+# the menu wallpaper lives next to limine.conf on the boot partition
+WALL_SRC="$ROOT/usr/share/backgrounds/glue/wallpaper.png"
+WALL_DST="$(dirname "$OUT")/glue-wallpaper.png"
+if [ -f "$WALL_SRC" ] && ! cmp -s "$WALL_SRC" "$WALL_DST"; then
+    cp -f "$WALL_SRC" "$WALL_DST" || warn "could not copy the boot menu wallpaper"
+fi
 
 [ "$DEPLOY" -eq 1 ] || exit 0
 

@@ -1,9 +1,13 @@
 {
-  "bg":     "#100A02",
-  "lines":  "#A66900",
-  "text":   "#F1B00A",
+  "bg": "#100A02",
+  "lines": "#A66900",
+  "text": "#F1B00A",
   "amber1": "#F1B00A",
   "amber2": "#A66900",
   "amber3": "#FFD75F",
-  "amber4": "#7A4E00"
+  "amber4": "#7A4E00",
+  "boot_bg": "#E9E9E7",
+  "boot_message": "#2B2F33",
+  "boot_text": "#3A3F44",
+  "boot_accent": "#B5484D"
 }
