@@ -31,16 +31,18 @@ def _session(session_id: str, session_type: str) -> Session:
 
 class ReGreetConfigTest(unittest.TestCase):
 
-    def test_toml_is_light_has_no_wallpaper_and_uses_glue_name(self):
+    def test_toml_uses_approved_wallpaper_and_glue_name(self):
         config = tomllib.loads(_REGREET_CONFIG_CONTENT)
-        self.assertNotIn("background", config)
+        self.assertEqual(config["background"]["path"],
+                         "/usr/share/backgrounds/glue/wallpaper.png")
+        self.assertEqual(config["background"]["fit"], "Cover")
         self.assertFalse(config["GTK"]["application_prefer_dark_theme"])
         self.assertEqual(config["appearance"]["greeting_msg"], "Glue Linux")
         self.assertFalse(config["skip_selection"])
 
     def test_css_uses_clean_neutral_palette_without_old_amber_theme(self):
-        for color in ("#F4F6F8", "#FFFFFF", "#172033", "#4465E9",
-                      "#D9DFE8"):
+        for color in ("#FFFFFF", "#25272B", "#B5484D", "#96363C",
+                      "#D5D7DA"):
             self.assertIn(color, _REGREET_CSS_CONTENT)
         for old_color in ("#100A02", "#A66900", "#F1B00A"):
             self.assertNotIn(old_color, _REGREET_CSS_CONTENT)
@@ -67,6 +69,17 @@ class GreeterLauncherTest(unittest.TestCase):
         self.assertIn("/usr/bin/tuigreet", _GREETER_WRAPPER_CONTENT)
         self.assertIn("--sessions /usr/share/glue/sessions",
                       _GREETER_WRAPPER_CONTENT)
+
+    def test_wrapper_installs_wallpaper_for_each_new_session(self):
+        from glue_installer.plan_greeter import _session_wrapper_content
+        wayland = _session("gluewc", "wayland")
+        x11 = _session("nvwm", "x11")
+        glueqs = _session_wrapper_content(wayland, "glueqs", "glueqs")
+        noctalia = _session_wrapper_content(wayland, "qs -c noctalia-shell", "noctalia")
+        desktop = _session_wrapper_content(x11, None)
+        self.assertIn("glue-wallpaper-init gluewc glueqs", glueqs)
+        self.assertIn("glue-wallpaper-init gluewc noctalia", noctalia)
+        self.assertIn("glue-wallpaper-init nvwm none", desktop)
 
     def test_wrapper_builds_regreet_view_from_glue_sessions(self):
         self.assertIn("/usr/share/glue/sessions/*.desktop",

@@ -1,13 +1,13 @@
-# Glue wallpaper candidate
+# Glue Linux default wallpaper
 
-- **Title:** Nature-forest-trees-fog
-- **Author:** Jaymantri
-- **Source:** https://commons.wikimedia.org/wiki/File:Nature-forest-trees-fog.jpg
-- **Original file:** https://upload.wikimedia.org/wikipedia/commons/4/4f/Nature-forest-trees-fog.jpg
+- **Title:** Stillwater
+- **Author:** Glue Linux project, generated with OpenAI image generation
+- **Selected by:** Glue Linux project maintainer
 - **License:** CC0 1.0 Universal Public Domain Dedication
-- **Original SHA-256:** `37c1419d74006a3bf5e9a10c93eb750b343684180870be6abde2f5aef2c3a4e3`
+- **Generated original:** 1672×941 PNG
+- **Generated original SHA-256:** `ccdbbfc3e52f70f6422100be65b4e4502da27b1b8014b70b9aaa88dff194cd23`
 
-The committed PNG is a centered 1920×1080 crop of the original photograph,
-with metadata removed. CC0 allows copying, modification and commercial
-redistribution without requiring permission or attribution. The credit is
-retained so the source stays easy to audit.
+The committed image is a centered 1920×1080 resize of the selected generated
+original, with metadata removed. The Glue Linux project dedicates this asset
+to the public domain under CC0 to the extent permitted by law, so it can be
+copied, modified and redistributed with the distribution.

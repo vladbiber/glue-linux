@@ -27,8 +27,11 @@ user = "greeter"
 
 _REGREET_CONFIG_CONTENT = """\
 # /etc/greetd/regreet.toml — written by the Glue Linux installer.
-# No [background] section: the default is Glue's solid CSS background.
 skip_selection = false
+
+[background]
+path = "/usr/share/backgrounds/glue/wallpaper.png"
+fit = "Cover"
 
 [GTK]
 application_prefer_dark_theme = false
@@ -46,26 +49,26 @@ x11_prefix = ["startx", "/usr/bin/env"]
 [appearance]
 greeting_msg = "Glue Linux"
 
-[widget.clock]
-format = "%a %H:%M"
-resolution = "1s"
 """
 
 _REGREET_CSS_CONTENT = """\
-/* Glue Linux ReGreet theme — clean, light and without a wallpaper. */
+/* Glue Linux ReGreet theme — neutral glass card over the default wallpaper. */
 * {
-    color: #172033;
+    color: #25272B;
 }
 
 window,
-.background,
+.background {
+    background-color: transparent;
+}
+
 .view {
-    background-color: #F4F6F8;
+    background-color: #FFFFFF;
 }
 
 frame {
-    background-color: #FFFFFF;
-    border: 1px solid #D9DFE8;
+    background-color: rgba(255, 255, 255, 0.92);
+    border: 1px solid #D5D7DA;
     border-radius: 16px;
 }
 
@@ -75,39 +78,39 @@ button * {
 }
 
 button {
-    background: #4465E9;
-    border: 1px solid #3654C7;
+    background: #B5484D;
+    border: 1px solid #96363C;
     border-radius: 10px;
 }
 
 button:hover,
 button:focus {
-    background: #3654C7;
+    background: #96363C;
 }
 
 entry,
 combobox button {
-    color: #172033;
+    color: #25272B;
     background: #FFFFFF;
-    border: 1px solid #C7D0DD;
+    border: 1px solid #C9CDD2;
     border-radius: 10px;
 }
 
 combobox button * {
-    color: #172033;
+    color: #25272B;
 }
 
 entry:focus,
 combobox button:focus {
-    border-color: #4465E9;
+    border-color: #B5484D;
 }
 """
 
 _TUIGREET_COMMAND = (
     "/usr/bin/tuigreet --remember --remember-session --time "
     "--greeting 'Glue Linux' --sessions /usr/share/glue/sessions "
-    "--theme 'border=yellow;text=white;prompt=yellow;time=yellow;"
-    "action=yellow;button=yellow;container=black;input=white'"
+    "--theme 'border=gray;text=white;prompt=red;time=white;"
+    "action=red;button=red;container=black;input=white'"
 )
 
 _GREETER_WRAPPER_CONTENT = f"""\
@@ -161,6 +164,7 @@ _SESSIONS_DIR = "/usr/share/glue/sessions"
 _WRAPPER_DIR = "/usr/local/bin"
 
 _POLKIT_AGENT = "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1"
+_WALLPAPER_INIT = "/usr/bin/glue-wallpaper-init"
 
 # Poll for the compositor's Wayland socket, then start the chosen shell/bar
 # inside the same D-Bus session. Runs in the background of the wrapper's
@@ -241,7 +245,9 @@ def _portal_file(session: Session) -> Optional[PlannedFile]:
 # via xorg-xwayland) or the compositor managing its own (mutter/GNOME).
 
 
-def _session_wrapper_content(session: Session, shell_cmd: Optional[str]) -> str:
+def _session_wrapper_content(
+    session: Session, shell_cmd: Optional[str], shell_id: Optional[str] = None,
+) -> str:
     """Login-session wrapper: D-Bus session bus + PipeWire audio + the WM/DE
     (plus startx for X11 sessions). One generated file per selected session."""
     cmd = session.exec or session.id
@@ -263,6 +269,10 @@ def _session_wrapper_content(session: Session, shell_cmd: Optional[str]) -> str:
         "    command -v glue-welcome >/dev/null 2>&1 && glue-welcome --autostart &\n"
         if session.kind == "wm" else ""
     )
+    wallpaper_block = (
+        f"    [ -x {_WALLPAPER_INIT} ] && "
+        f"{_WALLPAPER_INIT} {session.id} {shell_id or 'none'} &\n"
+    )
     desktop = session.desktop or session.id
     return f"""\
 #!/bin/sh
@@ -273,7 +283,7 @@ if [ "${{1:-}}" = "--inner" ]; then
     command -v pipewire       >/dev/null 2>&1 && pipewire &
     command -v wireplumber    >/dev/null 2>&1 && wireplumber &
     command -v pipewire-pulse >/dev/null 2>&1 && pipewire-pulse &
-{polkit_block}{welcome_block}{shell_block}    exec {cmd}
+{polkit_block}{welcome_block}{wallpaper_block}{shell_block}    exec {cmd}
 fi
 
 {x11_block}export XDG_CURRENT_DESKTOP={desktop}
@@ -333,6 +343,7 @@ def _greeter_files(
             path=f"{_WRAPPER_DIR}/glue-session-{session.id}",
             content=_session_wrapper_content(
                 session, shell.exec if shell else None,
+                shell.id if shell else None,
             ),
             mode=0o755,
         ))

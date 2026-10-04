@@ -1,8 +1,8 @@
 # Maintainer: Glue Linux
 pkgname=glue-branding
 pkgver=1
-pkgrel=6
-pkgdesc="Glue Linux branding: amber TTY palette, /etc/issue, os-release, fastfetch logo, GRUB theme"
+pkgrel=7
+pkgdesc="Glue Linux branding, default wallpaper, console palette and boot theme"
 arch=('any')
 url="https://github.com/Vifuddyxg"
 license=('MIT' 'CC0-1.0')
@@ -14,10 +14,10 @@ source=('logo.txt' 'fastfetch.jsonc' 'term-neutral.sh'
         'grub-theme.txt' 'grub-background.png' 'grub-icon.png'
         'os-release' 'issue'
         'palette.sh' 'palette.json'
-        'wallpaper.png' 'WALLPAPER-CREDITS.md')
+        'wallpaper.png' 'WALLPAPER-CREDITS.md' 'glue-wallpaper-init')
 sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
-            '7ddf1027ad461ed2c703cc8e34e54151b42f5d75153ea236cb9ce813fff85f45'
-            'SKIP')
+            '29986d12aa6b234ed72eead6d7fcfb1740ac847dc9812e92b446bfd7fe5ca4ca'
+            'SKIP' 'SKIP')
 
 package() {
     # ----- fastfetch logo + config -----
@@ -32,11 +32,17 @@ package() {
     install -Dm644 "$srcdir/palette.sh"   "$pkgdir/usr/share/glue/palette.sh"
     install -Dm644 "$srcdir/palette.json" "$pkgdir/usr/share/glue/palette.json"
 
-    # ----- optional default wallpaper (activation waits for user approval) -----
+    # ----- default wallpaper (approved for greeter and desktop sessions) -----
     install -Dm644 "$srcdir/wallpaper.png" \
         "$pkgdir/usr/share/backgrounds/glue/wallpaper.png"
     install -Dm644 "$srcdir/WALLPAPER-CREDITS.md" \
         "$pkgdir/usr/share/licenses/glue-branding/WALLPAPER-CREDITS.md"
+    install -Dm755 "$srcdir/glue-wallpaper-init" \
+        "$pkgdir/usr/bin/glue-wallpaper-init"
+    # useradd copies this marker; the login wrapper removes it after applying
+    # the default once, so later wallpaper choices remain untouched.
+    install -Dm644 /dev/null \
+        "$pkgdir/etc/skel/.local/state/glue/wallpaper-pending"
 
     # ----- os-release (staged; the .install scriptlet copies it to
     #       /usr/lib/os-release, which is owned by the filesystem package) -----

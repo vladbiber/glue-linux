@@ -103,6 +103,8 @@ inside_main() {
         die "Cage 0.3.1 is required ($(cage -v 2>&1))"
     [ "$(regreet --version)" = "regreet 0.5.0" ] || \
         die "ReGreet 0.5.0 is required ($(regreet --version))"
+    install -Dm644 /glue/packages/glue-branding/wallpaper.png \
+        /usr/share/backgrounds/glue/wallpaper.png
     generate_profile
     mkdir -p /glue/screenshots
     rm -f "$png"

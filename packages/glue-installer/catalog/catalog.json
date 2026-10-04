@@ -168,6 +168,7 @@
         "nvwm",
         "st-glue",
         "rofi",
+        "feh",
         "polkit-gnome"
       ],
       "services": [],

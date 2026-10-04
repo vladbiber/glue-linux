@@ -2,9 +2,12 @@
 
 import hashlib
 import json
+import os
 import re
 import struct
+import subprocess
 import sys
+import tempfile
 import unittest
 import zlib
 from pathlib import Path
@@ -321,8 +324,9 @@ class WallpaperCandidateTest(unittest.TestCase):
 
     def test_credits_record_author_source_and_cc0(self):
         credits = (_BRANDING_ROOT / "WALLPAPER-CREDITS.md").read_text()
-        self.assertIn("Jaymantri", credits)
-        self.assertIn("commons.wikimedia.org", credits)
+        self.assertIn("OpenAI image generation", credits)
+        self.assertIn("Glue Linux project maintainer", credits)
+        self.assertIn("Generated original SHA-256", credits)
         self.assertIn("CC0 1.0", credits)
 
     def test_pkgbuild_installs_wallpaper_and_credits(self):
@@ -505,7 +509,7 @@ class BrandingImagesTest(unittest.TestCase):
 
         pinned_sha256 = {
             "grub-icon.png": "374a32d644a8065f4a7da658456a3b4a3369d6fb6fb2ddbea01801381be2fb2d",
-            "wallpaper.png": "7ddf1027ad461ed2c703cc8e34e54151b42f5d75153ea236cb9ce813fff85f45",
+            "wallpaper.png": "29986d12aa6b234ed72eead6d7fcfb1740ac847dc9812e92b446bfd7fe5ca4ca",
         }
 
         solid_backgrounds = {"grub-background.png"}
@@ -525,6 +529,52 @@ class BrandingImagesTest(unittest.TestCase):
                     f"{filename} SHA256 mismatch: {actual_sha256} != {expected}")
             else:
                 self.fail(f"PNG file {filename} is not in solid backgrounds or pinned list")
+
+
+class DefaultWallpaperTest(unittest.TestCase):
+
+    def setUp(self):
+        self.script = _BRANDING_ROOT / "glue-wallpaper-init"
+        self.pkgbuild = (_BRANDING_ROOT / "PKGBUILD").read_text()
+
+    def test_package_installs_wallpaper_initializer_and_first_login_marker(self):
+        self.assertIn('"$pkgdir/usr/bin/glue-wallpaper-init"', self.pkgbuild)
+        self.assertIn('"$pkgdir/etc/skel/.local/state/glue/wallpaper-pending"',
+                      self.pkgbuild)
+        self.assertTrue(self.script.stat().st_mode & 0o111)
+        result = subprocess.run(["sh", "-n", str(self.script)], capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+
+    def test_gnome_applies_default_and_consumes_marker_once(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            state = root / "state"
+            marker = state / "glue/wallpaper-pending"
+            marker.parent.mkdir(parents=True)
+            marker.touch()
+            wallpaper = root / "wallpaper.png"
+            wallpaper.write_bytes(b"test wallpaper")
+            bindir = root / "bin"
+            bindir.mkdir()
+            log = root / "gsettings.log"
+            fake = bindir / "gsettings"
+            fake.write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$SETTINGS_LOG"\n')
+            fake.chmod(0o755)
+            env = os.environ.copy()
+            env.update({
+                "HOME": str(root), "XDG_STATE_HOME": str(state),
+                "GLUE_WALLPAPER_PATH": str(wallpaper), "PATH": f"{bindir}:{env['PATH']}",
+                "SETTINGS_LOG": str(log),
+            })
+            result = subprocess.run([str(self.script), "gnome"], env=env,
+                                    capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertFalse(marker.exists())
+            calls = log.read_text().splitlines()
+            self.assertEqual(len(calls), 3)
+            self.assertIn("picture-uri file://", calls[0])
+            self.assertIn("picture-uri-dark file://", calls[1])
+            self.assertIn("picture-options zoom", calls[2])
 
 
 if __name__ == "__main__":
