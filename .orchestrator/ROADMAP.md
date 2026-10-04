@@ -92,7 +92,7 @@ Surse: gluewc = `~/gluewc` (fork dwl 0.8, config runtime `~/.config/gluewc`, cer
 ## Faza 4 — Swap automat după RAM
 
 - [x] 4.1 Funcție pură `swap_plan(ram_bytes, disk_bytes, hibernate) -> SwapPlan`: zram (zstd) = min(RAM, 8 GiB) dacă RAM ≥ 2 GiB, altfel = RAM, prioritate 100, mereu; swap pe disc (partiție în erase, swapfile `/swapfile` în partiție existentă/manual; pe btrfs cu chattr +C / mkswapfile): RAM < 2 GiB → 2×RAM; 2–8 → =RAM; 8–32 → 4 GiB; > 32 → 2 GiB; hibernate → max(regula, RAM + 1 GiB) + `resume=UUID=` în cmdline Limine + hook `resume` în mkinitcpio după filesystems (udev-based). Prioritate 10. Disc < 24 GiB → swap disc max 1 GiB; < 12 GiB → doar zram. ✓ 2026-10-04: `glue_installer/swap.py` (swap_plan, parse_meminfo, zramen_conf, resume_cmdline, mkinitcpio_hooks_with_resume), 42 cazuri RAM×disc×hibernare în `tests/test_swap.py`; hibernarea cade (warning) și când swapul de ram+1 GiB n-ar lăsa 12 GiB liberi; chei zramen verificate upstream.
-- [ ] 4.2 Ecranul Storage: "Swap: automat (recomandat) | doar zram | fără"; bifă "Hibernare" doar pe laptop (`/sys/class/power_supply/BAT*`), default off.
+- [x] 4.2 Ecranul Storage: "Swap: automat (recomandat) | doar zram | fără"; bifă "Hibernare" doar pe laptop (`/sys/class/power_supply/BAT*`), default off. — 2026-10-04: ecranele `swap` (auto|zram|none) și `hibernate` (laptop + auto) în Wizard, câmpuri `swap_mode`/`hibernate` în Selection (consumate de 4.3).
 - [ ] 4.3 RAM din `/proc/meminfo` MemTotal, injectabil. Layout erase: ESP 512M (UEFI) / BIOS boot 1M, swap, root restul. fstab primește swap-ul.
 - Criteriu: tabel de teste (1, 2, 4, 8, 16, 32, 64 GiB RAM × discuri 10/30/500 GiB × hibernate); E2E vede swap activ și zram0 configurat.
 
