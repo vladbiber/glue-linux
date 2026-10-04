@@ -109,7 +109,7 @@
           "action": "Show Welcome and shortcuts"
         }
       ],
-      "screenshots": ["screenshots/gluewc-glueqs.png"],
+      "screenshots": ["screenshots/gluewc-glueqs-bar.png"],
       "packages": [
         "gluewc",
         "polkit-gnome",
@@ -386,7 +386,7 @@
       "ease": 5,
       "lightness": 4,
       "keybindings": [],
-      "screenshots": ["screenshots/gluewc-glueqs.png"],
+      "screenshots": ["screenshots/gluewc-glueqs-bar.png", "screenshots/gluewc-glueqs-overview.png"],
       "packages": [
         "glueqs"
       ],
@@ -420,7 +420,7 @@
           "action": "Reload bar configuration"
         }
       ],
-      "screenshots": ["screenshots/gluewc-noctalia.png"],
+      "screenshots": ["screenshots/gluewc-noctalia-bar.png", "screenshots/gluewc-noctalia-overview.png"],
       "packages": [
         "noctalia-shell",
         "noctalia-qs"

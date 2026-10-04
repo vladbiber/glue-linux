@@ -1,6 +1,6 @@
 {
   "gluewc": [
-    "/usr/share/glue-installer/catalog/screenshots/gluewc-glueqs.png"
+    "/usr/share/glue-installer/catalog/screenshots/gluewc-glueqs-bar.png"
   ],
   "nvwm": [
     "/usr/share/glue-installer/catalog/screenshots/nvwm.png"
@@ -18,9 +18,11 @@
     "/usr/share/glue-installer/catalog/screenshots/cinnamon.png"
   ],
   "glueqs": [
-    "/usr/share/glue-installer/catalog/screenshots/gluewc-glueqs.png"
+    "/usr/share/glue-installer/catalog/screenshots/gluewc-glueqs-bar.png",
+    "/usr/share/glue-installer/catalog/screenshots/gluewc-glueqs-overview.png"
   ],
   "noctalia": [
-    "/usr/share/glue-installer/catalog/screenshots/gluewc-noctalia.png"
+    "/usr/share/glue-installer/catalog/screenshots/gluewc-noctalia-bar.png",
+    "/usr/share/glue-installer/catalog/screenshots/gluewc-noctalia-overview.png"
   ]
 }

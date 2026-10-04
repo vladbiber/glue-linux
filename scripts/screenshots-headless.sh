@@ -20,9 +20,18 @@
 #
 # Content of every shot: alacritty running fastfetch (Glue logo + amber
 # palette from /etc/glue/fastfetch.jsonc, glue-branding) and a firefox window
-# on a local HTML page (no network), on the palette background #100A02.
+# on a local HTML page (no network), tiled side by side by the window manager.
+# The gluewc shells run on the packaged Stillwater wallpaper (set through the
+# shell's own IPC, like glue-wallpaper-init); nvwm keeps the palette background.
 #
-# Output: packages/glue-installer/catalog/screenshots/{gluewc-glueqs,gluewc-noctalia,nvwm}.png
+# gluewc targets produce TWO captures in one container run: `-bar` (desktop +
+# bar) and `-overview`. The compositor has no IPC for the overview (it is
+# toggled by a tap on Super, gluewc.c keypress), so `vkbd` - gluewc's own
+# virtual-keyboard test injector, built here from the gluewc sources - sends a
+# real Super tap. Both pictures are plain grim captures of the live output.
+#
+# Output: packages/glue-installer/catalog/screenshots/
+#   gluewc-glueqs-{bar,overview}.png  gluewc-noctalia-{bar,overview}.png  nvwm.png
 # Each is verified to be a 1920x1080 PNG with > 1000 unique colours.
 set -eu
 
@@ -37,10 +46,13 @@ TARGETS_ALL="glueqs noctalia nvwm"
 log() { printf '[screenshots] %s\n' "$*" >&2; }
 die() { log "ERROR: $*"; exit 1; }
 
-file_for() {
+WALLPAPER=/usr/share/backgrounds/glue/wallpaper.png   # Stillwater, glue-branding
+
+# every file a target produces (first = the "bar" picture, shown first in the TUI)
+files_for() {
     case "$1" in
-        glueqs)   echo gluewc-glueqs.png ;;
-        noctalia) echo gluewc-noctalia.png ;;
+        glueqs)   echo gluewc-glueqs-bar.png gluewc-glueqs-overview.png ;;
+        noctalia) echo gluewc-noctalia-bar.png gluewc-noctalia-overview.png ;;
         nvwm)     echo nvwm.png ;;
         *) die "unknown target '$1' (glueqs|noctalia|nvwm|all)" ;;
     esac
@@ -69,24 +81,26 @@ host_main() {
     mkdir -p "$out"
     case "$target" in
         all) targets=$TARGETS_ALL ;;
-        *) file_for "$target" >/dev/null; targets=$target ;;
+        *) files_for "$target" >/dev/null; targets=$target ;;
     esac
     start=$(date +%s)
     for t in $targets; do
-        log "=== $t -> $(file_for "$t") (container $IMAGE)"
+        log "=== $t -> $(files_for "$t") (container $IMAGE)"
         docker run --rm --privileged --network host \
             -v /dev/dri:/dev/dri -v "$root:/glue" -w /glue \
             -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
             "$IMAGE" /bin/bash /glue/scripts/screenshots-headless.sh --inside "$t"
-        verify_png "$out/$(file_for "$t")"
+        for f in $(files_for "$t"); do verify_png "$out/$f"; done
     done
     for t in $targets; do
-        local png="$out/$(file_for "$t")"
-        if [ "$(stat -c %s "$png")" -gt "$MAX_BYTES" ]; then
-            log "recompressing $png (> 3 MB)"
-            magick "$png" -define png:compression-level=9 "$png.tmp" && mv "$png.tmp" "$png"
-            verify_png "$png"
-        fi
+        for f in $(files_for "$t"); do
+            local png="$out/$f"
+            if [ "$(stat -c %s "$png")" -gt "$MAX_BYTES" ]; then
+                log "recompressing $png (> 3 MB)"
+                magick "$png" -define png:compression-level=9 "$png.tmp" && mv "$png.tmp" "$png"
+                verify_png "$png"
+            fi
+        done
     done
     log "done in $(( $(date +%s) - start )) s: $targets"
 }
@@ -113,20 +127,30 @@ install_local() {
 }
 
 inside_main() {
-    local target=$1 png
-    png="/glue/packages/glue-installer/catalog/screenshots/$(file_for "$target")"
+    local target=$1 outdir f
+    outdir=/glue/packages/glue-installer/catalog/screenshots
     [ -w /glue ] || die "/glue is not writable"
     grep -q '^DisableSandbox' /etc/pacman.conf || sed -i '/^\[options\]/a DisableSandbox' /etc/pacman.conf
+    # the other mirrors lag behind mirror1: a database from one and packages
+    # from another 404 (older images do not list mirror1 first)
+    grep -q '^Server = https://mirror1.artixlinux.org' /etc/pacman.d/mirrorlist ||
+        sed -i '1i Server = https://mirror1.artixlinux.org/repos/$repo/os/$arch' /etc/pacman.d/mirrorlist
     log "syncing package databases"
     pacman -Sy --noconfirm
     pacman -S --noconfirm --needed alacritty fastfetch firefox imagemagick \
         dbus ttf-dejavu ttf-liberation
     install_local glue-branding
+    # on a real system /etc/os-release is a symlink to /usr/lib/os-release (the
+    # file glue-branding rewrites); the image has a plain Artix copy, so fastfetch
+    # would print the Artix name in the shot
+    ln -sf ../usr/lib/os-release /etc/os-release
+    echo glue-live > /proc/sys/kernel/hostname 2>/dev/null || true   # the live hostname, not the build host's
     case "$target" in
         glueqs)
             install_local gluewc
             install_local glueqs
             pacman -S --noconfirm --needed grim
+            build_vkbd
             ;;
         noctalia)
             install_local gluewc
@@ -136,6 +160,7 @@ inside_main() {
                 pacman -Rdd --noconfirm quickshell
             fi
             pacman -S --noconfirm --needed grim noctalia-qs noctalia-shell
+            build_vkbd
             ;;
         nvwm)
             install_local nvwm
@@ -150,11 +175,32 @@ inside_main() {
     cp /etc/glue/fastfetch.jsonc /root/.config/fastfetch/config.jsonc
     write_firefox_profile
     [ "$target" = noctalia ] && seed_noctalia
-    rm -f "$png"
+    for f in $(files_for "$target"); do rm -f "$outdir/$f"; done
     # the installed wrappers run the session under dbus-run-session; so do we
-    dbus-run-session -- /bin/bash /glue/scripts/screenshots-headless.sh --session "$target" "$png"
-    verify_png "$png"
-    chown "${HOST_UID:-0}:${HOST_GID:-0}" "$png"
+    dbus-run-session -- /bin/bash /glue/scripts/screenshots-headless.sh --session "$target" "$outdir"
+    for f in $(files_for "$target"); do
+        verify_png "$outdir/$f"
+        chown "${HOST_UID:-0}:${HOST_GID:-0}" "$outdir/$f"
+    done
+}
+
+# vkbd (virtual-keyboard injector) is a test helper of the gluewc repo that the
+# gluewc package does not ship and the packaged source checkout does not carry:
+# fetch it from the commit the gluewc package is pinned to and build it here.
+GLUEWC_RAW=https://raw.githubusercontent.com/vladbiber/gluewc/94acc30/tests
+build_vkbd() {
+    local d=/tmp/vkbd-build f
+    rm -r -f "$d"; mkdir -p "$d"
+    for f in vkbd.c virtual-keyboard-unstable-v1.xml; do
+        curl -fsSL "$GLUEWC_RAW/$f" -o "$d/$f" || die "cannot fetch $GLUEWC_RAW/$f"
+    done
+    ( cd "$d" &&
+      wayland-scanner client-header virtual-keyboard-unstable-v1.xml vkbd-protocol.h &&
+      wayland-scanner private-code virtual-keyboard-unstable-v1.xml vkbd-protocol.c &&
+      gcc -D_GNU_SOURCE $(pkg-config --cflags wayland-client xkbcommon) -o vkbd \
+          vkbd.c vkbd-protocol.c $(pkg-config --libs wayland-client xkbcommon) ) >&2 \
+        || die "building vkbd failed"
+    install -m755 "$d/vkbd" /usr/local/bin/vkbd
 }
 
 # Started without settings.json Noctalia opens its setup wizard over the whole
@@ -239,7 +285,7 @@ x11_clients_ready() {
 }
 
 launch_clients() { # $1 = x11|wayland
-    alacritty -e sh -c 'fastfetch; exec sh' &
+    alacritty -e bash -c 'fastfetch; exec bash --norc' &
     log "alacritty pid $!"
     if [ "$1" = wayland ]; then
         MOZ_ENABLE_WAYLAND=1 \
@@ -263,7 +309,8 @@ cleanup_session() {
 }
 
 session_main() {
-    local target=$1 png=$2 shell_cmd shell_log
+    local target=$1 outdir=$2 png shell_cmd shell_log
+    png="$outdir/$(files_for "$target" | awk '{print $1}')"
     export LIBGL_ALWAYS_SOFTWARE=1 GLUE_WELCOME_DISABLED=1
     trap cleanup_session EXIT
     log "D-Bus: ${DBUS_SESSION_BUS_ADDRESS:-none}"
@@ -314,14 +361,24 @@ session_main() {
         poll "$TIMEOUT" "noctalia-shell to start" sh -c "[ -s $shell_log ] && kill -0 $SHELL_PID"
     fi
     kill -0 "$SHELL_PID" || die "shell exited: $(tail -n 20 "$shell_log")"
-    sleep 8   # let the bar/wallpaper settle before windows open
+    sleep 8   # let the bar settle before windows open
+    # Stillwater through the shell's own IPC (what glue-wallpaper-init does)
+    case "$target" in
+        glueqs)   poll "$TIMEOUT" "glueqs setwallpaper" qs -c glueqs ipc call glueqs setwallpaper "$WALLPAPER" ;;
+        noctalia) poll "$TIMEOUT" "noctalia wallpaper set" qs -c noctalia-shell ipc call wallpaper set "$WALLPAPER" all ;;
+    esac
+    sleep 4   # wallpaper decode + fade
     launch_clients wayland
     poll "$TIMEOUT" "alacritty + firefox under gluewc" gluewc_clients_ready
     sleep 8   # fastfetch output + firefox first paint
     log "gluewc-msg status: $(gluewc-msg status 2>&1 | head -n1)"
-    rc=0
-    grim -o HEADLESS-1 "$png" || rc=$?
-    log "grim exit: $rc"
+    grim -o HEADLESS-1 "$png" || die "grim failed (bar capture)"
+    log "bar capture: $png"
+    # overview: a real tap on Super, exactly what the keypress handler waits for
+    vkbd Super || die "vkbd could not tap Super"
+    sleep 5   # overview animation
+    grim -o HEADLESS-1 "$outdir/$(files_for "$target" | awk '{print $2}')" \
+        || die "grim failed (overview capture)"
     tail -n 5 "$shell_log" >&2 || true
 }
 

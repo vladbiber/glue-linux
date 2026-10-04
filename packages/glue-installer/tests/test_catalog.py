@@ -105,7 +105,7 @@ class TestPositive(unittest.TestCase):
         self.assertEqual(gluewc.session_type, "wayland")
         self.assertEqual(gluewc.exec, "gluewc-session")
         self.assertEqual(gluewc.packages, ["gluewc", "polkit-gnome", "nautilus"])
-        self.assertEqual(gluewc.screenshot, "screenshots/gluewc-glueqs.png")
+        self.assertEqual(gluewc.screenshot, "screenshots/gluewc-glueqs-bar.png")
 
     def test_cinnamon_entry_exact_packages(self):
         cinnamon = next(s for s in self.catalog.sessions
@@ -133,7 +133,7 @@ class TestPositive(unittest.TestCase):
         self.assertIn("Recommended for beginners", kde.description)
 
     def test_session_screenshot_names_match_roadmap(self):
-        expected = {"gluewc": "screenshots/gluewc-glueqs.png",
+        expected = {"gluewc": "screenshots/gluewc-glueqs-bar.png",
                     "nvwm": "screenshots/nvwm.png",
                     "kde-plasma": "screenshots/kde-plasma.png",
                     "xfce": "screenshots/xfce.png",
@@ -431,9 +431,10 @@ class ScreenshotFilesTest(unittest.TestCase):
     The runtime loader deliberately skips this (installer works without pictures)."""
 
     SCREENSHOTS_DIR = _PKG_ROOT / "catalog" / "screenshots"
-    # the only names the roadmap allows (5.6): 3 headless + 4 DEs
-    ALLOWED = {"gluewc-glueqs.png", "gluewc-noctalia.png", "nvwm.png",
-               "kde-plasma.png", "xfce.png", "gnome.png", "cinnamon.png"}
+    # the only names allowed (5.6/5.6b): headless captures + 4 DEs
+    ALLOWED = {"gluewc-glueqs-bar.png", "gluewc-glueqs-overview.png",
+               "gluewc-noctalia-bar.png", "gluewc-noctalia-overview.png",
+               "nvwm.png", "kde-plasma.png", "xfce.png", "gnome.png", "cinnamon.png"}
     WEB = {"kde-plasma.png", "xfce.png", "gnome.png", "cinnamon.png"}
     LICENSES = {"CC-BY-4.0", "CC-BY-SA-3.0", "CC-BY-SA-4.0", "GPL-2.0", "GPL-3.0",
                 "GPL", "CC0-1.0", "Public domain"}
@@ -511,8 +512,32 @@ class ScreenshotFilesTest(unittest.TestCase):
                 self.assertEqual((depth, ctype in (0, 2, 4, 6)), (8, True), name)
                 self.assertGreaterEqual(self._distinct_pixels(chunks, w, h, ctype), 2,
                                         f"{name} is a single colour, not a capture")
-        self.assertEqual(len(self._referenced()), 8)
         self.assertEqual(checked, self.ALLOWED)
+
+    def test_shell_galleries_are_distinct_and_bar_first(self):
+        raw = _load_raw()
+        shells = {e["id"]: e["screenshots"] for e in raw["shells"]}
+        self.assertNotEqual(shells["glueqs"], shells["noctalia"])
+        self.assertFalse(set(shells["glueqs"]) & set(shells["noctalia"]))
+        for sid in ("glueqs", "noctalia"):
+            with self.subTest(shell=sid):
+                files = shells[sid]
+                self.assertEqual(files[0], f"screenshots/gluewc-{sid}-bar.png")
+                self.assertEqual(len(files), len(set(files)))
+                self.assertGreaterEqual(
+                    sum((_PKG_ROOT / "catalog" / f).is_file() for f in files), 1)
+                for f in files:
+                    self.assertTrue((_PKG_ROOT / "catalog" / f).is_file(), f)
+
+    def test_calamares_gallery_matches_catalog(self):
+        gallery = _PKG_ROOT.parent / "glue-calamares-config" / "gluegallery.json"
+        data = json.loads(gallery.read_text())
+        raw = _load_raw()
+        prefix = "/usr/share/glue-installer/catalog/"
+        for e in raw["sessions"] + raw["shells"]:
+            with self.subTest(entry=e["id"]):
+                self.assertEqual(data[e["id"]], [prefix + f for f in e["screenshots"]])
+        self.assertEqual(set(data), {e["id"] for e in raw["sessions"] + raw["shells"]})
 
     def test_sources_manifest_covers_web_screenshots(self):
         lines = (self.SCREENSHOTS_DIR / "SOURCES.tsv").read_text().splitlines()

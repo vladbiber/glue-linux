@@ -188,7 +188,7 @@ class TestNoticeAndDetail(unittest.TestCase):
         self.assertIn("Ease: 4/5", detail)
         self.assertIn("Lightness: 5/5", detail)
         self.assertIn("Keys: Super+Return — Open terminal", detail)
-        self.assertIn("Preview: screenshots/gluewc-glueqs.png", detail)
+        self.assertIn("Preview: screenshots/gluewc-glueqs-bar.png", detail)
         self.assertIn("Wayland compositor", detail)
 
     def test_detail_follows_the_cursor(self):
@@ -197,7 +197,7 @@ class TestNoticeAndDetail(unittest.TestCase):
         nvwm = " ".join(t for t, s in render_screen(screen, ids.index("nvwm"), W, 60)
                         if s == "detail")
         self.assertIn("Light and strong", nvwm)
-        self.assertNotIn("gluewc-glueqs.png", nvwm)
+        self.assertNotIn("gluewc-glueqs-bar.png", nvwm)
 
 
 class TestGeometry(unittest.TestCase):
