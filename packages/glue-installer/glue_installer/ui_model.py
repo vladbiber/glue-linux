@@ -4,9 +4,11 @@ Pure TUI wizard state machine for the Glue Linux installer.
 NO curses imports, NO I/O: takes a loaded Catalog and exposes a deterministic
 screen-by-screen wizard producing a plan.Selection. Screen sequence:
   welcome -> mode -> kernel -> init -> sessions -> shell:<sid>... ->
-  support -> gaming -> [scheduler] -> [disk] -> [form:*] -> summary
+  support -> gaming -> [scheduler] -> [disk] -> [swap [hibernate]] ->
+  [form:*] -> summary
 Minimal mode skips 'sessions', 'shell:*' and 'gaming'; 'scheduler' shows only
-when gaming is on; 'disk' only when Wizard(disks=...) injects devices; the
+when gaming is on; 'disk'/'swap' only when Wizard(disks=...) injects devices ('hibernate'
+only with is_laptop and swap auto); the
 'form:*' identity screens (ADR-8) only with ask_identity=True (a password
 confirm mismatch clears both fields and returns to form:password). A finished
 wizard yields a WizardResult via to_result().
@@ -19,15 +21,17 @@ from typing import List, Optional
 from glue_installer.catalog import Catalog
 from glue_installer.plan import Selection
 from glue_installer.ui_forms import (
-    FormField, build_identity_fields, build_identity_spec, disk_label,
+    FormField, build_identity_fields, build_identity_spec,
     masked, prefill_timezone_field, submit_form)
 # Re-exported for compat: these lived here before the ui_view split.
 from glue_installer.ui_view import (  # noqa: F401
     DE_SECTION, DISK_MANUAL_NOTICE, DISK_NOTICE, DISKMODE_NOTICE,
-    NETWORK_NOTICE_TEMPLATE, PARTITION_NOTICE, SCHEDULER_NOTICE, SESSIONS_NOTICE,
-    WELCOME_NOTICE,
+    HIBERNATE_NOTICE, NETWORK_NOTICE_TEMPLATE, PARTITION_NOTICE,
+    SCHEDULER_NOTICE, SESSIONS_NOTICE, SWAP_NOTICE, SWAP_SUMMARY, WELCOME_NOTICE,
     Choose, Item, Screen, SetFlag, Toggle, WizardResult, diskmode_items,
-    mode_items, partition_item, scheduler_item, session_item, shell_item)
+    disk_items, hibernate_item, init_items, kernel_items, mode_items, partition_item,
+    scheduler_items, session_item, shell_item, sessions_items, shell_items, support_items,
+    swap_items)
 
 
 class ValidationError(Exception):
@@ -40,7 +44,8 @@ class Wizard:
     """Deterministic wizard state machine over a loaded Catalog."""
 
     def __init__(self, catalog: Catalog, disks=None, ask_identity: bool = False,
-                 identity_defaults=None, cpu_v3: bool = False):
+                 identity_defaults=None, cpu_v3: bool = False,
+                 is_laptop: bool = False):
         if not isinstance(catalog, Catalog):
             raise ValidationError(
                 f"Wizard requires a Catalog, got {type(catalog).__name__}")
@@ -88,6 +93,9 @@ class Wizard:
         self._scheduler: str = next(
             (o.id for o in catalog.gaming.schedulers if o.default), "scx_lavd")
         self._cpu_v3 = cpu_v3
+        self._is_laptop = bool(is_laptop)
+        self._swap_mode: str = "auto"  # 'auto' | 'zram' | 'none'
+        self._hibernate: bool = False  # laptops only, swap auto only
 
         # Navigation state
         self._current_key: str = "welcome"
@@ -139,6 +147,9 @@ class Wizard:
                 keys.append("disk")
             if self._disk_mode in ("existing", "manual"):
                 keys.append("partition")
+            keys.append("swap")
+            if self._is_laptop and self._swap_mode == "auto":
+                keys.append("hibernate")
         if self._forms is not None:
             keys.extend(f"form:{k}" for k in self._forms)
         keys.append("summary")
@@ -222,14 +233,16 @@ class Wizard:
                     f"SetFlag is only valid on toggle screens, not '{screen.key}'")
             if not isinstance(event.value, bool):
                 raise ValidationError("SetFlag value must be a boolean")
-            self._gaming = event.value
+            if screen.key == "hibernate":
+                self._hibernate = event.value
+            else:
+                self._gaming = event.value
         else:
             raise ValidationError(f"Unknown event type: {type(event).__name__}")
 
     def _check_item(self, screen: Screen, item_id: str) -> None:
         if item_id not in {i.id for i in screen.items}:
-            raise ValidationError(
-                f"Unknown item '{item_id}' on screen '{screen.key}'")
+            raise ValidationError(f"Unknown item '{item_id}' on '{screen.key}'")
 
     def _apply_choose(self, screen: Screen, item_id: str) -> None:
         self._check_item(screen, item_id)
@@ -253,6 +266,10 @@ class Wizard:
             self._partition_path = item_id
         elif key == "scheduler":
             self._scheduler = item_id
+        elif key == "swap":
+            self._swap_mode = item_id
+            if item_id != "auto":
+                self._hibernate = False  # hibernation needs the disk swap
         elif key.startswith("shell:"):
             self._shell_choice[key.split(":", 1)[1]] = item_id
 
@@ -296,10 +313,9 @@ class Wizard:
             return Screen(key="welcome", title="Welcome to Glue Linux",
                           kind="info", items=[], notice=WELCOME_NOTICE)
         if key == "network":
-            return Screen(
-                key="network", title="Network", kind="info", items=[],
-                notice=NETWORK_NOTICE_TEMPLATE.format(status=self._network_status),
-            )
+            return Screen(key="network", title="Network", kind="info", items=[],
+                          notice=NETWORK_NOTICE_TEMPLATE.format(
+                              status=self._network_status))
         if key == "diskmode":
             return self._diskmode_screen()
         if key == "partition":
@@ -320,13 +336,12 @@ class Wizard:
             return self._gaming_screen()
         if key == "scheduler":
             return self._scheduler_screen()
+        if key == "swap":
+            return self._swap_screen()
+        if key == "hibernate":
+            return self._hibernate_screen()
         if key == "disk":
-            items = [
-                Item(id=d.path, label=disk_label(d),
-                     description="Removable device" if d.is_removable else "",
-                     selected=self._device_path == d.path)
-                for d in self._disks
-            ]
+            items = disk_items(self._disks, self._device_path)
             manual = self._disk_mode == "manual"
             return Screen(key="disk",
                           title="Disk to partition" if manual
@@ -339,9 +354,9 @@ class Wizard:
         return self._summary_screen()
 
     def _diskmode_screen(self) -> Screen:
-        items = diskmode_items(self._disk_mode)
         return Screen(key="diskmode", title="Storage", kind="radio",
-                      items=items, notice=DISKMODE_NOTICE)
+                      items=diskmode_items(self._disk_mode),
+                      notice=DISKMODE_NOTICE)
 
     def _candidate_partitions(self) -> list:
         """Partitions eligible as an install target: not mounted, not an ESP."""
@@ -349,79 +364,60 @@ class Wizard:
                 if not p.is_mounted and not p.is_esp]
 
     def _partition_screen(self) -> Screen:
-        items = [partition_item(p, self._partition_path == p.path)
-                 for p in self._candidate_partitions()]
         return Screen(key="partition", title="Installation partition",
-                      kind="radio", items=items, notice=PARTITION_NOTICE)
+                      kind="radio", notice=PARTITION_NOTICE,
+                      items=[partition_item(p, self._partition_path == p.path)
+                             for p in self._candidate_partitions()])
 
     def _mode_screen(self) -> Screen:
-        items = mode_items(self._mode, self._catalog.minimal)
-        return Screen(key="mode", title="Installation mode",
-                      kind="radio", items=items)
+        return Screen(key="mode", title="Installation mode", kind="radio",
+                      items=mode_items(self._mode, self._catalog.minimal))
 
     def _kernel_screen(self) -> Screen:
-        # Primary kernel listed first and marked recommended
-        ordered = sorted(self._catalog.kernels, key=lambda k: not k.primary)
-        items = [
-            Item(id=k.id,
-                 label=k.name + (" (x86-64-v3)" if k.id == "linux-cachyos" and self._cpu_v3 else " (recommended)" if k.primary else ""),
-                 description=k.description, recommended=k.primary,
-                 selected=self._kernel_id == k.id)
-            for k in ordered
-        ]
-        return Screen(key="kernel", title="Kernel", kind="radio", items=items)
+        return Screen(key="kernel", title="Kernel", kind="radio",
+                      items=kernel_items(self._catalog.kernels,
+                                         self._kernel_id, self._cpu_v3))
 
     def _init_screen(self) -> Screen:
-        items = [
-            Item(id=i.id,
-                 label=i.name + (" (recommended)" if i.recommended else ""),
-                 description=i.description, recommended=i.recommended,
-                 selected=self._init_id == i.id)
-            for i in self._catalog.inits
-        ]
-        return Screen(key="init", title="Init system", kind="radio", items=items)
+        return Screen(key="init", title="Init system", kind="radio",
+                      items=init_items(self._catalog.inits, self._init_id))
 
     def _sessions_screen(self) -> Screen:
-        wms = [s for s in self._catalog.sessions if s.kind == "wm"]
-        des = [s for s in self._catalog.sessions if s.kind == "de"]
-        items = [session_item(s, s.id in self._session_ids)
-                 for s in wms + des]
         return Screen(key="sessions", title="Window managers & desktops",
-                      kind="multi", items=items, notice=SESSIONS_NOTICE)
+                      kind="multi", notice=SESSIONS_NOTICE, items=sessions_items(
+                          self._catalog.sessions, self._session_ids))
 
     def _shell_screen(self, session_id: str) -> Screen:
         session = self._sessions_by_id[session_id]
-        chosen = self._shell_choice.get(session_id)
-        items = [
-            shell_item(self._shells_by_id[shell_id], chosen == shell_id,
-                       recommended=idx == 0)
-            for idx, shell_id in enumerate(session.shell_choices)
-        ]
-        return Screen(key=f"shell:{session_id}",
+        return Screen(key=f"shell:{session_id}", kind="radio",
                       title=f"Shell / bar for {session.name}",
-                      kind="radio", items=items)
+                      items=shell_items(session, self._shells_by_id,
+                                        self._shell_choice.get(session_id)))
 
     def _support_screen(self) -> Screen:
-        items = [
-            Item(id=t.id, label=t.name, description=t.description,
-                 selected=t.id in self._support_ids)
-            for t in self._catalog.support
-        ]
-        return Screen(key="support", title="Support options",
-                      kind="multi", items=items)
+        return Screen(key="support", title="Support options", kind="multi",
+                      items=support_items(self._catalog.support,
+                                          self._support_ids))
+
+    def _swap_screen(self) -> Screen:
+        return Screen(key="swap", title="Swap", kind="radio",
+                      items=swap_items(self._swap_mode), notice=SWAP_NOTICE)
+
+    def _hibernate_screen(self) -> Screen:
+        return Screen(key="hibernate", title="Hibernation", kind="toggle",
+                      items=[hibernate_item(self._hibernate)],
+                      notice=HIBERNATE_NOTICE)
 
     def _gaming_screen(self) -> Screen:
         gaming = self._catalog.gaming
-        item = Item(id="gaming", label=gaming.name,
-                    description=gaming.description, selected=self._gaming)
-        return Screen(key="gaming", title=gaming.name,
-                      kind="toggle", items=[item])
+        return Screen(key="gaming", title=gaming.name, kind="toggle", items=[
+            Item(id="gaming", label=gaming.name,
+                 description=gaming.description, selected=self._gaming)])
 
     def _scheduler_screen(self) -> Screen:
-        items = [scheduler_item(o, self._scheduler == o.id)
-                 for o in self._catalog.gaming.schedulers]
         return Screen(key="scheduler", title="CPU scheduler", kind="radio",
-                      items=items, notice=SCHEDULER_NOTICE)
+                      notice=SCHEDULER_NOTICE, items=scheduler_items(
+                          self._catalog.gaming.schedulers, self._scheduler))
 
     def _summary_screen(self) -> Screen:
         kernel_map = {k.id: k for k in self._catalog.kernels}
@@ -431,11 +427,10 @@ class Wizard:
         def _add(sid: str, label: str) -> None:
             items.append(Item(id=sid, label=label, description="", selected=True))
 
-        mode_label = "Minimal install" if self._mode == "minimal" else "Custom install"
-        _add("summary:mode", f"Mode: {mode_label}")
-        kernel = kernel_map.get(self._kernel_id)
+        _add("summary:mode", "Mode: " + (
+            "Minimal install" if self._mode == "minimal" else "Custom install"))
+        kernel, init = kernel_map.get(self._kernel_id), init_map.get(self._init_id)
         _add("summary:kernel", f"Kernel: {kernel.name if kernel else '(none)'}")
-        init = init_map.get(self._init_id)
         _add("summary:init", f"Init: {init.name if init else '(none)'}")
         for sid in sorted(self._session_ids):
             session = self._sessions_by_id[sid]
@@ -460,6 +455,9 @@ class Wizard:
                 _add("summary:disk",
                      f"Partition: {self._partition_path or '(none)'} — will be "
                      "formatted (rest of the disk untouched)")
+            _add("summary:swap", f"Swap: {SWAP_SUMMARY[self._swap_mode]}")
+            if self._hibernate:
+                _add("summary:hibernate", "Hibernation: on")
         if self._forms is not None:
             for fkey, form in self._forms.items():
                 if fkey == "password_confirm":
@@ -484,6 +482,8 @@ class Wizard:
             gaming=self._gaming,
             minimal=self._mode == "minimal",
             scheduler=self._scheduler,
+            swap_mode=self._swap_mode,
+            hibernate=self._hibernate,
         )
 
     def to_result(self) -> WizardResult:

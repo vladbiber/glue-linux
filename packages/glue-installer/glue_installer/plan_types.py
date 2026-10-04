@@ -23,6 +23,9 @@ class Selection:
     # CPU scheduler from the Gaming screen (roadmap 1.4); only consulted when
     # gaming is True. Defaults to scx_lavd so existing callers keep working.
     scheduler: str = "scx_lavd"
+    # Swap screen (roadmap 4.2; consumed by 4.3): auto|zram|none, hibernate laptop-only
+    swap_mode: str = "auto"
+    hibernate: bool = False
 
 
 @dataclass

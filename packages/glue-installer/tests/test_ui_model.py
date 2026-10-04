@@ -11,7 +11,7 @@ from glue_installer.catalog import load_catalog
 from glue_installer.plan import Selection, resolve_plan
 from glue_installer.ui_model import (
     Choose, Item, Screen, SetFlag, Toggle, ValidationError, Wizard,
-    DE_SECTION,
+    DE_SECTION, SWAP_NOTICE, HIBERNATE_NOTICE,
 )
 
 _CATALOG_PATH = _PKG_ROOT / "catalog" / "catalog.json"
@@ -621,9 +621,11 @@ class TestDiskModeAndPartitionFlow(unittest.TestCase):
         w.apply(Choose("existing"))
         w.next()
         w.apply(Choose("/dev/vda2"))
-        w.next()  # partition -> summary
+        w.next()  # partition -> swap
+        self.assertEqual(w.current_screen().key, "swap")
+        w.next()  # swap -> summary
         self.assertEqual(w.current_screen().key, "summary")
-        self.assertIn("/dev/vda2", w.current_screen().items[-1].label)
+        self.assertIn("/dev/vda2", w.current_screen().items[-2].label)
         w.next()
         result = w.to_result()
         self.assertEqual(result.disk_mode, "existing")
@@ -787,6 +789,122 @@ class TestSchedulerScreen(unittest.TestCase):
         w.apply(SetFlag(False)); w.next()
         labels = [i.label for i in w.current_screen().items]
         self.assertFalse(any(lb.startswith("CPU scheduler") for lb in labels))
+
+
+class _FakeDisk:
+    path = "/dev/sdx"
+    name = "sdx"
+    size_bytes = 2 ** 40
+    model = "x"
+    is_removable = False
+    has_mounted_partitions = False
+
+
+def _swap_wizard(is_laptop=False, disks=True) -> Wizard:
+    w = Wizard(_CATALOG, disks=[_FakeDisk()] if disks else None,
+               is_laptop=is_laptop)
+    w.set_network_status("connected")
+    return w
+
+
+def _to_swap(w: Wizard) -> None:
+    w.next(); w.next(); w.next()  # welcome, network, mode -> kernel
+    w.apply(Choose("linux-cachyos")); w.next()
+    w.apply(Choose("dinit")); w.next()
+    _advance_to(w, "diskmode")
+    w.next()  # diskmode -> disk
+    w.apply(Choose("/dev/sdx"))
+    w.next()
+
+
+class TestSwapScreens(unittest.TestCase):
+
+    def test_swap_after_disk_before_summary(self):
+        keys = _swap_wizard()._screen_keys()
+        self.assertEqual(keys[-3:], ["disk", "swap", "summary"])
+        self.assertNotIn("hibernate", keys)
+
+    def test_no_swap_screens_without_disks(self):
+        keys = _swap_wizard(is_laptop=True, disks=False)._screen_keys()
+        self.assertNotIn("swap", keys)
+        self.assertNotIn("hibernate", keys)
+
+    def test_swap_auto_preselected_and_recommended(self):
+        w = _swap_wizard(); _to_swap(w)
+        s = w.current_screen()
+        self.assertEqual((s.key, s.kind, s.notice), ("swap", "radio", SWAP_NOTICE))
+        self.assertEqual([i.id for i in s.items], ["auto", "zram", "none"])
+        auto = s.items[0]
+        self.assertTrue(auto.selected and auto.recommended)
+        self.assertFalse(any(i.selected for i in s.items[1:]))
+
+    def test_choose_zram_and_none(self):
+        for mode in ("zram", "none"):
+            w = _swap_wizard(); _to_swap(w)
+            w.apply(Choose(mode))
+            self.assertEqual([i.id for i in w.current_screen().items
+                              if i.selected], [mode])
+            w.next(); w.next()
+            self.assertEqual(w.to_selection().swap_mode, mode)
+
+    def test_choose_bogus_swap_raises(self):
+        w = _swap_wizard(); _to_swap(w)
+        with self.assertRaises(ValidationError):
+            w.apply(Choose("bogus"))
+
+    def test_hibernate_only_on_laptop_with_auto(self):
+        w = _swap_wizard(is_laptop=True)
+        self.assertEqual(w._screen_keys()[-3:], ["swap", "hibernate", "summary"])
+        _to_swap(w)
+        w.apply(Choose("zram"))
+        self.assertNotIn("hibernate", w._screen_keys())
+        w.apply(Choose("auto"))
+        self.assertIn("hibernate", w._screen_keys())
+
+    def test_switching_away_from_auto_clears_hibernate(self):
+        w = _swap_wizard(is_laptop=True); _to_swap(w)
+        w.next()
+        self.assertEqual(w.current_screen().key, "hibernate")
+        w.apply(SetFlag(True))
+        w.back()
+        w.apply(Choose("none"))
+        w.apply(Choose("auto"))
+        w.next()
+        self.assertFalse(w.current_screen().items[0].selected)
+
+    def test_hibernate_flag_reaches_selection_and_summary(self):
+        w = _swap_wizard(is_laptop=True); _to_swap(w)
+        w.next()
+        s = w.current_screen()
+        self.assertEqual((s.kind, s.title, s.notice),
+                         ("toggle", "Hibernation", HIBERNATE_NOTICE))
+        self.assertEqual([i.id for i in s.items], ["hibernate"])
+        w.apply(SetFlag(True))
+        self.assertFalse(w._gaming)
+        w.next()
+        labels = [i.label for i in w.current_screen().items]
+        self.assertIn("Swap: Automatic (zram + disk)", labels)
+        self.assertIn("Hibernation: on", labels)
+        w.next()
+        sel = w.to_selection()
+        self.assertEqual((sel.swap_mode, sel.hibernate), ("auto", True))
+
+    def test_summary_zram_only_and_defaults(self):
+        w = _swap_wizard(); _to_swap(w)
+        w.apply(Choose("zram")); w.next()
+        labels = [i.label for i in w.current_screen().items]
+        self.assertIn("Swap: zram only", labels)
+        self.assertFalse(any(l.startswith("Hibernation") for l in labels))
+        w2 = _swap_wizard(); _to_swap(w2); w2.next(); w2.next()
+        sel = w2.to_selection()
+        self.assertEqual((sel.swap_mode, sel.hibernate), ("auto", False))
+
+    def test_selection_defaults_stay_valid(self):
+        s = Selection(kernel_id="linux-cachyos", init_id="dinit",
+                      session_ids=[], shell_choice={}, support_ids=[],
+                      gaming=False, minimal=True)
+        self.assertEqual((s.swap_mode, s.hibernate), ("auto", False))
+
 
 
 if __name__ == "__main__":

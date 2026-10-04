@@ -258,7 +258,8 @@ def _loop(stdscr, wizard: Wizard, hooks: dict) -> Optional[WizardResult]:
 def run_tui(catalog, disks=None, partitions=None, ask_identity: bool = False,
             identity_defaults=None, net_check=None, open_net_tool=None,
             repartition=None, detect_timezone=None,
-            cpu_v3: bool = False, show_screenshot=None) -> Optional[WizardResult]:
+            cpu_v3: bool = False, is_laptop: bool = False,
+            show_screenshot=None) -> Optional[WizardResult]:
     """Run the full wizard in curses; returns a WizardResult, or None on quit.
 
     Optional I/O hooks (this module stays curses-only; subprocess work is
@@ -269,7 +270,8 @@ def run_tui(catalog, disks=None, partitions=None, ask_identity: bool = False,
     show_screenshot(rel_path) draws a catalog screenshot (P key).
     """
     wizard = Wizard(catalog, disks=disks, ask_identity=ask_identity,
-                    identity_defaults=identity_defaults, cpu_v3=cpu_v3)
+                    identity_defaults=identity_defaults, cpu_v3=cpu_v3,
+                    is_laptop=is_laptop)
     if partitions is not None:
         wizard.set_partitions(partitions)
     hooks = {"net_check": net_check, "open_net_tool": open_net_tool,

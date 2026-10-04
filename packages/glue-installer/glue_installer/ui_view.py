@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional
 
 from glue_installer.catalog import SchedulerOption, Session, Shell
-from glue_installer.ui_forms import FormField
+from glue_installer.ui_forms import FormField, disk_label
 
 # -- notices -----------------------------------------------------------------
 
@@ -62,6 +62,21 @@ SCHEDULER_NOTICE = (
     "interactive tasks; None keeps the kernel's built-in EEVDF scheduler. "
     "The choice can be changed later in /etc/default/scx."
 )
+
+SWAP_NOTICE = (
+    "Swap gives the system room when memory runs out. Automatic is right "
+    "for almost everyone: fast compressed memory (zram) plus a disk swap "
+    "sized from your RAM."
+)
+
+HIBERNATE_NOTICE = (
+    "Hibernation saves your session to disk and powers off. It needs a "
+    "disk swap at least as large as your RAM; the installer sizes it "
+    "automatically. Leave it off if you only use sleep."
+)
+
+SWAP_SUMMARY = {"auto": "Automatic (zram + disk)", "zram": "zram only",
+                "none": "none"}
 
 PARTITION_NOTICE = (
     "Choose the partition to install Glue Linux into. Only that "
@@ -196,3 +211,76 @@ def diskmode_items(disk_mode: str) -> List[Item]:
                          "room, then install into a partition you pick.",
              selected=disk_mode == "manual"),
     ]
+
+
+def swap_items(swap_mode: str) -> List[Item]:
+    return [
+        Item(id="auto", label="Automatic (recommended)",
+             description="zram compressed memory plus a disk swap sized "
+                         "from your RAM",
+             recommended=True, selected=swap_mode == "auto"),
+        Item(id="zram", label="zram only",
+             description="compressed memory swap, nothing on disk; "
+                         "no hibernation",
+             selected=swap_mode == "zram"),
+        Item(id="none", label="No swap", description="only if you know why",
+             selected=swap_mode == "none"),
+    ]
+
+
+def hibernate_item(selected: bool) -> Item:
+    return Item(id="hibernate", label="Hibernation (suspend to disk)",
+                description="Needs a disk swap of at least RAM + 1 GiB; the "
+                            "installer sizes it for you.",
+                selected=selected)
+
+
+def kernel_items(kernels, kernel_id, cpu_v3: bool) -> List[Item]:
+    # Primary kernel listed first and marked recommended
+    ordered = sorted(kernels, key=lambda k: not k.primary)
+    items = []
+    for k in ordered:
+        if k.id == "linux-cachyos" and cpu_v3:
+            suffix = " (x86-64-v3)"
+        else:
+            suffix = " (recommended)" if k.primary else ""
+        items.append(Item(id=k.id, label=k.name + suffix,
+                          description=k.description, recommended=k.primary,
+                          selected=kernel_id == k.id))
+    return items
+
+
+def init_items(inits, init_id) -> List[Item]:
+    return [Item(id=i.id,
+                 label=i.name + (" (recommended)" if i.recommended else ""),
+                 description=i.description, recommended=i.recommended,
+                 selected=init_id == i.id)
+            for i in inits]
+
+
+def support_items(support, selected_ids) -> List[Item]:
+    return [Item(id=t.id, label=t.name, description=t.description,
+                 selected=t.id in selected_ids)
+            for t in support]
+
+
+def disk_items(disks, device_path) -> List[Item]:
+    return [Item(id=d.path, label=disk_label(d),
+                 description="Removable device" if d.is_removable else "",
+                 selected=device_path == d.path)
+            for d in disks]
+
+
+def sessions_items(sessions, selected_ids) -> List[Item]:
+    wms = [s for s in sessions if s.kind == "wm"]
+    des = [s for s in sessions if s.kind == "de"]
+    return [session_item(s, s.id in selected_ids) for s in wms + des]
+
+
+def shell_items(session, shells_by_id, chosen) -> List[Item]:
+    return [shell_item(shells_by_id[sid], chosen == sid, recommended=idx == 0)
+            for idx, sid in enumerate(session.shell_choices)]
+
+
+def scheduler_items(options, chosen) -> List[Item]:
+    return [scheduler_item(o, chosen == o.id) for o in options]

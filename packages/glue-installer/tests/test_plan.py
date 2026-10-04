@@ -1046,6 +1046,19 @@ class TestRepoOrder(unittest.TestCase):
                             f"[{artix_repo}] must come before [cachyos] in staged conf")
 
 
+class TestSwapFieldsCarried(unittest.TestCase):
+    def test_swap_fields_do_not_change_plan(self):
+        catalog = load_catalog(_CATALOG_PATH)
+        base = dict(kernel_id="linux-cachyos", init_id="dinit",
+                    session_ids=[], shell_choice={}, support_ids=[],
+                    gaming=False, minimal=True)
+        a = resolve_plan(catalog, Selection(**base))
+        b = resolve_plan(catalog, Selection(**base, swap_mode="zram",
+                                            hibernate=True))
+        self.assertEqual(a, b)
+
+
+
 if __name__ == "__main__":
     unittest.main()
 

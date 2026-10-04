@@ -296,6 +296,7 @@ def main(argv=None) -> int:
                 tui_disks = None  # no disk screen; install to prepared --target
         try:
             from glue_installer.cpu import detect_cpu_v3 as _detect_cpu_v3
+            from glue_installer.laptop import detect_laptop as _detect_laptop
             wizard_result = run_tui(
                 catalog,
                 disks=tui_disks,
@@ -314,6 +315,7 @@ def main(argv=None) -> int:
                 # the real local timezone instead of the UTC placeholder
                 detect_timezone=detect_timezone,
                 cpu_v3=_detect_cpu_v3(),
+                is_laptop=_detect_laptop(),
                 show_screenshot=make_show_screenshot(args.catalog.parent),
             )
         except KeyboardInterrupt:

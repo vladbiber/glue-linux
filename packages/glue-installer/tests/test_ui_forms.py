@@ -64,7 +64,8 @@ def _walkthrough(password="hunter2!", confirm=None) -> Wizard:
     """Drive disk pick + all identity forms; leaves the wizard finished."""
     w = _wizard_at_forms(disks=[_DISK, _DISK2])
     w.apply(Choose("/dev/vda"))
-    w.next()                            # disk -> form:hostname
+    w.next()                            # disk -> swap
+    w.next()                            # swap -> form:hostname
     _retype(w, "testhost")
     w.next()                            # -> form:username
     _retype(w, "alice")
