@@ -36,6 +36,7 @@ LIVE_ONLY_PACKAGES: Tuple[str, ...] = (
 LIVE_ONLY_FILES: Tuple[str, ...] = (
     "/etc/profile.d/glue-live.sh",
     "/etc/sudoers.d/10-glue-live",
+    "/etc/polkit-1/rules.d/49-glue-live.rules",
     "/usr/share/applications/glue-install-gui.desktop",
     "/usr/bin/glue-install-gui",
     "/usr/local/bin/glue-live-session",

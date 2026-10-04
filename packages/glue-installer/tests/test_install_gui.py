@@ -151,6 +151,17 @@ class TestPackaging(unittest.TestCase):
             self.assertIn(pkg, LIVE_ONLY_PACKAGES)
         self.assertIn("/usr/share/applications/glue-install-gui.desktop", LIVE_ONLY_FILES)
 
+    def test_config_dir_has_qml_link(self):
+        # calamares -c /etc/calamares aborts without qml/ there (VM boot 2026-10-04)
+        text = (_CFG / "PKGBUILD").read_text()
+        self.assertIn('ln -s /usr/share/calamares/qml "$cfg/qml"', text)
+
+    def test_live_polkit_rule_only_for_live_user(self):
+        rule = (_REPO_ROOT / "iso-profile/glue/root-overlay/etc/polkit-1/rules.d"
+                / "49-glue-live.rules").read_text()
+        self.assertIn('subject.user == "glue"', rule)
+        self.assertIn("polkit.Result.YES", rule)
+
     def test_make_iso_builds_config_package(self):
         text = (_REPO_ROOT / "scripts" / "make-iso.sh").read_text()
         self.assertIn("glue-installer glue-calamares-config; do", text)

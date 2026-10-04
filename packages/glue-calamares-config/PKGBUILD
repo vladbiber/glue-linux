@@ -3,7 +3,7 @@
 # generated selection pages, glueinstall/gluefstab job modules and branding.
 pkgname=glue-calamares-config
 pkgver=0.2.0
-pkgrel=3
+pkgrel=4
 pkgdesc="Glue Linux installer configuration for Calamares (sequence, pages, Glue job modules, branding)"
 arch=('any')
 url="https://github.com/vladbiber/glue-linux"
@@ -45,4 +45,6 @@ package() {
     ln -s /usr/share/icons/hicolor/scalable/apps/org.glue.Welcome.svg \
         "$cfg/branding/glue/logo.svg"
     ln -s /usr/share/backgrounds/glue/wallpaper.png "$cfg/branding/glue/welcome.png"
+    # calamares -c /etc/calamares refuses to start without qml/ in that dir
+    ln -s /usr/share/calamares/qml "$cfg/qml"
 }

@@ -1,0 +1,7 @@
+// Live ISO only: the live user runs admin actions (the installer) without a
+// password, like sudoers.d/10-glue-live. Removed from installed systems.
+polkit.addRule(function(action, subject) {
+    if (subject.user == "glue") {
+        return polkit.Result.YES;
+    }
+});

@@ -139,6 +139,7 @@ class TestCleanupStep(unittest.TestCase):
             self.assertIn(f, self.script)
         self.assertIn("/etc/profile.d/glue-live.sh", LIVE_ONLY_FILES)
         self.assertIn("/etc/sudoers.d/10-glue-live", LIVE_ONLY_FILES)
+        self.assertIn("/etc/polkit-1/rules.d/49-glue-live.rules", LIVE_ONLY_FILES)
 
     def test_autologin_removed(self):
         self.assertIn(f"sed -i 's/ {AUTOLOGIN_ARG}//' /etc/runit/sv/agetty-tty1/conf",
