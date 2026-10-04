@@ -1,0 +1,108 @@
+#!/bin/sh
+# glue-live-session: tty1 of the live ISO. Starts the gluewc desktop (glueqs
+# bar + Glue Welcome) when the machine has KMS, otherwise exits 10 so that
+# /etc/profile.d/glue-live.sh falls back to the text installer. The rules are
+# the same as glue_installer/live_session.py (tests compare both).
+#
+#   glue-live-session            decide, then run the desktop or exit 10
+#   glue-live-session --decide   print "<desktop|tui> <reason>" and exit
+#   glue-live-session --inner    (internal) runs inside the D-Bus session
+#
+# Test hooks: GLUE_CMDLINE_FILE (default /proc/cmdline), GLUE_DRI_DIR
+# (default /dev/dri). There is no display manager on the live ISO: the live
+# user autologins on tty1 (agetty) and this script starts the session itself.
+
+CMDLINE_FILE="${GLUE_CMDLINE_FILE:-/proc/cmdline}"
+DRI_DIR="${GLUE_DRI_DIR:-/dev/dri}"
+LIVE_CONF=/usr/share/glue/live/gluewc-live.conf
+POLKIT_AGENT=/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
+WALLPAPER_INIT=/usr/bin/glue-wallpaper-init
+
+# decide: sets CHOICE and REASON
+decide() {
+    CHOICE=desktop REASON="KMS available"
+    for word in $(cat "$CMDLINE_FILE" 2>/dev/null); do
+        if [ "$word" = "glue.tui" ]; then
+            CHOICE=tui REASON="glue.tui on the kernel command line"
+            return
+        fi
+    done
+    found=
+    for card in "$DRI_DIR"/card*; do
+        [ -e "$card" ] && found=1
+    done
+    if [ -z "$found" ]; then
+        CHOICE=tui REASON="no KMS device (/dev/dri/card*)"
+        return
+    fi
+    if [ -n "${GLUE_NOAUTO:-}" ]; then
+        CHOICE=tui REASON="GLUE_NOAUTO is set"
+        return
+    fi
+}
+
+# start a daemon only when this user does not already run one (the live
+# user-services may have started pipewire already)
+start_once() {
+    command -v "$1" >/dev/null 2>&1 || return 0
+    pgrep -u "$(id -u)" -x "$1" >/dev/null 2>&1 || "$1" &
+}
+
+if [ "${1:-}" = "--inner" ]; then
+    start_once pipewire
+    start_once wireplumber
+    start_once pipewire-pulse
+    [ -x "$POLKIT_AGENT" ] && "$POLKIT_AGENT" &
+    command -v glue-welcome >/dev/null 2>&1 && glue-welcome --autostart &
+    [ -x "$WALLPAPER_INIT" ] && "$WALLPAPER_INIT" gluewc glueqs &
+    if command -v glueqs >/dev/null 2>&1; then
+    (
+        tries=0
+        while [ "$tries" -lt 150 ]; do
+            for s in "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"/wayland-*; do
+                if [ -S "$s" ]; then
+                    WAYLAND_DISPLAY="${s##*/}"; export WAYLAND_DISPLAY
+                    exec glueqs
+                fi
+            done
+            sleep 0.2
+            tries=$((tries + 1))
+        done
+    ) &
+    fi
+    exec gluewc-session
+fi
+
+decide
+if [ "${1:-}" = "--decide" ]; then
+    echo "$CHOICE $REASON"
+    exit 0
+fi
+[ "$CHOICE" = desktop ] || exit 10
+command -v gluewc-session >/dev/null 2>&1 || exit 10
+
+# gluewc-session seeds ~/.config/gluewc/config.conf from the stock default
+# when it is missing; seed it here instead with the live-only binds appended.
+CFGDIR="${XDG_CONFIG_HOME:-$HOME/.config}/gluewc"
+if [ ! -e "$CFGDIR/config.conf" ] && [ -r "$LIVE_CONF" ]; then
+    for dir in /usr/share/gluewc /usr/local/share/gluewc; do
+        if [ -r "$dir/config.def.conf" ]; then
+            mkdir -p "$CFGDIR" &&
+                cat "$dir/config.def.conf" "$LIVE_CONF" > "$CFGDIR/config.conf" ||
+                rm -f "$CFGDIR/config.conf"
+            break
+        fi
+    done
+fi
+
+export XDG_CURRENT_DESKTOP=gluewc
+export XDG_SESSION_DESKTOP=gluewc
+export XDG_SESSION_TYPE=wayland
+export XCURSOR_THEME=Adwaita
+export XCURSOR_SIZE=24
+if ! ls /dev/dri/renderD* >/dev/null 2>&1; then
+    export WLR_RENDERER_ALLOW_SOFTWARE=1
+fi
+dbus-run-session -- sh -l "$0" --inner
+# the desktop ended (Super+Shift+Q, crash): the caller drops to the TUI
+exit 0

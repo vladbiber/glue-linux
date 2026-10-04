@@ -8,6 +8,7 @@ _PKG_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(_PKG_ROOT))
 
 from glue_installer.clone import (
+    AUTOLOGIN_ARG,
     CLONE_INIT, CLONE_KERNEL, LIVE_ONLY_FILES, LIVE_ONLY_PACKAGES, LIVE_USER,
     MKINITCPIO_HOOKS, RSYNC_EXCLUDES, CloneError, clone_steps,
 )
@@ -140,8 +141,10 @@ class TestCleanupStep(unittest.TestCase):
         self.assertIn("/etc/sudoers.d/10-glue-live", LIVE_ONLY_FILES)
 
     def test_autologin_removed(self):
-        self.assertIn("sed -i 's/ --autologin root//' /etc/runit/sv/agetty-tty1/conf",
+        self.assertIn(f"sed -i 's/ {AUTOLOGIN_ARG}//' /etc/runit/sv/agetty-tty1/conf",
                       self.script)
+        self.assertEqual(AUTOLOGIN_ARG, "--autologin glue")
+        self.assertNotIn("--autologin root", self.script)
 
     def test_packages_removed_only_if_present(self):
         self.assertIn("pacman -Rns --noconfirm", self.script)

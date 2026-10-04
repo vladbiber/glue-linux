@@ -109,7 +109,7 @@ No internet? Press `O` on the network screen. The installer then **clones the
 running live system** to the disk with `rsync` instead of downloading
 packages: same gluewc desktop (glueqs or Noctalia, chosen on the next screen),
 same tools, your own user and password. The live-only bits (the `glue` live
-user, root autologin on tty1, the installer, `rsync`, `grub`, `os-prober`,
+user and its tty1 autologin, the installer, `rsync`, `grub`, `os-prober`,
 the artix-live packages) are removed; the clone gets its own `machine-id`,
 a normal initramfs (`mkinitcpio -P` with the standard hooks) and Limine via
 `glue-boot-update --deploy`, exactly like an online install.
@@ -120,7 +120,12 @@ GNOME/Cinnamon/nvwm and dinit/OpenRC need the online install. Once online,
 Glue Apps → *Update all* brings the system up to date (`linux-cachyos` can be
 installed from there later).
 
-On the live ISO, Glue Welcome adds an **Install Glue Linux** button that starts
+On the live ISO, tty1 autologins as `glue` and starts the graphical live
+session (gluewc + glueqs + Glue Welcome, `Super+Shift+F1` reopens Welcome)
+when the machine has a KMS device. Without KMS, with `glue.tui` on the kernel
+command line, or once the desktop is closed, you get the text installer
+(`glue-install`) instead; there is no display manager on the live ISO.
+Glue Welcome adds an **Install Glue Linux** button that starts
 `glue-install-gui`, plus quick actions (terminal, files, browser, network).
 
 ## Terminal

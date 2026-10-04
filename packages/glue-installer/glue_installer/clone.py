@@ -38,6 +38,8 @@ LIVE_ONLY_FILES: Tuple[str, ...] = (
     "/etc/sudoers.d/10-glue-live",
     "/usr/share/applications/glue-install-gui.desktop",
     "/usr/bin/glue-install-gui",
+    "/usr/local/bin/glue-live-session",
+    "/usr/share/glue/live/gluewc-live.conf",
 )
 
 # Pseudo filesystems, the target mount itself, caches/logs, the live user and
@@ -59,6 +61,8 @@ MKINITCPIO_HOOKS = ("HOOKS=(base udev autodetect modconf kms keyboard keymap "
                     "consolefont block filesystems fsck)")
 
 _AGETTY_CONF = "/etc/runit/sv/agetty-tty1/conf"
+# the exact agetty argument the ISO's tty1 conf carries (root-overlay)
+AUTOLOGIN_ARG = f"--autologin {LIVE_USER}"
 _FORBIDDEN_TOKENS = ("basestrap", "grub", "curl", "wget")
 
 
@@ -97,8 +101,8 @@ def cleanup_script() -> str:
         f"if id {LIVE_USER} >/dev/null 2>&1; then "
         f"echo 'could not remove the live user {LIVE_USER}' >&2; exit 1; fi",
         "rm -f " + " ".join(LIVE_ONLY_FILES),
-        # tty1 logged root in without a password on the ISO; not on disk.
-        f"[ ! -f {_AGETTY_CONF} ] || sed -i 's/ --autologin root//' {_AGETTY_CONF}",
+        # tty1 logged the live user in without a password on the ISO; not on disk.
+        f"[ ! -f {_AGETTY_CONF} ] || sed -i 's/ {AUTOLOGIN_ARG}//' {_AGETTY_CONF}",
         # live-only packages: only the ones pacman knows, built in the shell;
         # no network (the local db is enough for -R). Leaving them behind is
         # not fatal, so a refusal (dependency) only warns.
