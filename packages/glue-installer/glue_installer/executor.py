@@ -85,6 +85,35 @@ def keyring_steps() -> List[Step]:
     ]
 
 
+def bootstrap_steps(
+    plan: InstallPlan, *, target: str = "/mnt",
+    pacman_conf: Optional[str] = None,
+    extra_packages: Optional[List[str]] = None,
+) -> List[Step]:
+    """The Glue "pacstrap": ONE basestrap of plan.packages into target (pure).
+
+    No disk steps, no fstabgen: compile_steps wraps this between the disk
+    preparation and the fstab step; the Calamares adaptor (10.3,
+    calamares_adapter.py) calls it on the root Calamares already mounted.
+    pacman_conf: staged live pacman.conf for `basestrap -C` (None: default).
+    extra_packages: merged (sorted, deduplicated) into the set, e.g. the
+    bootloader packages; None keeps plan.packages exactly as given.
+    """
+    t = target.rstrip("/")
+    packages = list(plan.packages)
+    if extra_packages is not None:
+        packages = sorted(set(packages) | set(extra_packages))
+    n = len(packages)
+    basestrap_argv = ["basestrap"]
+    if pacman_conf is not None:
+        basestrap_argv += ["-C", pacman_conf]
+    basestrap_argv += [t] + packages
+    return [RunCommand(
+        argv=basestrap_argv,
+        description=f"Install {n} package{'s' if n != 1 else ''} with basestrap",
+    )]
+
+
 def compile_steps(
     plan: InstallPlan, *, target: str = "/mnt", init_id: str, disk_plan=None,
     pacman_conf: Optional[str] = None, boot: "Optional[BootSpec]" = None,
@@ -122,23 +151,16 @@ def compile_steps(
     steps: List[Step] = []
 
     # 0. Disk preparation (only when a DiskPlan is provided)
-    packages = plan.packages
+    extra_packages = None
     if disk_plan is not None:
         from glue_installer.disk_swap import swap_steps
         steps.extend(disk_steps(disk_plan, target=target))
         steps.extend(swap_steps(disk_plan, target=target))
-        packages = sorted(set(packages) | set(bootloader_packages(disk_plan)))
+        extra_packages = bootloader_packages(disk_plan)
 
     # 1. Install all packages in a single basestrap call
-    n = len(packages)
-    basestrap_argv = ["basestrap"]
-    if pacman_conf is not None:
-        basestrap_argv += ["-C", pacman_conf]
-    basestrap_argv += [t] + packages
-    steps.append(RunCommand(
-        argv=basestrap_argv,
-        description=f"Install {n} package{'s' if n != 1 else ''} with basestrap",
-    ))
+    steps.extend(bootstrap_steps(plan, target=target, pacman_conf=pacman_conf,
+                                 extra_packages=extra_packages))
 
     # 2. Generate fstab (stdout redirected via shell)
     steps.append(RunCommand(

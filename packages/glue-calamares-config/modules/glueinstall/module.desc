@@ -1,0 +1,7 @@
+# Glue Linux: bootstrap + configuration + Limine over the root Calamares
+# mounted (roadmap 10.3, ADR-023). Runs after partition/mount, before fstab.
+---
+type: "job"
+name: "glueinstall"
+interface: "python"
+script: "main.py"
