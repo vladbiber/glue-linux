@@ -28,6 +28,7 @@ class TestAlacrittyToml(unittest.TestCase):
             self.d = tomllib.load(f)
 
     def test_values(self):
+        self.assertEqual(self.d["terminal"]["shell"], {"program": "/bin/zsh", "args": ["-l"]})
         self.assertEqual(self.d["window"]["opacity"], 0.5)
         self.assertEqual(self.d["font"]["size"], 11.0)
         self.assertEqual(self.d["font"]["normal"]["family"], "Liberation Mono")
@@ -166,6 +167,8 @@ class TestFontInPlan(unittest.TestCase):
     def test_liberation_on_every_graphical_install(self):
         from glue_installer import plan
         self.assertIn("alacritty", plan._DESKTOP_PACKAGES)
+        self.assertIn("glue-zsh", plan._DESKTOP_PACKAGES)
+        self.assertEqual(plan._ZSHRC_CONTENT, (_BRANDING.parent / "glue-zsh/skel.zshrc").read_text())
         self.assertIn("ttf-liberation", plan._DESKTOP_PACKAGES)
 
 

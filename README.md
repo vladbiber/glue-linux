@@ -130,10 +130,23 @@ Glue Welcome adds an **Install Glue Linux** button that starts
 
 ## Terminal
 
-Every graphical session ships with **alacritty**, configured by Glue Linux
-(Liberation Mono 11, translucent background). Ctrl+Shift +/− changes the font size
-persistently and Ctrl+Shift+Backspace resets it. The same works from a terminal:
-`termfont +1`, `termfont -2`, `termfont 12`, `termfont reset`.
+Graphical installs and the live image include Alacritty with Zsh and Oh My Zsh
+(`robbyrussell`, `git` plugin). The framework is pinned in the `glue-zsh` package;
+it needs no download at first login. Personal additions live in
+`~/.config/oh-my-zsh/custom`, and its cache stays under `~/.cache/oh-my-zsh`.
+The terminal keeps its 50% opacity, Liberation Mono font and persistent font-size
+shortcuts (Ctrl+Shift +/- and Backspace to reset).
+
+Alacritty starts with GlueQS's default palette and follows the active GlueQS
+scheme, including wallpaper changes. Settings → THEME controls window borders,
+terminal detection, Kitty opt-in, and whether text colours are included. Disabling
+text-colour sync keeps the current text and ANSI palette and changes only the
+background. Config backups use the `.pre-glueqs` suffix.
+
+Rofi defaults to the fullscreen-preview theme used on the development desktop.
+`PREVIEW=true rofi -show drun` also opens its side preview. The bundled theme lives
+in `/usr/share/glue/rofi/`; new users get `~/.config/rofi/config.rasi` and the system
+fallback is `/etc/rofi.rasi`.
 
 ## Layout
 
@@ -146,6 +159,7 @@ glue-linux/
 ├── packages/                # custom packages (built into the [glue] repo)
 │   ├── gluewc/              # default Wayland compositor
 │   ├── glueqs/              # default gluewc shell/bar
+│   ├── glue-zsh/            # Zsh + pinned Oh My Zsh terminal defaults
 │   ├── nvwm/                # BSP tiling WM, built-in bar, media keys enabled,
 │   │                        #   user config at ~/.config/nvwm/config.conf
 │   ├── st-glue/         # st patched to the Glue palette + JetBrains Mono

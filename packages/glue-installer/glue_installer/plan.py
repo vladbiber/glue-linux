@@ -41,6 +41,8 @@ esac
 
 _ZSHRC_CONTENT = """\
 # ~/.zshrc — Glue Linux
+# Oh My Zsh is preinstalled for graphical sessions; minimal installs still work.
+[[ -r /usr/share/glue/zshrc ]] && source /usr/share/glue/zshrc
 # Run fastfetch on interactive shell start
 [[ -o interactive ]] && command -v fastfetch >/dev/null && fastfetch
 """
@@ -95,7 +97,7 @@ _DESKTOP_PACKAGES = frozenset({
     "rtkit",
     # universal terminal: several WM default configs (gluewc notably) bind
     # alacritty out of the box — every session gets a working terminal keybind
-    "alacritty", "ttf-liberation",   # liberation = the font of the shipped alacritty.toml
+    "alacritty", "glue-zsh", "ttf-liberation",   # liberation = the font of the shipped alacritty.toml
     "pipewire", "wireplumber", "pipewire-pulse", "pipewire-alsa",
     "noto-fonts", "noto-fonts-emoji", "ttf-dejavu", "ttf-jetbrains-mono",
     "dunst", "dbus",

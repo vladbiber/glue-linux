@@ -112,6 +112,7 @@
       "screenshots": ["screenshots/gluewc-glueqs-bar.png"],
       "packages": [
         "gluewc",
+        "rofi",
         "polkit-gnome",
         "nautilus"
       ],

@@ -1,0 +1,12 @@
+# Glue Linux interactive shell defaults. Loaded by the user's ~/.zshrc.
+[[ -o interactive ]] || return
+export ZSH=/usr/share/oh-my-zsh
+ZSH_THEME="robbyrussell"
+plugins=(git)
+
+# The framework is package-managed; personal additions and caches are writable.
+ZSH_CUSTOM="${XDG_CONFIG_HOME:-$HOME/.config}/oh-my-zsh/custom"
+ZSH_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/oh-my-zsh"
+mkdir -p "$ZSH_CUSTOM" "$ZSH_CACHE_DIR"
+zstyle ':omz:update' mode disabled
+source "$ZSH/oh-my-zsh.sh"

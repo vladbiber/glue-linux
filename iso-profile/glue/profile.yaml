@@ -113,6 +113,7 @@ rootfs:
     - xdg-desktop-portal-gtk
     - grim
     - alacritty
+    - glue-zsh
     # file manager of gluewc/nvwm installs (GNOME Files)
     - nautilus
     - xorg-xwayland

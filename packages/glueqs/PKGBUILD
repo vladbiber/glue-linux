@@ -4,7 +4,7 @@
 # written to ~/.config/glueqs by the shell itself.
 pkgname=glueqs
 pkgver=r17.4a70e24
-pkgrel=1
+pkgrel=2
 pkgdesc="Dot-matrix desktop shell for gluewc (bar, launcher, OSDs, notifications, wallpaper)"
 arch=('any')
 url="https://github.com/vladbiber/glueqs"
@@ -15,8 +15,9 @@ license=('GPL-3.0-only')
 # galaxy's package on a glueqs install, noctalia-qs on a Noctalia one (ADR-020).
 depends=('quickshell' 'bash' 'coreutils' 'curl' 'networkmanager' 'bluez' 'udev'
          'elogind' 'gluewc' 'brightnessctl' 'playerctl' 'upower'
-         'power-profiles-daemon' 'wl-clipboard')
-optdepends=('easyeffects: equalizer presets in the media panel')
+         'power-profiles-daemon' 'wl-clipboard' 'python>=3.11' 'python-pillow')
+optdepends=('easyeffects: equalizer presets in the media panel'
+            'matugen: optional Material wallpaper palettes')
 makedepends=('git')
 source=("git+https://github.com/vladbiber/glueqs.git")
 sha256sums=('SKIP')
@@ -30,7 +31,7 @@ package() {
     local dest="$pkgdir/etc/xdg/quickshell/glueqs"
     install -dm755 "$dest"
     cd "$pkgname"
-    cp -r -- *.qml *.js eq-preset.sh "$dest/"
+    cp -r -- *.qml *.js theme_tools.py eq-preset.sh "$dest/"
     chmod 755 "$dest/eq-preset.sh"
     # upstream ships no settings.json: the shell writes its defaults to
     # ~/.config/glueqs on first start

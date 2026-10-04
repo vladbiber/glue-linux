@@ -104,7 +104,7 @@ class TestPositive(unittest.TestCase):
         self.assertEqual(gluewc.kind, "wm")
         self.assertEqual(gluewc.session_type, "wayland")
         self.assertEqual(gluewc.exec, "gluewc-session")
-        self.assertEqual(gluewc.packages, ["gluewc", "polkit-gnome", "nautilus"])
+        self.assertEqual(gluewc.packages, ["gluewc", "rofi", "polkit-gnome", "nautilus"])
         self.assertEqual(gluewc.screenshot, "screenshots/gluewc-glueqs-bar.png")
 
     def test_cinnamon_entry_exact_packages(self):

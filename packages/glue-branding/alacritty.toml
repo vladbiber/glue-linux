@@ -1,3 +1,7 @@
+[terminal.shell]
+program = "/bin/zsh"
+args = ["-l"]
+
 [window]
 opacity = 0.5
 
@@ -24,36 +28,36 @@ style = "Bold Italic"
 shape = "Block"
 
 [colors.primary]
-foreground = "#dddddd"
-background = "#000000"
+"foreground" = "#f2f2f2"
+"background" = "#000000"
 
 [colors.cursor]
-text = "#111111"
-cursor = "#cccccc"
+"text" = "#000000"
+"cursor" = "#d71921"
 
 [colors.selection]
-text = "#000000"
-background = "#fffacd"
+"text" = "#ffffff"
+"background" = "#d71921"
 
 [colors.normal]
-black = "#000000"
-red = "#cc0403"
-green = "#19cb00"
-yellow = "#cecb00"
-blue = "#0d73cc"
-magenta = "#cb1ed1"
-cyan = "#0dcdcd"
-white = "#dddddd"
+"black" = "#161616"
+"red" = "#ff7871"
+"green" = "#57c35f"
+"yellow" = "#cca200"
+"blue" = "#72a7ff"
+"magenta" = "#dc7ee2"
+"cyan" = "#00bfc6"
+"white" = "#f2f2f2"
 
 [colors.bright]
-black = "#767676"
-red = "#f2201f"
-green = "#23fd00"
-yellow = "#fffd00"
-blue = "#1a8fff"
-magenta = "#fd28ff"
-cyan = "#14ffff"
-white = "#ffffff"
+"black" = "#9a9a9a"
+"red" = "#ffb0a8"
+"green" = "#72e57a"
+"yellow" = "#f2c100"
+"blue" = "#a7c9ff"
+"magenta" = "#faa2ff"
+"cyan" = "#00e2eb"
+"white" = "#f2f2f2"
 
 # Ctrl+Shift +/- = persistent font size (Ctrl +/- stays per-session only)
 [[keyboard.bindings]]

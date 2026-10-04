@@ -1,0 +1,24 @@
+# Maintainer: Glue Linux
+pkgname=glue-zsh
+pkgver=20260929
+pkgrel=1
+pkgdesc="Glue Linux terminal defaults with Zsh and Oh My Zsh"
+arch=('any')
+url="https://github.com/ohmyzsh/ohmyzsh"
+license=('MIT')
+depends=('zsh' 'git')
+_commit=4d4cfc287e9d887b81242c0e431b5f49f9cec5c1
+source=("ohmyzsh-${_commit}.tar.gz::https://codeload.github.com/ohmyzsh/ohmyzsh/tar.gz/${_commit}"
+        'zshrc' 'skel.zshrc')
+sha256sums=('d3af1bf5f3c59e84f1f3051d3a994b557b8ffd3cbdf64b2811ac532c38f6b5ee'
+            'SKIP' 'SKIP')
+
+package() {
+    local dest="$pkgdir/usr/share/oh-my-zsh"
+    install -dm755 "$dest"
+    cd "$srcdir/ohmyzsh-$_commit"
+    cp -r lib plugins themes tools templates oh-my-zsh.sh "$dest/"
+    install -Dm644 LICENSE.txt "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+    install -Dm644 "$srcdir/zshrc" "$pkgdir/usr/share/glue/zshrc"
+    install -Dm644 "$srcdir/skel.zshrc" "$pkgdir/etc/skel/.zshrc"
+}

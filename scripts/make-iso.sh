@@ -34,10 +34,15 @@ pacman -Sy --noconfirm >/dev/null 2>&1 || true
 # quickshell-based bars (glue-bar, imperative-qs + its swww/matugen deps)
 # are no longer built: quickshell was dropped from the catalog and the ISO.
 # order matters: lib32-mangohud needs lib32-glew, glueqs needs gluewc, both from [glue]
-for pkg in glue-branding glue-settings glue-boot st-glue nvwm proton-ge-custom-bin \
+for pkg in glue-zsh glue-branding glue-settings glue-boot st-glue nvwm proton-ge-custom-bin \
            scx-scheds ananicy-cpp lib32-glew lib32-mangohud cage gluewc glueqs \
            glue-apps glue-welcome glue-installer glue-calamares-config; do
+    # GLUE_PKGS="a b" rebuilds only those; the rest come from the persisted repo
+    if [ -n "${GLUE_PKGS:-}" ] && ls "$REPO/$pkg"-[0-9r]*.pkg.tar.* >/dev/null 2>&1; then
+        case " $GLUE_PKGS " in *" $pkg "*) ;; *) echo "    -- $pkg (kept)"; continue ;; esac
+    fi
     echo "    -- $pkg"
+    rm -f "$REPO/$pkg"-[0-9r]*.pkg.tar.*
     ( cd "$ROOT/packages/$pkg" && \
       sudo -u builder makepkg -f --syncdeps --noconfirm --skippgpcheck )
     cp "$ROOT/packages/$pkg"/*.pkg.tar.* "$REPO"/ 2>/dev/null || true
