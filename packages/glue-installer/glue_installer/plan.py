@@ -132,10 +132,9 @@ _ALWAYS_PACKAGES = frozenset({
     "artix-keyring", "artix-mirrorlist",
     "cachyos-keyring", "cachyos-mirrorlist",
     "wpa_supplicant", "openresolv",
-    # os-prober: dual-boot entries (Windows, other Linux) in the GRUB menu.
-    # The live USB's own entries that it also clones are stripped afterwards
-    # by the grub_filter bootloader step (see glue_installer.grub_filter).
-    "os-prober",
+    # os-prober is NOT installed on the target: it runs on the live side only
+    # (iso-profile) and its results become /etc/glue/boot.d/*.conf
+    # (glue_installer.osdetect, roadmap 3.4) that glue-boot-update keeps.
     # NTP client: the live clock is synced before install (run_ui.sync_clock);
     # openntpd keeps the INSTALLED system's clock right from first boot on.
     "openntpd",

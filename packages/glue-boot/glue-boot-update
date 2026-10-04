@@ -8,6 +8,13 @@
 # /usr/share/libalpm/hooks (95-glue-boot-update: kernel installed, upgraded
 # or removed; 95-glue-boot-deploy: limine installed or upgraded). The text it
 # writes is the one limine_conf() in the installer produces, byte for byte.
+#
+# Other operating systems: every /etc/glue/boot.d/*.conf (written by the
+# installer from os-prober, roadmap 3.4) is a ready limine.conf fragment —
+# one entry per file, a `# ...` comment line then `/Title` — appended after
+# all kernel entries in LC_ALL=C order, each preceded by one blank line.
+# Empty files and files whose first non-blank line is not '#' or '/' are
+# skipped with a warning. Drop a file there (or delete one) and re-run.
 set -eu
 export LC_ALL=C   # byte order for globs and sort, like Python's sorted()
 
@@ -47,6 +54,7 @@ BOOT="$ROOT/boot"
 CONF="$ROOT/etc/glue/boot.conf"
 OUT="$BOOT/limine.conf"
 SHARE="$ROOT/usr/share/limine"
+BOOT_D="$ROOT/etc/glue/boot.d"
 
 # ------------------------------------------------------------- settings ----
 if [ ! -f "$CONF" ]; then
@@ -122,6 +130,27 @@ kernel_entries() { # kernel_entries KERNEL TITLE FALLBACK_TITLE
     fi
 }
 
+# ---------------------------------------------------- other OSes (boot.d) ----
+FOREIGN=0
+foreign_entries() {
+    [ -d "$BOOT_D" ] || return 0
+    for f in "$BOOT_D"/*.conf; do
+        [ -f "$f" ] || continue
+        if [ ! -s "$f" ]; then
+            warn "skipping empty $f"
+            continue
+        fi
+        first=$(grep -m 1 -v '^[[:space:]]*$' "$f" || true)
+        case $first in
+            '#'*|'/'*) ;;
+            *) warn "skipping $f: first line must start with '#' or '/'"; continue ;;
+        esac
+        # $(cat) drops the trailing newlines, like Python's rstrip("\n")
+        printf '\n%s\n' "$(cat "$f")"
+        FOREIGN=$((FOREIGN + 1))
+    done
+}
+
 emit_conf() {
     printf '# Glue Linux boot menu (written by the installer; glue-boot-update regenerates it)\n'
     printf 'timeout: %s\n' "$GLUE_BOOT_TIMEOUT"
@@ -135,6 +164,7 @@ emit_conf() {
     for k in $OTHERS; do
         kernel_entries "$k" "Glue Linux ($k)" "Glue Linux ($k, fallback initramfs)"
     done
+    foreign_entries
 }
 
 if [ "$PRINT" -eq 1 ]; then
@@ -147,7 +177,9 @@ trap 'rm -f "$OUT.new"' EXIT
 emit_conf > "$OUT.new"
 mv -f "$OUT.new" "$OUT"
 trap - EXIT
-log "wrote $OUT ($PRIMARY${OTHERS:+ +$OTHERS})"
+# emit_conf ran in a subshell (redirection), so count the fragments again
+FOREIGN=$(foreign_entries 2>/dev/null | grep -c '^/' || true)
+log "wrote $OUT ($PRIMARY${OTHERS:+ +$OTHERS}; $FOREIGN other OS entries)"
 
 [ "$DEPLOY" -eq 1 ] || exit 0
 

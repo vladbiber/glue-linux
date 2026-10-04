@@ -367,6 +367,47 @@ if __name__ == "__main__":
     unittest.main()
 
 
+class TestOtherOS(unittest.TestCase):
+    """Roadmap 3.4: injected os-prober/lsblk -> boot.d PlannedFile + summary."""
+    _PROBE = "/dev/sdb1@/EFI/Microsoft/Boot/bootmgfw.efi:Windows Boot Manager:Windows:efi\n"
+    _LSBLK = ('{"blockdevices":[{"path":"/dev/sdb","type":"disk","rm":false,"hotplug":false,'
+              '"pkname":null,"uuid":null,"partuuid":null,"pttype":"gpt","ptuuid":"1-1","partn":null,'
+              '"children":[{"path":"/dev/sdb1","type":"part","rm":false,"hotplug":false,"pkname":"sdb",'
+              '"uuid":"A1B2-C3D4","partuuid":"deadbeef-1111-2222-3333-444444444444","pttype":null,'
+              '"ptuuid":"1-1","partn":1}]}]}')
+
+    def _main(self, env, capture=None):
+        import io
+        from contextlib import redirect_stdout
+        from unittest import mock
+        from glue_installer import __main__ as m
+        buf = io.StringIO()
+        with mock.patch.dict(os.environ, env), \
+                mock.patch.object(m, "_capture", capture or m._capture), redirect_stdout(buf):
+            rc = m.main(["--headless", "--dry-run", "--disk", "/dev/fake"])
+        return rc, buf.getvalue()
+
+    def test_boot_d_file_before_bootloader_and_summary_lists_windows(self):
+        rc, out = self._main({"GLUE_OSPROBER_OUTPUT": self._PROBE, "GLUE_LSBLK_JSON": self._LSBLK,
+                              "GLUE_LIVE_DISK": "/dev/sdz"})
+        self.assertEqual(rc, 0)
+        lines = out.splitlines()
+        file_at = next(i for i, l in enumerate(lines)
+                       if "Write /etc/glue/boot.d/10-windows-boot-manager-deadbeef.conf" in l)
+        boot_at = next(i for i, l in enumerate(lines) if "Write /etc/glue/boot.conf" in l)
+        self.assertLess(file_at, boot_at)
+        self.assertIn("Other operating systems kept in the boot menu: Windows Boot Manager (/dev/sdb1)", out)
+
+    def test_without_os_prober_install_continues_with_warning(self):
+        def capture(argv):
+            raise OSError("No such file or directory: 'os-prober'")
+        rc, out = self._main({}, capture)
+        self.assertEqual(rc, 0)
+        self.assertIn("note: os-prober unavailable", out)
+        self.assertIn("No other operating system was detected.", out)
+        self.assertNotIn("boot.d", out)
+
+
 class TestRootElevation(unittest.TestCase):
     """build_elevation_argv: sudo re-exec argv for the root requirement."""
 

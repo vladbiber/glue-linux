@@ -243,9 +243,9 @@ class TestNetworkAndInitServicePackages(unittest.TestCase):
     def setUp(self):
         self.catalog = _make_catalog()
 
-    def test_ntp_and_os_prober_always_present(self):
-        # openntpd keeps the installed clock right; os-prober feeds the
-        # Limine foreign-OS entries (roadmap 3.4)
+    def test_ntp_always_present_os_prober_live_only(self):
+        # openntpd keeps the installed clock right; os-prober runs on the
+        # live medium only (roadmap 3.4: boot.d fragments), never on the target
         for minimal in (True, False):
             sel = Selection("k-main", "dinit", [] if minimal else ["wm-bare"],
                             {}, [], False, minimal)
@@ -253,7 +253,7 @@ class TestNetworkAndInitServicePackages(unittest.TestCase):
             self.assertIn("openntpd", plan.packages)
             self.assertIn("openntpd", plan.services)
             self.assertIn("openntpd-dinit", plan.packages)
-            self.assertIn("os-prober", plan.packages)
+            self.assertNotIn("os-prober", plan.packages)
 
     def test_power_profiles_daemon_with_sessions_only(self):
         # performance/balanced/power-saver modes: daemon + enabled service on

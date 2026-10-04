@@ -31,6 +31,9 @@ _CONFIG_KEYS = frozenset({
     "term_background", "term_foreground", "term_palette",
     "term_palette_bright", "comment", "protocol", "kernel_path",
     "module_path", "cmdline",
+    # chainload (3.4, osdetect.py): EFI `path`/`image_path`; BIOS `partition`,
+    # `mbr_id`, `gpt_uuid` (all in CONFIG.md v12.9.0 "Chainload protocol")
+    "image_path", "partition", "mbr_id", "gpt_uuid",
 })
 
 # packages/glue-branding/palette.json: bg, lines, text (RRGGBB, no '#').
@@ -116,7 +119,8 @@ def _entry(title: str, kernel: str, initramfs: str, cmdline: str) -> List[str]:
 def limine_conf(spec: BootSpec, root_uuid: str,
                 resume_uuid: Optional[str] = None,
                 firmware: str = "uefi",
-                extra_kernels: Tuple[str, ...] = ()) -> str:
+                extra_kernels: Tuple[str, ...] = (),
+                foreign_entries: Tuple[str, ...] = ()) -> str:
     """Full /boot/limine.conf: amber globals + Glue entry + fallback entry.
 
     firmware is validated only; the Linux entries are identical on UEFI and
@@ -124,6 +128,9 @@ def limine_conf(spec: BootSpec, root_uuid: str,
     extra_kernels: other kernel packages present in /boot (as glue-boot-update
     finds them, sorted); each gets a '(k)' and a '(k, fallback initramfs)'
     entry after the primary pair, same cmdline. Empty tuple: text unchanged.
+    foreign_entries: texts of /etc/glue/boot.d/*.conf (osdetect.boot_d_files,
+    LC_ALL=C order), each appended after ALL kernel entries preceded by one
+    blank line, exactly as glue-boot-update concatenates them.
     """
     _check_firmware(firmware)
     cmdline = kernel_cmdline(spec, root_uuid, resume_uuid)
@@ -154,7 +161,23 @@ def limine_conf(spec: BootSpec, root_uuid: str,
             *_entry(f"Glue Linux ({extra}, fallback initramfs)", extra,
                     f"initramfs-{extra}-fallback.img", cmdline),
         ]
+    for fragment in foreign_entries:
+        lines += ["", *_check_fragment(fragment).split("\n")]
     return "\n".join(lines) + "\n"
+
+
+def _check_fragment(text: str) -> str:
+    """A boot.d fragment: non-empty, first non-blank line '#…' or '/…', only
+    CONFIG.md keys. Returns the text without trailing newlines (what the
+    shell's $(cat file) yields)."""
+    body = text.rstrip("\n")
+    first = next((l for l in body.split("\n") if l.strip()), "")
+    if not first or first[0] not in "#/":
+        raise ValueError(f"boot.d fragment must start with '#' or '/': {text!r}")
+    unknown = set(emitted_keys(body)) - _CONFIG_KEYS
+    if unknown:
+        raise ValueError(f"boot.d fragment uses unknown Limine keys: {sorted(unknown)}")
+    return body
 
 
 def boot_conf(spec: BootSpec, firmware: str, root_uuid: str,

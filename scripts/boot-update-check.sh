@@ -17,6 +17,9 @@
 #   limine-deploy-hook  reinstalling limine runs the deploy hook, EFI file refreshed
 #   idempotent          two runs -> identical limine.conf
 #   no-bootconf-noop    without boot.conf: exit 0, limine.conf untouched
+#   foreign-entry-survives-kernel-update  boot.d/10-windows-deadbeef.conf stays
+#                       in limine.conf, after the kernel entries, across
+#                       pacman -U / pacman -R of the fake kernel (3.4)
 set -u
 
 IMAGE="${GLUE_CHECK_IMAGE:-glue-pkgbuild-img}"
@@ -39,7 +42,7 @@ host_main() {
     return $rc
 }
 
-record() { printf '%-20s %-4s %s\n' "$1" "$2" "$3" >> "$RESULTS"; }
+record() { printf '%-38s %-4s %s\n' "$1" "$2" "$3" >> "$RESULTS"; }
 sha() { sha256sum "$1" 2>/dev/null | cut -d' ' -f1; }
 
 build_and_install() { # build_and_install DIR — makepkg as builder, then pacman -U
@@ -158,11 +161,28 @@ PKG
         record no-bootconf-noop PASS "exit 0, limine.conf unchanged"
     else record no-bootconf-noop FAIL "exit $rc: $out"; fi
 
+    # (8) boot.d entry survives a kernel install + removal (roadmap 3.4)
+    mkdir -p /etc/glue/boot.d
+    printf '# Windows Boot Manager on /dev/sdz1 (os-prober)\n/Windows Boot Manager\nprotocol: efi\nimage_path: guid(deadbeef-1111-2222-3333-444444444444):/EFI/Microsoft/Boot/bootmgfw.efi\n' \
+        > /etc/glue/boot.d/10-windows-deadbeef.conf
+    pkg=$(ls -1 /tmp/build-linux-fake/*.pkg.tar.* | head -n1)
+    out=$(pacman -U --noconfirm "$pkg" 2>&1) || true
+    w1=$(grep -n -x '/Windows Boot Manager' /boot/limine.conf | cut -d: -f1)
+    k1=$(grep -n -x '/Glue Linux (linux-fake)' /boot/limine.conf | cut -d: -f1)
+    out=$(pacman -R --noconfirm linux-fake 2>&1) || true
+    w2=$(grep -n -x '/Windows Boot Manager' /boot/limine.conf | cut -d: -f1)
+    if [ -n "$w1" ] && [ -n "$k1" ] && [ "$k1" -lt "$w1" ] && [ -n "$w2" ] \
+        && ! grep -q linux-fake /boot/limine.conf \
+        && grep -qx 'image_path: guid(deadbeef-1111-2222-3333-444444444444):/EFI/Microsoft/Boot/bootmgfw.efi' /boot/limine.conf; then
+        record foreign-entry-survives-kernel-update PASS "Windows entry kept after pacman -U/-R, line $w1 > kernel line $k1"
+    else record foreign-entry-survives-kernel-update FAIL "w1=$w1 k1=$k1 w2=$w2"; fi
+    rm -f /etc/glue/boot.d/10-windows-deadbeef.conf
+
     printf '\n== glue-boot: pacman hook probes ==\n%s\n' "$(cat "$RESULTS")"
     printf '\n== /boot/limine.conf ==\n'; cat /boot/limine.conf
     rc=0
     ! grep -q ' FAIL ' "$RESULTS" || rc=1
-    [ "$(grep -c -E ' (PASS|FAIL) ' "$RESULTS")" -ge 8 ] || { log "fewer than 8 probes recorded"; rc=1; }
+    [ "$(grep -c -E ' (PASS|FAIL) ' "$RESULTS")" -ge 9 ] || { log "fewer than 9 probes recorded"; rc=1; }
     return $rc
 }
 

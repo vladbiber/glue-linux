@@ -27,6 +27,10 @@ from glue_installer.executor import (
 )
 from glue_installer.identity import IdentityError, IdentitySpec, identity_steps
 from glue_installer.limine import BootSpec, kernel_name, resume_wanted
+from glue_installer.osdetect import (
+    BOOT_D, boot_d_files, detect_other_os, summary_lines,
+)
+from glue_installer.plan_types import PlannedFile
 from glue_installer.plan import PlanError, Selection, resolve_plan
 from glue_installer.swap import swap_plan
 from glue_installer.preview import make_show_screenshot
@@ -50,9 +54,8 @@ def find_catalog(*, base_prefix: str = "/") -> Path:
     env_path = os.environ.get("GLUE_CATALOG")
     if env_path:
         return Path(env_path)
-    # NOTE: no rstrip("/") here — Path("/".rstrip("/")) is Path("") which makes
-    # the candidate RELATIVE to the CWD, so the packaged catalog was never found
-    # on the live ISO. Path() itself normalizes any trailing slash.
+    # No rstrip("/"): Path("") would make the candidate relative to the CWD
+    # (the packaged catalog was never found on the live ISO that way).
     packaged = (
         Path(base_prefix) / "usr/share/glue-installer/catalog/catalog.json"
     )
@@ -69,22 +72,14 @@ def _build_parser() -> argparse.ArgumentParser:
         prog="glue-installer",
         description="Glue Linux installer — compose your own system.",
     )
-    parser.add_argument(
-        "--catalog", type=Path, default=None, metavar="PATH",
-        help="path to catalog.json (default: auto-detected via ADR-9 search order)",
-    )
-    parser.add_argument(
-        "--target", default="/mnt", metavar="PATH",
-        help="mount point of the target system (default: /mnt)",
-    )
-    parser.add_argument(
-        "--dry-run", action="store_true",
-        help="print the install steps instead of running them",
-    )
-    parser.add_argument(
-        "--validate-catalog", action="store_true",
-        help="headless: load and validate the catalog, print counts, and exit",
-    )
+    parser.add_argument("--catalog", type=Path, default=None, metavar="PATH",
+                        help="path to catalog.json (default: ADR-9 search order)")
+    parser.add_argument("--target", default="/mnt", metavar="PATH",
+                        help="mount point of the target system (default: /mnt)")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="print the install steps instead of running them")
+    parser.add_argument("--validate-catalog", action="store_true",
+                        help="headless: load and validate the catalog, print counts, and exit")
     parser.add_argument(
         "--disk", metavar="PATH", default=None,
         help="disk to partition/format/mount (e.g. /dev/sda); "
@@ -95,26 +90,16 @@ def _build_parser() -> argparse.ArgumentParser:
         help="boot firmware type (default: auto = detect /sys/firmware/efi)",
     )
     # Identity flags
-    parser.add_argument(
-        "--hostname", default="glue", metavar="NAME",
-        help="system hostname (default: glue)",
-    )
-    parser.add_argument(
-        "--username", default=None, metavar="NAME",
-        help="primary user account to create (skipped if omitted)",
-    )
-    parser.add_argument(
-        "--password", default=None, metavar="SECRET",
-        help="password for the new user and root (only meaningful with --username)",
-    )
-    parser.add_argument(
-        "--locale", default="en_US.UTF-8", metavar="LOCALE",
-        help="system locale in ll_CC.UTF-8 form (default: en_US.UTF-8)",
-    )
-    parser.add_argument(
-        "--timezone", default="UTC", metavar="TZ",
-        help="system timezone in Area/City form (default: UTC)",
-    )
+    parser.add_argument("--hostname", default="glue", metavar="NAME",
+                        help="system hostname (default: glue)")
+    parser.add_argument("--username", default=None, metavar="NAME",
+                        help="primary user account to create (skipped if omitted)")
+    parser.add_argument("--password", default=None, metavar="SECRET",
+                        help="password for the new user and root (only meaningful with --username)")
+    parser.add_argument("--locale", default="en_US.UTF-8", metavar="LOCALE",
+                        help="system locale in ll_CC.UTF-8 form (default: en_US.UTF-8)")
+    parser.add_argument("--timezone", default="UTC", metavar="TZ",
+                        help="system timezone in Area/City form (default: UTC)")
     parser.add_argument(
         "--headless", action="store_true",
         help="skip the interactive TUI and use a minimal default selection "
@@ -186,8 +171,7 @@ def _ensure_root(argv) -> None:
 
 # -- TUI I/O hooks (the tui module itself never touches subprocess) ----------
 
-def _net_check() -> str:
-    """Best-effort connectivity check for the network screen."""
+def _net_check() -> str:  # best-effort connectivity check (network screen)
     import subprocess
     try:
         ok = subprocess.run(
@@ -199,8 +183,7 @@ def _net_check() -> str:
     return "connected" if ok else "OFFLINE"
 
 
-def _open_net_tool() -> None:
-    """Run nmtui full-screen (curses is suspended by the tui driver)."""
+def _open_net_tool() -> None:  # nmtui full-screen (curses suspended by tui)
     import subprocess
     try:
         subprocess.call(["nmtui"])
@@ -208,8 +191,7 @@ def _open_net_tool() -> None:
         pass  # nmtui missing: the notice already explains the situation
 
 
-def _repartition(disk_path):
-    """Run cfdisk on disk_path, then return the fresh partition list."""
+def _repartition(disk_path):  # cfdisk on disk_path, then fresh partition list
     import subprocess
     try:
         subprocess.call(["cfdisk", disk_path])
@@ -221,13 +203,24 @@ def _repartition(disk_path):
         return None
 
 
-def _print_summary(plan) -> None:
+def _print_summary(plan, os_lines=()) -> None:
     print(
         f"Install plan: {len(plan.packages)} packages, "
         f"{len(plan.services)} services, {len(plan.files)} files to write."
     )
+    for line in os_lines:
+        print(line)
     for warning in plan.warnings:
         print(f"note: {warning}")
+
+
+def _capture(argv) -> str:
+    """stdout of argv; raises OSError when the tool is missing/fails."""
+    import subprocess
+    r = subprocess.run(list(argv), capture_output=True, text=True, timeout=120)
+    if r.returncode != 0:
+        raise OSError(f"{argv[0]} exited {r.returncode}")
+    return r.stdout
 
 
 def _firmware(args) -> str:
@@ -239,8 +232,7 @@ def _firmware(args) -> str:
 def main(argv=None) -> int:
     args = _build_parser().parse_args(argv)
 
-    # Root is mandatory for a real install; elevate BEFORE the wizard so the
-    # user never fills in every screen only to fail at the first disk step.
+    # Root is mandatory for a real install; elevate BEFORE the wizard.
     if not args.dry_run and not args.validate_catalog:
         _ensure_root(argv if argv is not None else sys.argv[1:])
 
@@ -260,8 +252,7 @@ def main(argv=None) -> int:
         )
         return EXIT_OK
 
-    # Auto-detect the timezone from GeoIP when the user didn't pass one —
-    # it becomes the prefilled default in the identity screen, still editable.
+    # GeoIP timezone when none was passed: prefilled, still editable.
     if args.timezone == "UTC" and not args.dry_run:
         detected_tz = detect_timezone()
         if detected_tz:
@@ -375,8 +366,18 @@ def main(argv=None) -> int:
         return _fail(f"Plan error: {exc}", EXIT_INSTALL)
     if swap is not None:
         plan.warnings.extend(swap.warnings)
+    os_lines = []
     if disk_plan is not None:
         plan.warnings.extend(disk_plan.warnings)
+        # Other OSes -> /etc/glue/boot.d/*.conf, written with the plan files
+        # (before the bootloader step; foreign PARTUUIDs exist already).
+        detected, os_warnings = detect_other_os(
+            disk_plan, env=os.environ, capture=_capture)
+        plan.warnings.extend(os_warnings)
+        for name, text in boot_d_files(detected):
+            plan.files.append(PlannedFile(f"{BOOT_D}/{name}", text, 0o644))
+        plan.files.sort(key=lambda f: f.path)
+        os_lines = summary_lines(detected)
 
     # Resolve pacman.conf path: env override (for tests) or installed location.
     pacman_conf_path = os.environ.get("GLUE_PACMAN_CONF")
@@ -402,9 +403,8 @@ def main(argv=None) -> int:
     except ExecutorError as exc:
         return _fail(f"Executor error: {exc}", EXIT_INSTALL)
 
-    # Host keyring prep comes before EVERYTHING: basestrap verifies the
-    # [cachyos] database signature against the HOST keyring — see
-    # executor.keyring_steps.
+    # Host keyring prep first: basestrap verifies [cachyos] against the HOST
+    # keyring (executor.keyring_steps).
     steps = keyring_steps() + steps
 
     # Append identity steps: wizard-collected spec wins, else --username flags
@@ -421,9 +421,8 @@ def main(argv=None) -> int:
             )
         except IdentityError as exc:
             return _fail(f"Identity error: {exc}", EXIT_INSTALL)
-    # Local time, automatically: if the timezone is still the "UTC"
-    # placeholder (GeoIP was offline before the wizard), retry now — the
-    # wizard's network screen usually just brought Wi-Fi up.
+    # Timezone still "UTC" (GeoIP offline before the wizard)? Retry now,
+    # the network screen usually just brought Wi-Fi up.
     if not args.dry_run:
         retried = autodetect_spec_timezone(spec)
         if retried is not spec and retried is not None:
@@ -432,7 +431,7 @@ def main(argv=None) -> int:
     if spec is not None:
         steps = steps + identity_steps(spec, target=args.target)
 
-    _print_summary(plan)
+    _print_summary(plan, os_lines)
 
     if args.dry_run:
         execute(steps, dry_run=True)
@@ -462,16 +461,13 @@ def main(argv=None) -> int:
         print("Cancelled.")
         return EXIT_CANCELLED
 
-    # The live clock is only as good as the RTC (often hours off: local-time
-    # RTC, dead CMOS battery). Fix it from the network BEFORE identity_steps
-    # runs `hwclock --systohc`, or the wrong time gets burned into the RTC
-    # and the installed system boots with a wrong clock every time.
+    # Fix the live clock from the network BEFORE identity_steps runs
+    # `hwclock --systohc`, or a wrong RTC time gets burned in for good.
     corrected = sync_clock()
     if corrected is not None:
         print(f"Clock was off by {corrected:+d}s — synced from the network.")
 
-    # Like the original whiptail installer: the console shows ONLY a progress
-    # bar; all subprocess output goes to the log file.
+    # Console shows only a progress bar; subprocess output goes to the log.
     try:
         with open(_INSTALL_LOG, "w", encoding="utf-8") as fh:
             fh.write("glue-install log\n")

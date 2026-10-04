@@ -116,6 +116,82 @@ class TestParity(BootUpdateCase):
         self.assertIn("linux-gone", r.stderr)
 
 
+_WIN_EFI = ("# Windows Boot Manager on /dev/nvme0n1p1 (os-prober)\n/Windows Boot Manager\n"
+            "protocol: efi\nimage_path: guid(deadbeef-1111-2222-3333-444444444444):"
+            "/EFI/Microsoft/Boot/bootmgfw.efi\n")
+_WIN_BIOS = ("# Windows 10 on /dev/sda1 (os-prober)\n/Windows 10\nprotocol: bios\n"
+             "mbr_id: a1b2c3d4\npartition: 1\n")
+_FEDORA = ("# Fedora on /dev/sdc1 (os-prober)\n/Fedora\nprotocol: efi\n"
+           "image_path: guid(cafebabe-1111-2222-3333-444444444444):/EFI/fedora/shimx64.efi\n")
+
+
+class TestForeignEntries(BootUpdateCase):
+    """boot.d fragments (roadmap 3.4): shell and limine_conf() byte-identical."""
+
+    def bootd(self, name, text):
+        d = self.root / "etc" / "glue" / "boot.d"
+        d.mkdir(exist_ok=True)
+        (d / name).write_text(text)
+
+    def test_uefi_windows(self):
+        self.bootd("10-windows-boot-manager-deadbeef.conf", _WIN_EFI)
+        self.conf(_PLAIN)
+        r = _run(self.root, "--print")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(r.stdout, limine_conf(_PLAIN, _ROOT_UUID, foreign_entries=(_WIN_EFI,)))
+        self.assertEqual(r.stderr, "")
+        self.assertTrue(r.stdout.endswith("\n\n" + _WIN_EFI))
+
+    def test_bios_windows_after_all_kernel_entries(self):
+        self.kernel("linux-lts")
+        self.bootd("30-windows-10-a1b2c3d4.conf", _WIN_BIOS)
+        self.conf(_PLAIN, "bios")
+        r = _run(self.root, "--print")
+        self.assertEqual(r.stdout, limine_conf(_PLAIN, _ROOT_UUID, firmware="bios",
+                                               extra_kernels=("linux-lts",),
+                                               foreign_entries=(_WIN_BIOS,)))
+        self.assertLess(r.stdout.index("/Glue Linux (linux-lts, fallback initramfs)"),
+                        r.stdout.index("/Windows 10"))
+
+    def test_empty_file_ignored(self):
+        self.bootd("10-empty-00000000.conf", "")
+        self.conf(_PLAIN)
+        r = _run(self.root, "--print")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(r.stdout, limine_conf(_PLAIN, _ROOT_UUID))
+        self.assertIn("skipping empty", r.stderr)
+
+    def test_invalid_file_ignored_with_warning(self):
+        self.bootd("20-bad-00000000.conf", "protocol: efi\nimage_path: boot():/x.efi\n")
+        self.bootd("10-windows-boot-manager-deadbeef.conf", _WIN_EFI)
+        self.conf(_PLAIN)
+        r = _run(self.root, "--print")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(r.stdout, limine_conf(_PLAIN, _ROOT_UUID, foreign_entries=(_WIN_EFI,)))
+        self.assertIn("20-bad-00000000.conf: first line", r.stderr)
+        with self.assertRaises(ValueError):
+            limine_conf(_PLAIN, _ROOT_UUID, foreign_entries=("protocol: efi\n",))
+
+    def test_order_10_before_20_and_trailing_newlines_normalised(self):
+        self.bootd("20-fedora-cafebabe.conf", _FEDORA + "\n\n")
+        self.bootd("10-windows-boot-manager-deadbeef.conf", _WIN_EFI)
+        self.conf(_HIB, "uefi", _RESUME_UUID)
+        r = _run(self.root, "--print")
+        self.assertEqual(r.stdout, limine_conf(_HIB, _ROOT_UUID, _RESUME_UUID,
+                                               foreign_entries=(_WIN_EFI, _FEDORA)))
+        self.assertLess(r.stdout.index("/Windows Boot Manager"), r.stdout.index("/Fedora"))
+        self.assertNotIn("\n\n\n", r.stdout)
+
+    def test_written_file_counts_foreign_entries(self):
+        self.bootd("10-windows-boot-manager-deadbeef.conf", _WIN_EFI)
+        self.conf(_PLAIN)
+        r = _run(self.root)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("1 other OS entries", r.stderr)
+        self.assertEqual((self.root / "boot" / "limine.conf").read_text(),
+                         limine_conf(_PLAIN, _ROOT_UUID, foreign_entries=(_WIN_EFI,)))
+
+
 class TestFilesAndErrors(BootUpdateCase):
 
     def test_no_boot_conf_is_a_noop(self):

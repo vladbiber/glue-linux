@@ -42,6 +42,29 @@ def _swap_disk_plan():
                                swap_uuid="u-1")
 
 
+_FRAG = "# Windows Boot Manager on /dev/sda1 (os-prober)\n/Windows Boot Manager\nprotocol: efi\n" \
+        "image_path: guid(deadbeef-1111-2222-3333-444444444444):/EFI/Microsoft/Boot/bootmgfw.efi\n"
+
+
+class TestForeignEntries(unittest.TestCase):
+
+    def test_fragments_after_kernels_blank_line_between(self):
+        base = limine_conf(_HIB, _ROOT, _RESUME, extra_kernels=("linux",))
+        text = limine_conf(_HIB, _ROOT, _RESUME, extra_kernels=("linux",),
+                           foreign_entries=(_FRAG, _FRAG.replace("Windows", "W2")))
+        self.assertTrue(text.startswith(base))
+        self.assertEqual(text, base + "\n" + _FRAG + "\n" + _FRAG.replace("Windows", "W2"))
+        self.assertTrue(set(emitted_keys(text)) <= _CONFIG_KEYS)
+
+    def test_chainload_keys_are_in_config_md_set(self):
+        self.assertTrue({"image_path", "partition", "mbr_id", "gpt_uuid", "comment"} <= _CONFIG_KEYS)
+
+    def test_bad_fragments_raise(self):
+        for bad in ("", "\n", "protocol: efi\n", "/X\nprotocol: efi\nwallpaper_x: a\n", "/X\ndrive: 1\n"):
+            with self.assertRaises(ValueError, msg=bad):
+                limine_conf(_PLAIN, _ROOT, foreign_entries=(bad,))
+
+
 class TestLimineConf(unittest.TestCase):
 
     def test_uefi_hibernate_full_text(self):

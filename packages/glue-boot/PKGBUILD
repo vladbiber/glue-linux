@@ -1,7 +1,7 @@
 # Maintainer: Glue Linux
 pkgname=glue-boot
 pkgver=1
-pkgrel=1
+pkgrel=2
 pkgdesc="Glue Linux boot menu maintenance: regenerates /boot/limine.conf from /etc/glue/boot.conf and redeploys Limine on kernel and bootloader updates"
 arch=('any')
 url="https://github.com/vladbiber/glue-linux"
@@ -15,6 +15,8 @@ source=('glue-boot-update'
 sha256sums=('SKIP' 'SKIP' 'SKIP')
 
 package() {
+    # drop-in Limine entries for other operating systems (installer, 3.4)
+    install -d "$pkgdir/etc/glue/boot.d"
     install -Dm755 "$srcdir/glue-boot-update" "$pkgdir/usr/bin/glue-boot-update"
     # 95-: after mkinitcpio's 90-mkinitcpio-install, so the new initramfs exists
     install -Dm644 "$srcdir/95-glue-boot-update.hook" \
