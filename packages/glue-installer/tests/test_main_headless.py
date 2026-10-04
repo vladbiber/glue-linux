@@ -121,8 +121,9 @@ class TestLimineInDryRun(unittest.TestCase):
         out = result.stdout
         self.assertNotIn("GRUB", out)
         self.assertNotIn("grub", out)
-        self.assertIn("Install Limine", out)
-        self.assertIn("Write /boot/limine.conf", out)
+        self.assertIn("glue-boot-update", out)
+        self.assertIn("Write /etc/glue/boot.conf", out)
+        self.assertNotIn("efibootmgr", out)
         lines = out.splitlines()
         basestrap_at = next(i for i, l in enumerate(lines) if "basestrap" in l)
         limine_at = next(i for i, l in enumerate(lines) if "limine.conf" in l)

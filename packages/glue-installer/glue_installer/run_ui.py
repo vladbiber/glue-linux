@@ -126,10 +126,8 @@ def _step_weight(step) -> int:
     if argv:
         if argv[0] == "basestrap":
             return 60
-        if argv[0] in ("efibootmgr", "limine"):
-            return 5
-        if any("limine.conf" in arg for arg in argv):
-            return 5
+        if any("limine.conf" in arg or "glue-boot-update" in arg for arg in argv):
+            return 5   # chrooted boot.conf writer + glue-boot-update --deploy
         if argv[0].startswith("mkfs.") or argv[0] == "pacman-key":
             return 2
     return 1

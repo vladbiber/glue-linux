@@ -1,0 +1,209 @@
+#!/bin/sh
+# glue-boot-update - regenerate /boot/limine.conf from /etc/glue/boot.conf and
+# the kernels present in /boot; --deploy also (re)installs the Limine files.
+#
+#   glue-boot-update [--deploy] [--print] [--root DIR]
+#
+# Run by the installer in the chroot and by the pacman hooks in
+# /usr/share/libalpm/hooks (95-glue-boot-update: kernel installed, upgraded
+# or removed; 95-glue-boot-deploy: limine installed or upgraded). The text it
+# writes is the one limine_conf() in the installer produces, byte for byte.
+set -eu
+export LC_ALL=C   # byte order for globs and sort, like Python's sorted()
+
+ROOT=""
+DEPLOY=0
+PRINT=0
+ME=glue-boot-update
+
+log()  { printf '%s: %s\n' "$ME" "$*" >&2; }
+warn() { printf '%s: warning: %s\n' "$ME" "$*" >&2; }
+die()  { printf '%s: error: %s\n' "$ME" "$*" >&2; exit 1; }
+
+usage() {
+    cat <<USAGE
+usage: $ME [--deploy] [--print] [--root DIR]
+  --deploy   also copy the Limine loader files and register the boot entry
+  --print    write the generated limine.conf to stdout, touch nothing
+  --root DIR operate on the system mounted at DIR instead of /
+USAGE
+}
+
+# ------------------------------------------------------------ arguments ----
+while [ $# -gt 0 ]; do
+    case $1 in
+        --deploy) DEPLOY=1 ;;
+        --print) PRINT=1 ;;
+        --root) [ $# -ge 2 ] || die "--root needs a directory"; ROOT=$2; shift ;;
+        --root=*) ROOT=${1#--root=} ;;
+        -h|--help) usage; exit 0 ;;
+        *) usage >&2; die "unknown option: $1" ;;
+    esac
+    shift
+done
+ROOT=${ROOT%/}
+[ -z "$ROOT" ] || [ -d "$ROOT" ] || die "no such directory: $ROOT"
+BOOT="$ROOT/boot"
+CONF="$ROOT/etc/glue/boot.conf"
+OUT="$BOOT/limine.conf"
+SHARE="$ROOT/usr/share/limine"
+
+# ------------------------------------------------------------- settings ----
+if [ ! -f "$CONF" ]; then
+    log "$CONF not found, nothing to do"
+    exit 0
+fi
+GLUE_BOOT_FIRMWARE=""
+GLUE_BOOT_KERNEL=""
+GLUE_BOOT_ROOT_UUID=""
+GLUE_BOOT_RESUME_UUID=""
+GLUE_BOOT_CMDLINE=""
+GLUE_BOOT_TIMEOUT=5
+# shellcheck disable=SC1090
+. "$CONF"
+case $GLUE_BOOT_FIRMWARE in
+    uefi|bios) ;;
+    *) die "GLUE_BOOT_FIRMWARE must be uefi or bios in $CONF (got '$GLUE_BOOT_FIRMWARE')" ;;
+esac
+[ -n "$GLUE_BOOT_ROOT_UUID" ] || die "GLUE_BOOT_ROOT_UUID is empty in $CONF"
+case $GLUE_BOOT_TIMEOUT in
+    ''|*[!0-9]*) die "GLUE_BOOT_TIMEOUT must be a number in $CONF" ;;
+esac
+[ -d "$BOOT" ] || die "$BOOT is not a directory"
+
+# -------------------------------------------------------------- kernels ----
+# A kernel is usable when /boot has both vmlinuz-<k> and initramfs-<k>.img.
+usable_kernels() {
+    for path in "$BOOT"/vmlinuz-*; do
+        [ -f "$path" ] || continue
+        k=${path##*/vmlinuz-}
+        if [ -f "$BOOT/initramfs-$k.img" ]; then
+            printf '%s\n' "$k"
+        else
+            warn "skipping $k: $BOOT/initramfs-$k.img is missing"
+        fi
+    done
+}
+
+KERNELS=$(usable_kernels | sort)
+[ -n "$KERNELS" ] || die "no kernel with an initramfs found in $BOOT; $OUT left untouched"
+PRIMARY=""
+for k in $KERNELS; do
+    [ "$k" = "$GLUE_BOOT_KERNEL" ] && PRIMARY=$k
+done
+if [ -z "$PRIMARY" ]; then
+    PRIMARY=$(printf '%s\n' "$KERNELS" | head -n 1)
+    warn "kernel '$GLUE_BOOT_KERNEL' from $CONF is not in $BOOT; using $PRIMARY"
+fi
+OTHERS=""
+for k in $KERNELS; do
+    [ "$k" = "$PRIMARY" ] || OTHERS="$OTHERS $k"
+done
+
+CMDLINE="root=UUID=$GLUE_BOOT_ROOT_UUID"
+[ -z "$GLUE_BOOT_CMDLINE" ] || CMDLINE="$CMDLINE $GLUE_BOOT_CMDLINE"
+[ -z "$GLUE_BOOT_RESUME_UUID" ] || CMDLINE="$CMDLINE resume=UUID=$GLUE_BOOT_RESUME_UUID"
+
+# ---------------------------------------------------------- limine.conf ----
+entry() { # entry TITLE KERNEL INITRAMFS
+    printf '\n/%s\n' "$1"
+    printf 'protocol: linux\n'
+    printf 'kernel_path: boot():/vmlinuz-%s\n' "$2"
+    printf 'module_path: boot():/%s\n' "$3"
+    printf 'cmdline: %s\n' "$CMDLINE"
+}
+
+kernel_entries() { # kernel_entries KERNEL TITLE FALLBACK_TITLE
+    entry "$2" "$1" "initramfs-$1.img"
+    if [ -f "$BOOT/initramfs-$1-fallback.img" ]; then
+        entry "$3" "$1" "initramfs-$1-fallback.img"
+    else
+        warn "no fallback initramfs for $1, fallback entry not written"
+    fi
+}
+
+emit_conf() {
+    printf '# Glue Linux boot menu (written by the installer; glue-boot-update regenerates it)\n'
+    printf 'timeout: %s\n' "$GLUE_BOOT_TIMEOUT"
+    printf 'interface_branding: Glue Linux\n'
+    printf 'interface_branding_colour: F1B00A\n'
+    printf 'interface_help_colour: A66900\n'
+    printf 'backdrop: 100A02\n'
+    printf 'term_background: 00100A02\n'
+    printf 'term_foreground: F1B00A\n'
+    kernel_entries "$PRIMARY" "Glue Linux" "Glue Linux (fallback initramfs)"
+    for k in $OTHERS; do
+        kernel_entries "$k" "Glue Linux ($k)" "Glue Linux ($k, fallback initramfs)"
+    done
+}
+
+if [ "$PRINT" -eq 1 ]; then
+    emit_conf
+    exit 0
+fi
+
+# atomic: write next to the target, then rename over it
+trap 'rm -f "$OUT.new"' EXIT
+emit_conf > "$OUT.new"
+mv -f "$OUT.new" "$OUT"
+trap - EXIT
+log "wrote $OUT ($PRIMARY${OTHERS:+ +$OTHERS})"
+
+[ "$DEPLOY" -eq 1 ] || exit 0
+
+# --------------------------------------------------------------- deploy ----
+# device name of the partition mounted at $1 (btrfs "[subvol]" suffix dropped)
+part_of() {
+    src=$(findmnt -no SOURCE "$1" 2>/dev/null || true)
+    src=${src%%\[*}
+    printf '%s\n' "$src"
+}
+
+deploy_uefi() {
+    [ -f "$SHARE/BOOTX64.EFI" ] || die "$SHARE/BOOTX64.EFI is missing (is limine installed?)"
+    mkdir -p "$BOOT/EFI/BOOT" "$BOOT/EFI/limine"
+    cp -f "$SHARE/BOOTX64.EFI" "$BOOT/EFI/BOOT/BOOTX64.EFI"
+    cp -f "$SHARE/BOOTX64.EFI" "$BOOT/EFI/limine/BOOTX64.EFI"
+    log "installed $BOOT/EFI/BOOT/BOOTX64.EFI and $BOOT/EFI/limine/BOOTX64.EFI"
+    if [ ! -d /sys/firmware/efi/efivars ] || [ -z "$(ls -A /sys/firmware/efi/efivars 2>/dev/null)" ]; then
+        warn "no EFI variables available (not booted in UEFI mode?); firmware boot entry not registered"
+        return 0
+    fi
+    if ! command -v efibootmgr >/dev/null 2>&1; then
+        warn "efibootmgr is not installed; firmware boot entry not registered"
+        return 0
+    fi
+    if efibootmgr | grep -q 'Glue Linux'; then
+        log "firmware boot entry 'Glue Linux' already present"
+        return 0
+    fi
+    esp=$(part_of "$BOOT")
+    name=${esp##*/}
+    partno=""
+    [ -z "$name" ] || [ ! -r "/sys/class/block/$name/partition" ] || partno=$(cat "/sys/class/block/$name/partition")
+    disk=$(lsblk -no PKNAME "$esp" 2>/dev/null | head -n 1 || true)
+    if [ -z "$esp" ] || [ -z "$partno" ] || [ -z "$disk" ]; then
+        warn "cannot resolve the disk and partition of $BOOT; firmware boot entry not registered"
+        return 0
+    fi
+    efibootmgr --create --disk "/dev/$disk" --part "$partno" \
+        --loader '\EFI\limine\BOOTX64.EFI' --label 'Glue Linux' --unicode >/dev/null
+    log "registered 'Glue Linux' in the firmware boot menu (/dev/$disk partition $partno)"
+}
+
+deploy_bios() {
+    [ -f "$SHARE/limine-bios.sys" ] || die "$SHARE/limine-bios.sys is missing (is limine installed?)"
+    cp -f "$SHARE/limine-bios.sys" "$BOOT/limine-bios.sys"
+    rootdev=$(part_of "${ROOT:-/}")
+    disk=""
+    [ -z "$rootdev" ] || disk=$(lsblk -no PKNAME "$rootdev" 2>/dev/null | head -n 1 || true)
+    [ -n "$disk" ] || die "cannot resolve the disk holding ${ROOT:-/} (root device '$rootdev'); limine bios-install not run"
+    limine bios-install "/dev/$disk"
+    log "installed Limine BIOS stages on /dev/$disk"
+}
+
+if [ "$GLUE_BOOT_FIRMWARE" = uefi ]; then
+    deploy_uefi
+else
+    deploy_bios
+fi

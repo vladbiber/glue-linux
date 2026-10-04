@@ -1,4 +1,4 @@
-"""Unit tests for limine.py (roadmap 3.1 + 3.2): limine.conf text + steps.
+"""Unit tests for limine.py (roadmap 3.1 + 3.2 + 3.3): limine.conf, boot.conf, steps.
 
 Option names are checked against the set taken from
 https://raw.githubusercontent.com/limine-bootloader/limine/v12.9.0/CONFIG.md
@@ -16,7 +16,7 @@ from glue_installer.disk_swap import plan_disk_with_swap
 from glue_installer.disks import BlockDevice, DiskError, plan_disk
 from glue_installer.executor import RunCommand
 from glue_installer.limine import (
-    BASE_CMDLINE, BootSpec, _CONFIG_KEYS, bootloader_packages,
+    BASE_CMDLINE, BootSpec, _CONFIG_KEYS, boot_conf, bootloader_packages,
     bootloader_steps, emitted_keys, kernel_cmdline, kernel_name, limine_conf,
     resume_wanted,
 )
@@ -136,8 +136,9 @@ class TestPackagesAndHelpers(unittest.TestCase):
 
     def test_packages_per_firmware_no_grub(self):
         self.assertEqual(bootloader_packages(plan_disk(_device(), "uefi")),
-                         ["efibootmgr", "limine"])
-        self.assertEqual(bootloader_packages(plan_disk(_device(), "bios")), ["limine"])
+                         ["efibootmgr", "glue-boot", "limine"])
+        self.assertEqual(bootloader_packages(plan_disk(_device(), "bios")),
+                         ["glue-boot", "limine"])
 
     def test_kernel_name_skips_headers(self):
         self.assertEqual(kernel_name(["linux-cachyos", "linux-cachyos-headers"]),
@@ -157,62 +158,109 @@ class TestPackagesAndHelpers(unittest.TestCase):
         self.assertFalse(resume_wanted(swapfile, True))
 
 
+class TestExtraKernelsAndBootConf(unittest.TestCase):
+
+    def test_no_extra_kernels_is_byte_identical(self):
+        self.assertEqual(limine_conf(_HIB, _ROOT, _RESUME, "uefi", ()),
+                         limine_conf(_HIB, _ROOT, _RESUME))
+
+    def test_extra_kernel_adds_two_entries_after_primary_pair(self):
+        text = limine_conf(_PLAIN, _ROOT, extra_kernels=("linux-cachyos-bore",))
+        titles = [l for l in text.splitlines() if l.startswith("/")]
+        self.assertEqual(titles, [
+            "/Glue Linux", "/Glue Linux (fallback initramfs)",
+            "/Glue Linux (linux-cachyos-bore)",
+            "/Glue Linux (linux-cachyos-bore, fallback initramfs)"])
+        self.assertIn("kernel_path: boot():/vmlinuz-linux-cachyos-bore\n", text)
+        self.assertIn("module_path: boot():/initramfs-linux-cachyos-bore-fallback.img\n", text)
+        self.assertEqual(text.count("cmdline: root=UUID=aaaa-1111 "), 4)
+        self.assertTrue(text.startswith(limine_conf(_PLAIN, _ROOT).rstrip("\n") + "\n\n/"))
+        self.assertTrue(set(emitted_keys(text)) <= _CONFIG_KEYS)
+        with self.assertRaises(ValueError):
+            limine_conf(_PLAIN, _ROOT, extra_kernels=("linux-cachyos",))
+        with self.assertRaises(ValueError):
+            limine_conf(_PLAIN, _ROOT, extra_kernels=("a b",))
+
+    def test_boot_conf_uefi_resume_exact(self):
+        self.assertEqual(boot_conf(_HIB, "uefi", _ROOT, _RESUME), (
+            "# Glue Linux boot settings; glue-boot-update turns these into /boot/limine.conf\n"
+            "GLUE_BOOT_FIRMWARE=uefi\n"
+            "GLUE_BOOT_KERNEL=linux-cachyos\n"
+            "GLUE_BOOT_ROOT_UUID=aaaa-1111\n"
+            "GLUE_BOOT_RESUME_UUID=bbbb-2222\n"
+            'GLUE_BOOT_CMDLINE="rw quiet loglevel=3 rd.udev.log_level=3 nowatchdog '
+            'zswap.enabled=0 amd_pstate=active"\n'
+            "GLUE_BOOT_TIMEOUT=5\n"))
+
+    def test_boot_conf_bios_no_resume_exact(self):
+        text = boot_conf(_PLAIN, "bios", _ROOT, _RESUME)  # resume flag off: dropped
+        self.assertEqual(text, (
+            "# Glue Linux boot settings; glue-boot-update turns these into /boot/limine.conf\n"
+            "GLUE_BOOT_FIRMWARE=bios\n"
+            "GLUE_BOOT_KERNEL=linux-cachyos\n"
+            "GLUE_BOOT_ROOT_UUID=aaaa-1111\n"
+            "GLUE_BOOT_RESUME_UUID=\n"
+            'GLUE_BOOT_CMDLINE="rw quiet loglevel=3 rd.udev.log_level=3 nowatchdog '
+            'zswap.enabled=0"\n'
+            "GLUE_BOOT_TIMEOUT=5\n"))
+        self.assertEqual(boot_conf(_HIB, "bios", _ROOT, None).count("RESUME_UUID=\n"), 1)
+        self.assertNotIn("root=", text)
+        with self.assertRaises(ValueError):
+            boot_conf(_PLAIN, "efi", _ROOT)
+        with self.assertRaises(ValueError):
+            boot_conf(BootSpec("linux", ('a="b"',)), "uefi", _ROOT)
+
+
 class TestBootloaderStepsUefi(unittest.TestCase):
 
     def setUp(self):
         self.steps = bootloader_steps(plan_disk(_device(), "uefi"), _PLAIN)
         self.argvs = [s.argv for s in self.steps]
 
-    def test_both_bootx64_destinations(self):
-        self.assertIn(["mkdir", "-p", "/mnt/boot/EFI/BOOT", "/mnt/boot/EFI/limine"],
-                      self.argvs)
-        self.assertIn(["cp", "/mnt/usr/share/limine/BOOTX64.EFI",
-                       "/mnt/boot/EFI/BOOT/BOOTX64.EFI"], self.argvs)
-        self.assertIn(["cp", "/mnt/usr/share/limine/BOOTX64.EFI",
-                       "/mnt/boot/EFI/limine/BOOTX64.EFI"], self.argvs)
+    def test_single_chrooted_step_no_live_side_tools(self):
+        self.assertEqual(len(self.steps), 1)
+        self.assertTrue(all(isinstance(s, RunCommand) for s in self.steps))
+        for argv in self.argvs:
+            self.assertNotIn(argv[0], ("cp", "efibootmgr", "limine", "mkdir"))
+        flat = " ".join(a for argv in self.argvs for a in argv)
+        self.assertNotIn("grub", flat)
+        self.assertNotIn("/boot/" + "efi", flat)
+        self.assertNotIn("BOOTX64", flat)
+        self.assertIn("limine.conf", self.steps[-1].description)
 
-    def test_efibootmgr_live_side_with_esp_number(self):
-        self.assertIn(["efibootmgr", "--create", "--disk", "/dev/sda", "--part", "1",
-                       "--loader", "\\EFI\\limine\\BOOTX64.EFI",
-                       "--label", "Glue Linux", "--unicode"], self.argvs)
-
-    def test_writer_is_last_chrooted_no_resume(self):
+    def test_writer_script_no_resume(self):
         last = self.steps[-1]
         self.assertEqual(last.argv[:4], ["artix-chroot", "/mnt", "sh", "-c"])
         script = last.argv[4]
+        self.assertTrue(script.startswith("set -e\n"))
         self.assertIn("findmnt -no UUID /", script)
-        self.assertIn("/boot/limine.conf", script)
-        self.assertIn("<<'GLUE_LIMINE_CONF'", script)
-        self.assertIn("root=UUID=@ROOT_UUID@", script)
-        self.assertIn('sed -i "s|@ROOT_UUID@|$ROOT_UUID|g" /boot/limine.conf', script)
+        self.assertIn("mkdir -p /etc/glue", script)
+        self.assertIn("cat > /etc/glue/boot.conf <<'GLUE_BOOT_CONF'", script)
+        self.assertIn("GLUE_BOOT_FIRMWARE=uefi\n", script)
+        self.assertIn("GLUE_BOOT_KERNEL=linux-cachyos\n", script)
+        self.assertIn("GLUE_BOOT_ROOT_UUID=@ROOT_UUID@\n", script)
+        self.assertIn('sed -i "s|@ROOT_UUID@|$ROOT_UUID|g" /etc/glue/boot.conf', script)
+        self.assertTrue(script.endswith("\nglue-boot-update --deploy\n"))
         self.assertNotIn("resume", script)
         self.assertNotIn("mkinitcpio", script)
         self.assertNotIn("blkid", script)
 
-    def test_no_grub_and_all_run_commands(self):
-        flat = " ".join(a for argv in self.argvs for a in argv)
-        self.assertNotIn("grub", flat)
-        self.assertNotIn("/boot/" + "efi", flat)
-        self.assertTrue(all(isinstance(s, RunCommand) for s in self.steps))
-
     def test_custom_target(self):
-        argvs = [s.argv for s in bootloader_steps(plan_disk(_device(), "uefi"),
-                                                   _PLAIN, target="/target/")]
-        self.assertIn(["cp", "/target/usr/share/limine/BOOTX64.EFI",
-                       "/target/boot/EFI/limine/BOOTX64.EFI"], argvs)
-        self.assertEqual(argvs[-1][1], "/target")
+        steps = bootloader_steps(plan_disk(_device(), "uefi"), _PLAIN, target="/target/")
+        self.assertEqual(steps[-1].argv[:2], ["artix-chroot", "/target"])
 
     def test_resume_writer_blkid_hook_and_mkinitcpio(self):
         steps = bootloader_steps(_swap_disk_plan(), _HIB)
+        self.assertEqual(len(steps), 1)
         script = steps[-1].argv[4]
         self.assertIn("RESUME_UUID=$(blkid -s UUID -o value /dev/sda2)", script)
-        self.assertIn("resume=UUID=@RESUME_UUID@", script)
-        self.assertIn('sed -i "s|@RESUME_UUID@|$RESUME_UUID|g" /boot/limine.conf', script)
+        self.assertIn("GLUE_BOOT_RESUME_UUID=@RESUME_UUID@\n", script)
+        self.assertIn('sed -i "s|@RESUME_UUID@|$RESUME_UUID|g" /etc/glue/boot.conf', script)
         self.assertIn("/etc/mkinitcpio.conf", script)
-        self.assertIn("filesystems", script)
+        self.assertIn("filesystems)([ )])/\\1 resume\\2/", script)
         self.assertIn("mkinitcpio -P", script)
-        self.assertIn("--part", steps[3].argv)
-        self.assertEqual(steps[3].argv[steps[3].argv.index("--part") + 1], "1")
+        self.assertLess(script.index("mkinitcpio -P"), script.index("glue-boot-update --deploy"))
+        self.assertIn("hibernation resume", steps[-1].description)
 
     def test_resume_requested_without_swap_partition_is_dropped(self):
         script = bootloader_steps(plan_disk(_device(), "uefi"), _HIB)[-1].argv[4]
@@ -223,13 +271,13 @@ class TestBootloaderStepsUefi(unittest.TestCase):
         import subprocess
         import tempfile
         script = bootloader_steps(_swap_disk_plan(), _HIB)[-1].argv[4]
-        body = script.split("<<'GLUE_LIMINE_CONF'\n")[1].split("\nGLUE_LIMINE_CONF\n")[0]
+        body = script.split("<<'GLUE_BOOT_CONF'\n")[1].split("\nGLUE_BOOT_CONF\n")[0]
         with tempfile.TemporaryDirectory() as tmp:
-            out = Path(tmp) / "limine.conf"
-            sh = f"cat > {out} <<'GLUE_LIMINE_CONF'\n{body}\nGLUE_LIMINE_CONF\n"
+            out = Path(tmp) / "boot.conf"
+            sh = f"cat > {out} <<'GLUE_BOOT_CONF'\n{body}\nGLUE_BOOT_CONF\n"
             subprocess.run(["sh", "-c", sh], check=True)
             self.assertEqual(out.read_text(),
-                             limine_conf(_HIB, "@ROOT_UUID@", "@RESUME_UUID@"))
+                             boot_conf(_HIB, "uefi", "@ROOT_UUID@", "@RESUME_UUID@"))
 
     def test_uefi_plan_without_esp_raises(self):
         broken = dataclasses.replace(plan_disk(_device(), "uefi"),
@@ -244,21 +292,22 @@ class TestBootloaderStepsBios(unittest.TestCase):
         self.steps = bootloader_steps(plan_disk(_device("/dev/nvme0n1"), "bios"), _PLAIN)
         self.argvs = [s.argv for s in self.steps]
 
-    def test_bios_install_and_stage_file(self):
-        self.assertIn(["cp", "/mnt/usr/share/limine/limine-bios.sys", "/mnt/boot/"],
-                      self.argvs)
-        self.assertIn(["limine", "bios-install", "/dev/nvme0n1"], self.argvs)
-        self.assertLess(self.argvs.index(["cp", "/mnt/usr/share/limine/limine-bios.sys",
-                                          "/mnt/boot/"]),
-                        self.argvs.index(["limine", "bios-install", "/dev/nvme0n1"]))
+    def test_single_chrooted_step_with_bios_firmware(self):
+        self.assertEqual(len(self.steps), 1)
+        for argv in self.argvs:
+            self.assertNotIn(argv[0], ("cp", "efibootmgr", "limine", "mkdir"))
+        self.assertEqual(self.steps[-1].argv[:4], ["artix-chroot", "/mnt", "sh", "-c"])
+        script = self.steps[-1].argv[4]
+        self.assertIn("GLUE_BOOT_FIRMWARE=bios\n", script)
+        self.assertIn("<<'GLUE_BOOT_CONF'", script)
+        self.assertTrue(script.rstrip("\n").endswith("glue-boot-update --deploy"))
 
     def test_no_efi_artifacts(self):
         flat = " ".join(a for argv in self.argvs for a in argv)
         self.assertNotIn("efibootmgr", flat)
         self.assertNotIn("BOOTX64", flat)
         self.assertNotIn("grub", flat)
-        self.assertEqual(self.steps[-1].argv[:3], ["artix-chroot", "/mnt", "sh"])
-        self.assertIn("/boot/limine.conf", self.steps[-1].argv[4])
+        self.assertIn("limine.conf", self.steps[-1].description)
 
 
 if __name__ == "__main__":

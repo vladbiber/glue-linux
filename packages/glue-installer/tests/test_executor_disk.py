@@ -127,27 +127,22 @@ class TestUefiDiskPlan(unittest.TestCase):
         self.assertIn(["mkdir", "-p", "/mnt/boot"], argvs)
 
     def test_limine_steps_are_last_after_services(self):
-        argvs = _argvs(self.steps)
-        tail = argvs[-5:]
-        self.assertEqual(tail[0], ["mkdir", "-p", "/mnt/boot/EFI/BOOT", "/mnt/boot/EFI/limine"])
-        self.assertEqual(tail[1], ["cp", "/mnt/usr/share/limine/BOOTX64.EFI",
-                                   "/mnt/boot/EFI/BOOT/BOOTX64.EFI"])
-        self.assertEqual(tail[2], ["cp", "/mnt/usr/share/limine/BOOTX64.EFI",
-                                   "/mnt/boot/EFI/limine/BOOTX64.EFI"])
-        # live side (not chrooted): firmware boot entry
-        self.assertEqual(tail[3], [
-            "efibootmgr", "--create", "--disk", "/dev/sda", "--part", "1",
-            "--loader", "\\EFI\\limine\\BOOTX64.EFI",
-            "--label", "Glue Linux", "--unicode",
-        ])
-        # LAST step: chrooted writer of /boot/limine.conf with the real UUIDs
-        self.assertEqual(self.steps[-1].argv[:4], ["artix-chroot", "/mnt", "sh", "-c"])
-        self.assertIn("findmnt -no UUID /", self.steps[-1].argv[4])
-        self.assertIn("/boot/limine.conf", self.steps[-1].argv[4])
-        self.assertIn("vmlinuz-linux-cachyos", self.steps[-1].argv[4])
+        # LAST step (ADR-022): one chrooted script writes /etc/glue/boot.conf
+        # with the real UUIDs and runs glue-boot-update --deploy on the target
+        last = self.steps[-1]
+        self.assertEqual(last.argv[:4], ["artix-chroot", "/mnt", "sh", "-c"])
+        self.assertIn("findmnt -no UUID /", last.argv[4])
+        self.assertIn("GLUE_BOOT_FIRMWARE=uefi", last.argv[4])
+        self.assertTrue(last.argv[4].rstrip().endswith("glue-boot-update --deploy"))
+        heads = [argv[0] for argv in _argvs(self.steps)]
+        for tool in ("efibootmgr", "limine", "cp"):
+            self.assertNotIn(tool, heads)
+        self.assertNotIn("/mnt/boot/EFI/BOOT", [a for argv in _argvs(self.steps) for a in argv])
+        self.assertIn("/etc/glue/boot.conf", self.steps[-1].argv[4])
+        self.assertIn("GLUE_BOOT_KERNEL=linux-cachyos", self.steps[-1].argv[4])
         service_at = _index_of(self.steps, "artix-chroot")
         self.assertIn("ln", self.steps[service_at].argv)
-        self.assertLess(service_at, len(self.steps) - 5)
+        self.assertLess(service_at, len(self.steps) - 1)
 
     def test_no_grub_anywhere(self):
         for argv in _argvs(self.steps):
@@ -162,7 +157,7 @@ class TestUefiDiskPlan(unittest.TestCase):
             boot=BootSpec("linux", ("amd_pstate=active",)),
         )
         script = steps[-1].argv[4]
-        self.assertIn("vmlinuz-linux\n", script)
+        self.assertIn("GLUE_BOOT_KERNEL=linux\n", script)
         self.assertIn("amd_pstate=active", script)
         default = compile_steps(_plan(), init_id="dinit", disk_plan=_disk_plan("uefi"))
         self.assertEqual(default, compile_steps(
@@ -196,9 +191,8 @@ class TestUefiDiskPlan(unittest.TestCase):
         argvs = _argvs(steps)
         self.assertIn(["mount", "/dev/sda2", "/target"], argvs)
         self.assertIn(["mount", "/dev/sda1", "/target/boot"], argvs)
-        self.assertIn(["cp", "/target/usr/share/limine/BOOTX64.EFI",
-                       "/target/boot/EFI/limine/BOOTX64.EFI"], argvs)
-        self.assertEqual(steps[-1].argv[1], "/target")
+        self.assertEqual(steps[-1].argv[:2], ["artix-chroot", "/target"])
+        self.assertIn("glue-boot-update --deploy", steps[-1].argv[4])
 
 
 class TestBiosDiskPlan(unittest.TestCase):
@@ -222,13 +216,14 @@ class TestBiosDiskPlan(unittest.TestCase):
 
     def test_limine_bios_install_with_disk(self):
         argvs = _argvs(self.steps)
-        self.assertIn(["limine", "bios-install", "/dev/nvme0n1"], argvs)
-        self.assertIn(["cp", "/mnt/usr/share/limine/limine-bios.sys", "/mnt/boot/"], argvs)
-        self.assertEqual(self.steps[-2].argv, ["limine", "bios-install", "/dev/nvme0n1"])
+        # bios-install runs on the target via glue-boot-update --deploy (ADR-022)
         self.assertEqual(self.steps[-1].argv[:4], ["artix-chroot", "/mnt", "sh", "-c"])
-        self.assertIn("/boot/limine.conf", self.steps[-1].argv[4])
+        self.assertIn("GLUE_BOOT_FIRMWARE=bios", self.steps[-1].argv[4])
+        self.assertIn("glue-boot-update --deploy", self.steps[-1].argv[4])
+        self.assertNotIn(["limine", "bios-install", "/dev/nvme0n1"], argvs)
         flat = [a for argv in argvs for a in argv]
         self.assertNotIn("efibootmgr", flat)
+        self.assertNotIn("limine-bios.sys", " ".join(flat))
         self.assertFalse(any(a.startswith("grub") for a in flat))
 
     def test_limine_but_no_efibootmgr_in_basestrap(self):
@@ -294,7 +289,7 @@ class TestSwapSteps(unittest.TestCase):
                               boot=BootSpec("linux-cachyos", (), True))
         script = steps[-1].argv[4]
         self.assertIn("blkid -s UUID -o value /dev/sda2", script)
-        self.assertIn("resume=UUID=@RESUME_UUID@", script)
+        self.assertIn("GLUE_BOOT_RESUME_UUID=@RESUME_UUID@", script)
         self.assertIn("mkinitcpio -P", script)
 
     def test_swap_uuid_passed_to_mkswap(self):
