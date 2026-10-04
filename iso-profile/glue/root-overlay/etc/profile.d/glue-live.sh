@@ -13,11 +13,12 @@ case "$(tty)" in
         if [ "$rc" -eq 10 ]; then
             cat <<'MSG'
 
-  Glue Linux needs a graphics device to show the installer, and none was
-  found on this computer (no /dev/dri/card*).
+  No display output was found (no /dev/dri/card*), so the desktop and the
+  installer cannot be shown. Any graphics works, including the one built
+  into the processor; a dedicated graphics card is not needed.
 
-  Check that the GPU is enabled in the firmware settings, or try another
-  boot entry. Run 'glue-live-session' to try again.
+  Check that a monitor is connected and that integrated graphics is not
+  disabled in the firmware settings. Run 'glue-live-session' to try again.
 
 MSG
         else
