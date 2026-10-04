@@ -112,7 +112,8 @@
       "screenshot": "screenshots/gluewc-glueqs.png",
       "packages": [
         "gluewc",
-        "polkit-gnome"
+        "polkit-gnome",
+        "nautilus"
       ],
       "services": [],
       "shell_choices": [
@@ -169,7 +170,8 @@
         "st-glue",
         "rofi",
         "feh",
-        "polkit-gnome"
+        "polkit-gnome",
+        "nautilus"
       ],
       "services": [],
       "shell_choices": [],
