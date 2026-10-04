@@ -88,6 +88,9 @@ rootfs:
     - xorg-xinit
     - xorg-xrandr
     - xorg-xsetroot
+    # Xorg fallback when gluewc cannot start (glue-live-x11): fbdev/vesa without KMS
+    - xf86-video-fbdev
+    - xf86-video-vesa
     - rofi
     - dmenu
     # --- Wayland preview: test a compositor on real hardware straight from

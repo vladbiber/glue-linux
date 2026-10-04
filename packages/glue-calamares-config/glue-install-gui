@@ -25,7 +25,8 @@ for f in $kms_glob; do
         break
     fi
 done
-if [ "$kms" -ne 1 ]; then
+# Xorg on fbdev/vesa has no KMS device but is still a display
+if [ "$kms" -ne 1 ] && [ -z "$DISPLAY" ]; then
     echo "glue-install-gui: no kernel modesetting (KMS) graphics device found." >&2
     echo "The graphical installer cannot start here. Run 'glue-install' for the text installer." >&2
     exit 3

@@ -40,6 +40,7 @@ LIVE_ONLY_FILES: Tuple[str, ...] = (
     "/usr/share/applications/glue-install-gui.desktop",
     "/usr/bin/glue-install-gui",
     "/usr/local/bin/glue-live-session",
+    "/usr/local/bin/glue-live-x11",
     "/usr/share/glue/live/gluewc-live.conf",
 )
 

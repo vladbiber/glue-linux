@@ -97,8 +97,17 @@ if [ "${1:-}" = "--decide" ]; then
     echo "$CHOICE $REASON"
     exit 0
 fi
-[ "$CHOICE" = desktop ] || exit 10
-command -v gluewc-session >/dev/null 2>&1 || exit 10
+# gluewc cannot run here (no KMS, glue.x11): plain Xorg on any framebuffer
+x11_fallback() {
+    command -v glue-live-x11 >/dev/null 2>&1 || exit "$1"
+    start=$(date +%s)
+    glue-live-x11
+    [ $(($(date +%s) - start)) -lt 20 ] && exit "$1"
+    exit 0
+}
+grep -qw glue.x11 "$CMDLINE_FILE" 2>/dev/null && x11_fallback 11
+[ "$CHOICE" = desktop ] || x11_fallback 10
+command -v gluewc-session >/dev/null 2>&1 || x11_fallback 10
 
 # gluewc-session seeds ~/.config/gluewc/config.conf from the stock default
 # when it is missing; seed it here instead with the live-only binds appended.
@@ -139,7 +148,7 @@ if [ $(($(date +%s) - start)) -lt 20 ]; then
     export WLR_RENDERER=pixman WLR_RENDERER_ALLOW_SOFTWARE=1
     start=$(date +%s)
     dbus-run-session -- sh "$0" --inner
-    # still no desktop: exit 11 so the caller shows the compositor log
-    [ $(($(date +%s) - start)) -lt 20 ] && exit 11
+    # still no desktop: Xorg, then exit 11 so the caller shows the log
+    [ $(($(date +%s) - start)) -lt 20 ] && x11_fallback 11
 fi
 exit 0

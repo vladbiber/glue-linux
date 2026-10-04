@@ -3,7 +3,7 @@
 # generated selection pages, glueinstall/gluefstab job modules and branding.
 pkgname=glue-calamares-config
 pkgver=0.2.0
-pkgrel=5
+pkgrel=6
 pkgdesc="Glue Linux installer configuration for Calamares (sequence, pages, Glue job modules, branding)"
 arch=('any')
 url="https://github.com/vladbiber/glue-linux"

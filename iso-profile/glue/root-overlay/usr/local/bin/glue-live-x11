@@ -1,0 +1,18 @@
+#!/bin/sh
+# glue-live-x11: fallback live desktop on plain Xorg (modesetting, fbdev or
+# vesa) for machines where gluewc cannot start. Opens the graphical installer,
+# then a terminal; closing the terminal ends the session.
+
+if [ "${1:-}" = "--inner" ]; then
+    xsetroot -solid '#E9E9E7' 2>/dev/null
+    [ -x /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 ] &&
+        /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 &
+    command -v glue-install-gui >/dev/null 2>&1 && glue-install-gui
+    exec alacritty
+fi
+
+export GLUE_LIVE_SESSION=1 XDG_SESSION_TYPE=x11 XCURSOR_THEME=Adwaita
+mkdir -p "${XDG_STATE_HOME:-$HOME/.local/state}"
+exec dbus-run-session -- startx /usr/local/bin/glue-live-x11 --inner -- \
+    -logfile "${XDG_STATE_HOME:-$HOME/.local/state}/Xorg.log" \
+    >> "${XDG_STATE_HOME:-$HOME/.local/state}/gluewc.log" 2>&1
