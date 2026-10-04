@@ -20,6 +20,7 @@ from glue_apps.pages import panel, panel_row, settings_page  # noqa: E402
 from glue_apps.shell import ShellWindow  # noqa: E402
 from glue_apps.widgets import clickable, grid, label  # noqa: E402
 
+from .login_screen import login_screen_panel
 from .keybindings import binding_rows, detect_session, load_shell_choices, running_processes
 from .strings import RO
 from .system import system_page
@@ -83,7 +84,8 @@ class WelcomeWindow(ShellWindow):
     def build_pages(self):
         startup = Gtk.Switch(active=self.config.autostart, valign=Gtk.Align.CENTER)
         startup.connect("notify::active", lambda s, _p: self.set_autostart(s.get_active()))
-        extra = ((_("Startup"), panel(panel_row(_("Show Welcome at login"), startup))),)
+        extra = ((_("Startup"), panel(panel_row(_("Show Welcome at login"), startup))),
+                 (_("Login screen"), login_screen_panel(self)))
         return [("welcome", self._welcome_page()), ("system", system_page(self)),
                 ("settings", settings_page(self, extra))]
 

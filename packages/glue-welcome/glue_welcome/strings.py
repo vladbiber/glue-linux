@@ -40,4 +40,20 @@ RO = {
     "Unavailable": "Indisponibilă",
     "Other GPU": "Alt GPU",
     "Unknown": "Necunoscut",
+    "Login screen": "Ecran de login",
+    "Login screen picture": "Poza ecranului de login",
+    "Shown behind the login card.": "Apare în spatele casetei de login.",
+    "Choose a picture…": "Alege o poză…",
+    "Choose a picture": "Alege o poză",
+    "Glue wallpaper": "Wallpaperul Glue",
+    "Images": "Imagini",
+    "Saved. You will see it at the next login.": "Salvat. O vei vedea la următorul login.",
+    "Not changed: authorization was cancelled.": "Neschimbat: autorizarea a fost anulată.",
+    "Not changed: ": "Neschimbat: ",
+    "Not changed: the file is not a PNG, JPEG or WebP image under 30 MB.":
+        "Neschimbat: fișierul nu e o imagine PNG, JPEG sau WebP sub 30 MB.",
+    "The graphical login screen is not installed.":
+        "Ecranul grafic de login nu este instalat.",
+    "This computer uses the text login screen, which has no picture.":
+        "Acest calculator folosește ecranul de login text, care nu are poză.",
 }

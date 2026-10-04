@@ -1,0 +1,19 @@
+#!/usr/bin/python3
+"""greeter-background set < image | clear — run through pkexec by Glue Welcome."""
+import sys
+
+sys.path[:0] = ["/usr/lib/glue-welcome"]
+
+from glue_welcome import greeter
+
+if len(sys.argv) != 2 or sys.argv[1] not in ("set", "clear"):
+    print("usage: greeter-background set < image | clear", file=sys.stderr)
+    raise SystemExit(2)
+try:
+    if sys.argv[1] == "set":
+        print(greeter.apply_set(sys.stdin.buffer))
+    else:
+        greeter.apply_clear()
+except (OSError, ValueError) as error:
+    print(f"greeter-background: {error}", file=sys.stderr)
+    raise SystemExit(1)

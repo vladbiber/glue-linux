@@ -1,12 +1,12 @@
 # Maintainer: Glue Linux
 pkgname=glue-welcome
 pkgver=0.3.0
-pkgrel=1
+pkgrel=2
 pkgdesc="Glue Linux welcome window: keyboard shortcuts, system information and settings"
 arch=('any')
 url="https://github.com/vladbiber/glue-linux"
 license=('GPL-3.0-only')
-depends=('glue-apps' 'python')
+depends=('glue-apps' 'python' 'polkit')
 conflicts=('glue-hub')
 optdepends=('lm_sensors: temperature on the System page'
             'power-profiles-daemon: power mode switch')
@@ -25,4 +25,8 @@ package() {
         "$pkgdir/usr/share/icons/hicolor/scalable/apps/org.glue.Welcome.svg"
     install -Dm644 "$startdir/../glue-installer/catalog/catalog.json" \
         "$pkgdir/usr/share/glue/catalog.json"
+    install -Dm755 "$startdir/data/helpers/greeter-background" \
+        "$pkgdir/usr/lib/glue/greeter-background"
+    install -Dm644 "$startdir/data/polkit/org.glue.greeter-background.policy" \
+        "$pkgdir/usr/share/polkit-1/actions/org.glue.greeter-background.policy"
 }
