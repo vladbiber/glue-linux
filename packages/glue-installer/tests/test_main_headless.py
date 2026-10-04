@@ -302,6 +302,49 @@ class TestExecutorStdin(unittest.TestCase):
         self.assertTrue(any("Set password for alice" in line for line in log_lines))
 
 
+class TestSwapPlanning(unittest.TestCase):
+    def _run(self, ram):
+        env = dict(os.environ, TERM="dumb", GLUE_RAM_BYTES=str(ram))
+        return subprocess.run(
+            [sys.executable, "-m", "glue_installer", "--headless", "--dry-run",
+             "--disk", "/dev/fake"],
+            cwd=str(_PKG_ROOT), capture_output=True, text=True, env=env,
+            timeout=60,
+        )
+
+    def test_swap_steps_listed_before_basestrap(self):
+        result = self._run(16 * 2 ** 30)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        lines = result.stdout.splitlines()
+        mkswap = next(i for i, l in enumerate(lines) if "/dev/fake2 as swap" in l)
+        swapon = next(i for i, l in enumerate(lines)
+                      if "Enable swap on /dev/fake2" in l)
+        basestrap = next(i for i, l in enumerate(lines) if "basestrap" in l)
+        self.assertLess(mkswap, swapon)
+        self.assertLess(swapon, basestrap)
+
+    def test_zramen_conf_uses_computed_size(self):
+        import io
+        from contextlib import redirect_stdout
+        from unittest import mock
+        from glue_installer import __main__ as m
+        captured = {}
+        real = m.compile_steps
+
+        def spy(plan, **kw):
+            captured["plan"] = plan
+            return real(plan, **kw)
+
+        buf = io.StringIO()
+        with mock.patch.dict(os.environ, {"GLUE_RAM_BYTES": str(16 * 2 ** 30)}), \
+                mock.patch.object(m, "compile_steps", spy), redirect_stdout(buf):
+            rc = m.main(["--headless", "--dry-run", "--disk", "/dev/fake"])
+        self.assertEqual(rc, 0)
+        zram = [f for f in captured["plan"].files if "zramen" in f.path]
+        self.assertEqual(len(zram), 1)
+        self.assertIn("ZRAM_MAX_SIZE=8192", zram[0].content)
+
+
 if __name__ == "__main__":
     unittest.main()
 

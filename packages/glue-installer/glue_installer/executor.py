@@ -95,6 +95,8 @@ def compile_steps(
     disk_plan (a disks.DiskPlan, optional): when provided, disk-preparation
     steps (partition, mkfs, mount) come FIRST, bootloader steps (grub) come
     LAST, and grub (+ efibootmgr on UEFI) is added to the basestrap set.
+    Swap (mkswap/swapon) is enabled right after the mounts, BEFORE basestrap
+    and fstabgen, so that fstabgen lists it in the new fstab.
     """
     if init_id not in _SUPPORTED_INITS:
         raise ExecutorError(
@@ -114,7 +116,9 @@ def compile_steps(
     # 0. Disk preparation (only when a DiskPlan is provided)
     packages = plan.packages
     if disk_plan is not None:
+        from glue_installer.disk_swap import swap_steps
         steps.extend(disk_steps(disk_plan, target=target))
+        steps.extend(swap_steps(disk_plan, target=target))
         packages = sorted(set(packages) | set(bootloader_packages(disk_plan)))
 
     # 1. Install all packages in a single basestrap call
@@ -133,6 +137,9 @@ def compile_steps(
         argv=["sh", "-c", f"fstabgen -U {t} >> {t}/etc/fstab"],
         description=f"Generate fstab → {t}/etc/fstab",
     ))
+    if disk_plan is not None:
+        from glue_installer.disk_swap import swapfile_fstab_steps
+        steps.extend(swapfile_fstab_steps(disk_plan, target=target))
 
     # 3. Write each planned file (plan.files already sorted by path)
     for pf in plan.files:

@@ -234,5 +234,61 @@ class TestDryRunFullList(unittest.TestCase):
         self.assertFalse(Path("/mnt/etc/skel/.bashrc").exists())
 
 
+class TestSwapSteps(unittest.TestCase):
+    def _plan_with_swap(self, **kw):
+        import dataclasses
+        from glue_installer.disk_swap import plan_disk_with_swap
+        from glue_installer.swap import swap_plan
+        device = BlockDevice(
+            name="sda", path="/dev/sda", size_bytes=500 * _GIB,
+            model="Test Disk", is_removable=False, has_mounted_partitions=False,
+        )
+        dp = plan_disk_with_swap(device, "uefi", swap_plan(16 * _GIB, 500 * _GIB))
+        return dataclasses.replace(dp, **kw)
+
+    def _idx(self, steps, argv):
+        return _argvs(steps).index(argv)
+
+    def test_swap_after_root_mount_before_basestrap_and_fstab(self):
+        steps = compile_steps(_plan(), init_id="dinit",
+                              disk_plan=self._plan_with_swap())
+        mount = self._idx(steps, ["mount", "/dev/sda3", "/mnt"])
+        mkswap = self._idx(steps, ["mkswap", "/dev/sda2"])
+        swapon = self._idx(steps, ["swapon", "/dev/sda2"])
+        basestrap = _index_of(steps, "basestrap")
+        fstab = next(i for i, s in enumerate(steps)
+                     if "fstabgen" in " ".join(getattr(s, "argv", [])))
+        self.assertLess(mount, mkswap)
+        self.assertLess(mkswap, swapon)
+        self.assertLess(swapon, basestrap)
+        self.assertLess(basestrap, fstab)
+
+    def test_no_mkfs_on_swap_partition(self):
+        steps = compile_steps(_plan(), init_id="dinit",
+                              disk_plan=self._plan_with_swap())
+        for argv in _argvs(steps):
+            if argv[0].startswith("mkfs"):
+                self.assertNotEqual(argv[-1], "/dev/sda2")
+
+    def test_swap_uuid_passed_to_mkswap(self):
+        steps = compile_steps(_plan(), init_id="dinit",
+                              disk_plan=self._plan_with_swap(swap_uuid="abc"))
+        self.assertIn(["mkswap", "-U", "abc", "/dev/sda2"], _argvs(steps))
+
+    def test_swapfile_steps_in_order(self):
+        dp = _disk_plan("uefi")
+        import dataclasses
+        dp = dataclasses.replace(dp, swapfile_mib=4096)
+        argvs = _argvs(compile_steps(_plan(), init_id="dinit", disk_plan=dp))
+        seq = [["fallocate", "-l", "4096M", "/mnt/swapfile"],
+               ["chmod", "600", "/mnt/swapfile"],
+               ["mkswap", "/mnt/swapfile"],
+               ["swapon", "/mnt/swapfile"]]
+        idx = [argvs.index(a) for a in seq]
+        self.assertEqual(idx, sorted(idx))
+        self.assertLess(idx[-1], argvs.index(
+            next(a for a in argvs if a[0] == "basestrap")))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -10,11 +10,16 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import uuid
 from pathlib import Path
 
 from glue_installer.catalog import CatalogError, load_catalog
+from glue_installer.disk_swap import (
+    plan_disk_with_swap, plan_existing_with_swap, read_ram_bytes, resolve_disk,
+    staged_pacman_conf,
+)
 from glue_installer.disks import (
-    BlockDevice, DiskError, discover, discover_partitions,
+    DiskError, discover, discover_partitions,
     plan_disk, plan_existing_partition,
 )
 from glue_installer.executor import (
@@ -22,6 +27,7 @@ from glue_installer.executor import (
 )
 from glue_installer.identity import IdentityError, IdentitySpec, identity_steps
 from glue_installer.plan import PlanError, Selection, resolve_plan
+from glue_installer.swap import swap_plan
 from glue_installer.preview import make_show_screenshot
 from glue_installer.run_ui import (
     _INSTALL_LOG, _TZ_ENDPOINTS, autodetect_spec_timezone, detect_timezone,
@@ -119,31 +125,6 @@ def _build_parser() -> argparse.ArgumentParser:
 def detect_firmware(efi_dir_exists: bool) -> str:
     """Pure helper: map /sys/firmware/efi presence to a firmware id."""
     return "uefi" if efi_dir_exists else "bios"
-
-
-_DRY_RUN_DISK_BYTES = 32 * 1024 ** 3
-
-
-def _resolve_disk(path: str, *, dry_run: bool) -> BlockDevice:
-    """Find the BlockDevice for --disk. In dry-run, a path that is not a real
-    block device (or a machine without lsblk) yields a synthetic 32 GiB disk
-    so the step list can be previewed anywhere."""
-    try:
-        devices = discover()
-    except DiskError:
-        if not dry_run:
-            raise
-        devices = []
-    for device in devices:
-        if device.path == path:
-            return device
-    if dry_run:
-        return BlockDevice(
-            name=os.path.basename(path), path=path,
-            size_bytes=_DRY_RUN_DISK_BYTES, model="dry-run synthetic disk",
-            is_removable=False, has_mounted_partitions=False,
-        )
-    raise DiskError(f"No such disk: {path}")
 
 
 def _headless_selection(catalog) -> Selection:
@@ -248,6 +229,12 @@ def _print_summary(plan) -> None:
         print(f"note: {warning}")
 
 
+def _firmware(args) -> str:
+    if args.firmware == "auto":
+        return detect_firmware(os.path.exists("/sys/firmware/efi"))
+    return args.firmware
+
+
 def main(argv=None) -> int:
     args = _build_parser().parse_args(argv)
 
@@ -327,6 +314,47 @@ def main(argv=None) -> int:
         if args.disk is None:
             args.disk = wizard_result.device_path
 
+    disk_mode = wizard_result.disk_mode if wizard_result is not None else "erase"
+    ram_bytes = read_ram_bytes()
+    swap = None
+    disk_plan = None
+    if disk_mode != "erase" and wizard_result is not None \
+            and wizard_result.partition_path is not None:
+        # Install INTO an existing partition (chosen or made via cfdisk):
+        # only that partition is formatted; the table stays untouched.
+        firmware = _firmware(args)
+        try:
+            parts = discover_partitions()
+            root = next(
+                (p for p in parts if p.path == wizard_result.partition_path),
+                None,
+            )
+            if root is None:
+                raise DiskError(
+                    f"Partition {wizard_result.partition_path} no longer exists"
+                )
+            disk_plan = plan_existing_partition(root, firmware, parts)
+            if ram_bytes > 0:
+                swap = swap_plan(ram_bytes, root.size_bytes, selection.hibernate,
+                                 selection.swap_mode)
+                disk_plan = plan_existing_with_swap(disk_plan, swap)
+        except DiskError as exc:
+            return _fail(f"Disk error: {exc}", EXIT_INSTALL)
+    elif args.disk is not None:
+        firmware = _firmware(args)
+        try:
+            device = resolve_disk(args.disk, dry_run=args.dry_run)
+            if ram_bytes > 0:
+                swap = swap_plan(ram_bytes, device.size_bytes,
+                                 selection.hibernate, selection.swap_mode)
+                disk_plan = plan_disk_with_swap(
+                    device, firmware, swap,
+                    swap_uuid=str(uuid.uuid4()) if swap.hibernate else "")
+            else:
+                disk_plan = plan_disk(device, firmware)
+        except DiskError as exc:
+            return _fail(f"Disk error: {exc}", EXIT_INSTALL)
+
     try:
         from glue_installer.cpu import detect_cpu_v3
         from glue_installer.gpu import detect_gpu_vendors
@@ -340,62 +368,20 @@ def main(argv=None) -> int:
             is_laptop=detect_laptop(),
             cpu_vendor_id=detect_cpu_vendor(),
             amd_pstate_active=detect_amd_pstate_active(),
+            swap=swap, ram_bytes=ram_bytes or None,
         )
     except PlanError as exc:
         return _fail(f"Plan error: {exc}", EXIT_INSTALL)
-
-    disk_mode = wizard_result.disk_mode if wizard_result is not None else "erase"
-    disk_plan = None
-    if disk_mode != "erase" and wizard_result is not None \
-            and wizard_result.partition_path is not None:
-        # Install INTO an existing partition (chosen or made via cfdisk):
-        # only that partition is formatted; the table stays untouched.
-        firmware = args.firmware
-        if firmware == "auto":
-            firmware = detect_firmware(os.path.exists("/sys/firmware/efi"))
-        try:
-            parts = discover_partitions()
-            root = next(
-                (p for p in parts if p.path == wizard_result.partition_path),
-                None,
-            )
-            if root is None:
-                raise DiskError(
-                    f"Partition {wizard_result.partition_path} no longer exists"
-                )
-            disk_plan = plan_existing_partition(root, firmware, parts)
-        except DiskError as exc:
-            return _fail(f"Disk error: {exc}", EXIT_INSTALL)
-    elif args.disk is not None:
-        firmware = args.firmware
-        if firmware == "auto":
-            firmware = detect_firmware(os.path.exists("/sys/firmware/efi"))
-        try:
-            device = _resolve_disk(args.disk, dry_run=args.dry_run)
-            disk_plan = plan_disk(device, firmware)
-        except DiskError as exc:
-            return _fail(f"Disk error: {exc}", EXIT_INSTALL)
+    if swap is not None:
+        plan.warnings.extend(swap.warnings)
 
     # Resolve pacman.conf path: env override (for tests) or installed location.
     pacman_conf_path = os.environ.get("GLUE_PACMAN_CONF")
     if pacman_conf_path is None and os.path.exists("/usr/share/glue/pacman.conf"):
         pacman_conf_path = "/usr/share/glue/pacman.conf"
     # When v3 is active patch the staged conf so basestrap can resolve [cachyos-v3].
-    if _cpu_v3 and selection.kernel_id == "linux-cachyos" and pacman_conf_path:
-        import tempfile
-        try:
-            orig = Path(pacman_conf_path).read_text(encoding="utf-8")
-            patched = orig.replace(
-                "[cachyos]\n",
-                "[cachyos-v3]\nInclude = /etc/pacman.d/cachyos-v3-mirrorlist\n\n[cachyos]\n",
-            )
-            with tempfile.NamedTemporaryFile(
-                suffix=".conf", delete=False, mode="w", encoding="utf-8"
-            ) as tmp:
-                tmp.write(patched)
-                pacman_conf_path = tmp.name
-        except OSError:
-            pass
+    pacman_conf_path = staged_pacman_conf(
+        pacman_conf_path, _cpu_v3, selection.kernel_id)
 
     try:
         steps = compile_steps(

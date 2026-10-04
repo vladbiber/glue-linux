@@ -62,8 +62,8 @@ class PartitionSpec:
     path: str            # e.g. /dev/sda1 or /dev/nvme0n1p1
     type_code: str       # sgdisk type code: ef00 / ef02 / 8300
     size: str            # sgdisk -n size field: '+512M', '+1M', or '0' (rest)
-    filesystem: str      # 'vfat', 'ext4', or '' (no filesystem)
-    mountpoint: str      # '/', '/boot/efi', or '' (not mounted)
+    filesystem: str      # 'vfat', 'ext4', 'swap', or '' (none)
+    mountpoint: str      # '/', '/boot/efi', 'swap', or '' (not mounted)
 
 
 @dataclass(frozen=True)
@@ -84,6 +84,8 @@ class DiskPlan:
     firmware: str                          # 'uefi' or 'bios'
     partitions: Tuple[PartitionSpec, ...]  # ordered by partition number
     mode: str = "erase"                    # 'erase' (repartition) | 'existing'
+    swap_uuid: str = ""                    # mkswap -U (hibernation resume)
+    swapfile_mib: int = 0                  # swapfile on root (existing mode)
 
 
 # ---------------------------------------------------------------------------
