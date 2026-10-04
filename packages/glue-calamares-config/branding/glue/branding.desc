@@ -1,0 +1,33 @@
+---
+componentName: glue
+welcomeStyleCalamares: false
+welcomeExpandingLogo: true
+windowExpanding: normal
+windowSize: 1024px,680px
+windowPlacement: center
+sidebar: widget
+navigation: widget
+strings:
+    productName:         Glue Linux
+    shortProductName:    Glue
+    version:             live
+    shortVersion:        live
+    versionedName:       Glue Linux
+    shortVersionedName:  Glue
+    bootloaderEntryName: Glue Linux
+    productUrl:          https://github.com/vladbiber/glue-linux
+    supportUrl:          https://github.com/vladbiber/glue-linux/issues
+    knownIssuesUrl:      https://github.com/vladbiber/glue-linux/issues
+    releaseNotesUrl:     https://github.com/vladbiber/glue-linux
+    donateUrl:           https://github.com/vladbiber/glue-linux
+images:
+    productLogo:         "logo.svg"
+    productIcon:         "logo.svg"
+    productWelcome:      "welcome.png"
+slideshow:               "show.qml"
+slideshowAPI: 2
+style:
+   SidebarBackground:        "#F4F6F8"
+   SidebarText:              "#172033"
+   SidebarTextCurrent:       "#172033"
+   SidebarBackgroundCurrent: "#E4E8F7"
