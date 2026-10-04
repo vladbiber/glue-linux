@@ -1,10 +1,10 @@
 # Maintainer: Glue Linux
 pkgname=glue-branding
 pkgver=1
-pkgrel=11
+pkgrel=12
 pkgdesc="Glue Linux branding, default wallpaper and boot theme"
 arch=('any')
-url="https://github.com/Vifuddyxg"
+url="https://github.com/vladbiber/glue-linux"
 license=('MIT' 'CC0-1.0')
 optdepends=('fastfetch: system info splash with the Glue logo'
             'alacritty: default terminal with the Glue config'

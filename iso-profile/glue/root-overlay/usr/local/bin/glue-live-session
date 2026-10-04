@@ -122,8 +122,24 @@ export XCURSOR_SIZE=24
 if ! ls /dev/dri/renderD* >/dev/null 2>&1; then
     export WLR_RENDERER_ALLOW_SOFTWARE=1
 fi
+# hybrid laptops: drive the screen only from the GPU the firmware booted on
+# (usually the integrated one); nouveau on the second GPU can take wlroots down
+for card in /sys/class/drm/card[0-9] /sys/class/drm/card[0-9][0-9]; do
+    if [ "$(cat "$card/device/boot_vga" 2>/dev/null)" = 1 ]; then
+        export WLR_DRM_DEVICES="/dev/dri/${card##*/}"
+        break
+    fi
+done
 # plain sh, not a login shell: that would re-run /etc/profile.d/glue-live.sh
 export GLUE_LIVE_SESSION=1
+start=$(date +%s)
 dbus-run-session -- sh "$0" --inner
-# the desktop ended (Super+Shift+Q, crash): the caller drops to the TUI
+# died within seconds: retry once with the software renderer
+if [ $(($(date +%s) - start)) -lt 20 ]; then
+    export WLR_RENDERER=pixman WLR_RENDERER_ALLOW_SOFTWARE=1
+    start=$(date +%s)
+    dbus-run-session -- sh "$0" --inner
+    # still no desktop: exit 11 so the caller shows the compositor log
+    [ $(($(date +%s) - start)) -lt 20 ] && exit 11
+fi
 exit 0

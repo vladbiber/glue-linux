@@ -4,5 +4,5 @@ ID=glue
 ID_LIKE=arch
 BUILD_ID=rolling
 ANSI_COLOR="0;33"
-HOME_URL="https://github.com/Vifuddyxg"
+HOME_URL="https://github.com/vladbiber/glue-linux"
 LOGO=glue

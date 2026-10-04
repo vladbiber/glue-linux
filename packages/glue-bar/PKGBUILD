@@ -4,7 +4,7 @@ pkgver=1
 pkgrel=1
 pkgdesc="Glue's amber Quickshell bar: clock, volume, battery on every monitor"
 arch=('any')
-url="https://github.com/Vifuddyxg"
+url="https://github.com/vladbiber/glue-linux"
 license=('MIT')
 depends=('quickshell')
 # shell.qml lives next to this PKGBUILD (installed via $startdir, same pattern

@@ -11,8 +11,16 @@ case "$(tty)" in
         glue-live-session
         rc=$?
         export GLUE_LIVE_TRIED=1
-        clear
-        if [ "$rc" -eq 10 ]; then
+        [ "$rc" -eq 11 ] || clear
+        if [ "$rc" -eq 11 ]; then
+            echo
+            echo "  The desktop could not start. Last lines of ~/.local/state/gluewc.log:"
+            echo
+            tail -n 25 "${XDG_STATE_HOME:-$HOME/.local/state}/gluewc.log" 2>/dev/null
+            echo
+            echo "  Run 'glue-live-session' to try again."
+            echo
+        elif [ "$rc" -eq 10 ]; then
             cat <<'MSG'
 
   No display output was found (no /dev/dri/card*), so the desktop and the

@@ -4,7 +4,7 @@ pkgver=1
 pkgrel=2
 pkgdesc="Glue Linux performance defaults (CachyOS-Settings ported to Artix inits): sysctl, udev rules, modprobe, limits, THP oneshot, game-performance"
 arch=('any')
-url="https://github.com/Vifuddyxg"
+url="https://github.com/vladbiber/glue-linux"
 license=('GPL-3.0-or-later')
 # hdparm: 69-hdparm.rules RUN; pciutils: setpci in pci-latency
 depends=('hdparm' 'pciutils')

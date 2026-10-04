@@ -216,7 +216,7 @@ sha256sum glue-runit-20260722-x86_64.iso
 
 Then jump to [Putting the ISO on a USB stick](#putting-the-iso-on-a-usb-stick).
 No build needed. Release notes and checksums also live on the
-[Releases page](https://github.com/Vifuddyxg/glue-linux/releases).
+[Releases page](https://github.com/vladbiber/glue-linux/releases).
 
 ### Option B — Build it yourself
 
@@ -226,7 +226,7 @@ Gentoo host). The image needs `--privileged` for loop devices / squashfs;
 `build.sh` handles that.
 
 ```sh
-git clone https://github.com/Vifuddyxg/glue-linux.git
+git clone https://github.com/vladbiber/glue-linux.git
 cd glue-linux
 ./build.sh
 ```

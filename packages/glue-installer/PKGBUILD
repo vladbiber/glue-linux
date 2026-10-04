@@ -4,7 +4,7 @@ pkgver=1
 pkgrel=27
 pkgdesc="Glue Linux TUI installer (Python curses, catalog-driven)"
 arch=('any')
-url="https://github.com/Vifuddyxg"
+url="https://github.com/vladbiber/glue-linux"
 license=('MIT')
 depends=('python' 'artools-base' 'gptfdisk' 'dosfstools' 'e2fsprogs'
          'grub' 'efibootmgr' 'util-linux')
