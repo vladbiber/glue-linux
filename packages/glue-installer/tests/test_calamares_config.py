@@ -1,6 +1,7 @@
 """calamares_config (10.3 lot 2): sequence, generated pages, gluefstab job."""
 
 import importlib.util
+import json
 import sys
 import tempfile
 import types
@@ -77,7 +78,8 @@ class TestSequence(unittest.TestCase):
 
     def test_committed_files_equal_generator_output(self):
         files = render_all(_CATALOG)
-        self.assertEqual(set(files), {"settings.conf"} | {f"modules/{p}.conf" for p in PAGE_IDS})
+        self.assertEqual(set(files), {"settings.conf", "gluegallery.json"}
+                         | {f"modules/{p}.conf" for p in PAGE_IDS})
         for rel, text in files.items():
             self.assertEqual((_CFG / rel).read_bytes(), text.encode("utf-8"), rel)
 
@@ -317,6 +319,34 @@ class TestPackaging(unittest.TestCase):
                      _CFG / "modules" / "gluefstab" / "main.py",
                      _CFG / "modules" / "glueinstall" / "main.py", Path(__file__)]:
             self.assertLess(len(path.read_text().splitlines()), 500, path)
+
+
+class TestGallery(unittest.TestCase):
+    def _catalog(self, shots):
+        cat = load_catalog(_PKG_ROOT / "catalog" / "catalog.json")
+        cat.sessions[0].screenshots = shots
+        cat.sessions[0].screenshot = shots[0]
+        return cat
+
+    def test_card_uses_first_image_and_gallery_has_all(self):
+        shots = ["screenshots/a.png", "screenshots/b.png"]
+        cat = self._catalog(shots)
+        files = render_all(cat)
+        root = "/usr/share/glue-installer/catalog/"
+        page = files["modules/gluesessions.conf"]
+        self.assertIn(f'screenshot: "{root}screenshots/a.png"', page)
+        self.assertNotIn("screenshots/b.png", page)
+        self.assertNotIn("gallery", page)
+        gallery = json.loads(files["gluegallery.json"])
+        self.assertEqual(gallery[cat.sessions[0].id], [root + s for s in shots])
+
+    def test_committed_gallery_lists_every_catalog_image(self):
+        gallery = json.loads((_CFG / "gluegallery.json").read_text())
+        for entry in _CATALOG.sessions + _CATALOG.shells:
+            self.assertEqual(
+                gallery[entry.id],
+                ["/usr/share/glue-installer/catalog/" + s for s in entry.screenshots])
+        self.assertNotIn("", gallery)
 
 
 if __name__ == "__main__":

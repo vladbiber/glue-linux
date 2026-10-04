@@ -9,7 +9,7 @@ existing imports from ui_model keep working.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from glue_installer.catalog import SchedulerOption, Session, Shell
 from glue_installer.ui_forms import FormField, disk_label, masked
@@ -100,6 +100,7 @@ class Item:
     lightness: Optional[int] = None
     keybinds: Optional[str] = None
     screenshot: Optional[str] = None
+    screenshots: Tuple[str, ...] = ()
     recommended: bool = False
     selected: bool = False
     section: Optional[str] = None
@@ -156,7 +157,8 @@ def session_item(session: Session, selected: bool) -> Item:
         id=session.id, label=session.name, description=session.description,
         ease=session.ease, lightness=session.lightness,
         keybinds=_format_keybinds(session.keybindings),
-        screenshot=session.screenshot, selected=selected,
+        screenshot=session.screenshot,
+        screenshots=tuple(session.screenshots), selected=selected,
         section=DE_SECTION if session.kind == "de" else None,
     )
 
@@ -168,7 +170,8 @@ def shell_item(shell: Shell, selected: bool, recommended: bool = False) -> Item:
         description=shell.description,
         ease=shell.ease, lightness=shell.lightness,
         keybinds=_format_keybinds(shell.keybindings),
-        screenshot=shell.screenshot, recommended=recommended, selected=selected,
+        screenshot=shell.screenshot,
+        screenshots=tuple(shell.screenshots), recommended=recommended, selected=selected,
     )
 
 

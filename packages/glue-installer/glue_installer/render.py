@@ -120,7 +120,10 @@ def _detail_lines(item: Item, width: int) -> List[StyledLine]:
     if item.keybinds:
         keys = "; ".join(item.keybinds.splitlines())
         lines.append((_fit(f"Keys: {keys}", width), "detail"))
-    if item.screenshot:
+    if len(item.screenshots) > 1:
+        shots = f"Preview: {len(item.screenshots)} images (P to view)"
+        lines.append((_fit(shots, width), "detail"))
+    elif item.screenshot:
         lines.append((_fit(f"Preview: {item.screenshot}", width), "detail"))
     if lines:
         lines.insert(0, ("", "detail"))

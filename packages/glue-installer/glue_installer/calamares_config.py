@@ -78,6 +78,7 @@ class Item:
     name: str
     description: str
     screenshot: str = NO_SCREENSHOT
+    gallery: List[str] = field(default_factory=list)  # all images, absolute
 
 
 @dataclass
@@ -104,21 +105,26 @@ def _shot(path: Optional[str]) -> str:
     return f"{SCREENSHOT_ROOT}/{path}" if path else NO_SCREENSHOT
 
 
+def _item(entry, description: str) -> Item:
+    shots = [_shot(p) for p in (entry.screenshots or ([entry.screenshot]
+                                                      if entry.screenshot else []))]
+    return Item(entry.id, entry.name, description, shots[0] if shots else NO_SCREENSHOT,
+                shots)
+
+
 def build_pages(catalog) -> List[Page]:
     """The six Glue pages, ids and texts taken from the catalog only."""
     sessions = Page("gluesessions", "Sessions", "optionalmultiple")
     sessions.items.append(Item("", "Choose one or more sessions", SESSIONS_NOTICE))
     for s in catalog.sessions:
-        sessions.items.append(Item(s.id, s.name, s.description, _shot(s.screenshot)))
+        sessions.items.append(_item(s, s.description))
     sessions.default = "gluewc" if any(s.id == "gluewc" for s in catalog.sessions) \
         else catalog.sessions[0].id
 
     # Separate page: packagechooser cannot show it only when gluewc is ticked.
     shell = Page("glueshell", "Desktop shell", "required")
     for sh in catalog.shells:
-        shell.items.append(Item(sh.id, sh.name,
-                                sh.description + " Used by the gluewc session.",
-                                _shot(sh.screenshot)))
+        shell.items.append(_item(sh, sh.description + " Used by the gluewc session."))
     shell.default = "glueqs" if any(s.id == "glueqs" for s in catalog.shells) \
         else catalog.shells[0].id
 
@@ -278,11 +284,20 @@ def render_page_conf(page: Page) -> str:
     return "\n".join(lines) + "\n"
 
 
+def render_gallery(pages: List[Page]) -> str:
+    """JSON map item id -> every screenshot path, for the gallery page."""
+    gallery = {it.id: it.gallery for page in pages for it in page.items
+               if it.id and it.gallery}
+    return json.dumps(gallery, indent=2, ensure_ascii=False) + "\n"
+
+
 def render_all(catalog) -> Dict[str, str]:
     """Relative path under packages/glue-calamares-config → file content."""
     files = {"settings.conf": render_settings_conf(build_settings(catalog))}
-    for page in build_pages(catalog):
+    pages = build_pages(catalog)
+    for page in pages:
         files[f"modules/{page.id}.conf"] = render_page_conf(page)
+    files["gluegallery.json"] = render_gallery(pages)
     return files
 
 

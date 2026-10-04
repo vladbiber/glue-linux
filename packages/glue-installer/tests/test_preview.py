@@ -9,7 +9,8 @@ from pathlib import Path
 _PKG_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(_PKG_ROOT))
 
-from glue_installer.preview import make_show_screenshot, screenshot_under_cursor
+from glue_installer.preview import (
+    make_show_screenshot, screenshot_under_cursor, screenshots_under_cursor)
 from glue_installer.render import (
     FOOTER_TEXT, PREVIEW_FOOTER_TEXT, render_screen,
 )
@@ -110,6 +111,106 @@ class ShowScreenshotHookTest(unittest.TestCase):
         hook = make_show_screenshot(self.base, which=lambda n: None,
                                     out=self.msgs.append, input_fn=eof)
         hook("screenshots/a.png")
+
+
+class GalleryTest(unittest.TestCase):
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.base = Path(self._tmp.name).resolve()
+        (self.base / "screenshots").mkdir()
+        self.names = ["a", "b", "c"]
+        for n in self.names:
+            (self.base / "screenshots" / f"{n}.png").write_bytes(b"\x89PNG" + b"0" * 64)
+        self.msgs, self.calls, self.prompts = [], [], []
+
+    def _hook(self, answers, chafa=True, which=None):
+        feed = iter(answers)
+
+        def input_fn(prompt):
+            self.prompts.append(prompt)
+            try:
+                return next(feed)
+            except StopIteration:
+                raise EOFError
+
+        return make_show_screenshot(
+            self.base, which=which or (lambda n: "/usr/bin/chafa" if chafa else None),
+            out=self.msgs.append, run=lambda argv, **kw: self.calls.append(argv),
+            input_fn=input_fn, get_size=lambda fb=None: _Size(100, 40))
+
+    def _paths(self, n):
+        return [f"screenshots/{x}.png" for x in self.names[:n]]
+
+    def test_navigation_n_n_p_q(self):
+        self._hook(["n", "n", "p", "q"])(self._paths(3))
+        self.assertEqual([p.split("  ")[0] for p in self.prompts],
+                         ["Image 1/3", "Image 2/3", "Image 3/3", "Image 2/3"])
+        self.assertIn("[n] next  [p] previous  [q] back", self.prompts[0])
+        drawn = [Path(c[-1]).stem for c in self.calls]
+        self.assertEqual(drawn, ["a", "b", "c", "b"])
+
+    def test_enter_advances_and_exits_on_last(self):
+        self._hook(["", ""])(self._paths(2))
+        self.assertEqual([p.split("  ")[0] for p in self.prompts], ["Image 1/2", "Image 2/2"])
+
+    def test_p_on_first_and_n_on_last_stay(self):
+        self._hook(["p", "n", "n", "x", "q"])(self._paths(2))
+        self.assertEqual([p.split("  ")[0] for p in self.prompts],
+                         ["Image 1/2", "Image 1/2", "Image 2/2", "Image 2/2", "Image 2/2"])
+
+    def test_single_image_is_compatible(self):
+        self._hook([""])(self._paths(1))
+        self.assertEqual(self.prompts, ["Press Enter to return"])
+        self.assertIn("Image 1/1", self.msgs)
+        self._hook([""])(self._paths(1)[0])  # plain str still accepted
+        self.assertEqual(len(self.calls), 2)
+
+    def test_missing_file_keeps_indicator(self):
+        paths = ["screenshots/a.png", "screenshots/nope.png"]
+        self._hook(["n", "q"])(paths)
+        self.assertEqual([p.split("  ")[0] for p in self.prompts], ["Image 1/2", "Image 2/2"])
+        self.assertTrue(any("not found" in m for m in self.msgs))
+        self.assertEqual(len(self.calls), 1)
+
+    def test_no_chafa_keeps_indicator(self):
+        self._hook(["n", "n", "q"], chafa=False)(self._paths(3))
+        self.assertEqual([p.split("  ")[0] for p in self.prompts],
+                         ["Image 1/3", "Image 2/3", "Image 3/3"])
+        self.assertEqual(self.calls, [])
+        self.assertEqual(sum("not installed" in m for m in self.msgs), 3)
+
+    def test_eof_exits_quietly(self):
+        self._hook([])(self._paths(3))
+        self.assertEqual(len(self.prompts), 1)
+
+    def test_empty_list_is_a_noop(self):
+        self._hook([])([])
+        self.assertEqual(self.prompts, [])
+
+
+class ScreenshotsUnderCursorTest(unittest.TestCase):
+    def test_list_and_fallback(self):
+        screen = Screen(key="s", title="S", kind="radio", items=[
+            Item(id="a", label="A", description="", screenshot="x.png",
+                 screenshots=("x.png", "y.png")),
+            Item(id="b", label="B", description="", screenshot="z.png"),
+            Item(id="c", label="C", description=""),
+        ])
+        self.assertEqual(screenshots_under_cursor(screen, 0), ("x.png", "y.png"))
+        self.assertEqual(screenshots_under_cursor(screen, 1), ("z.png",))
+        self.assertEqual(screenshots_under_cursor(screen, 2), ())
+        self.assertEqual(screenshots_under_cursor(screen, "0"), ())
+
+
+class GalleryRenderTest(unittest.TestCase):
+    def test_preview_line_counts_images(self):
+        screen = Screen(key="s", title="S", kind="radio", items=[
+            Item(id="a", label="A", description="d", screenshot="x.png",
+                 screenshots=("x.png", "y.png", "z.png"))])
+        text = "\n".join(ln for ln, _ in render_screen(screen, 0, 100, 30))
+        self.assertIn("Preview: 3 images (P to view)", text)
+        self.assertNotIn("x.png", text)
 
 
 if __name__ == "__main__":

@@ -4,7 +4,6 @@ Catalog data model, loader, and validator for Glue Linux installer.
 catalog.json top-level contract:
   {"version": 1, "kernels": [...], "inits": [...], "sessions": [...],
    "shells": [...], "support": [...], "gaming": {...}, "minimal": {...}}
-
 Load with: load_catalog(Path("catalog/catalog.json"))
 """
 
@@ -15,6 +14,7 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional
+from glue_installer.catalog_shots import SHOT_KEYS, shot_fields
 
 
 class CatalogError(Exception):
@@ -70,6 +70,7 @@ class Session:
     # XDG_CURRENT_DESKTOP/DesktopNames value when it must differ from the id
     # (GNOME components match the exact string "GNOME"). None = use the id.
     desktop: Optional[str] = None
+    screenshots: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -85,6 +86,7 @@ class Shell:
     # Optional command the session wrapper autostarts once the compositor's
     # Wayland socket is up (e.g. "qs -c glue-bar"). None = no autostart.
     exec: Optional[str] = None
+    screenshots: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -255,8 +257,8 @@ def _parse_init(raw: dict, idx: int) -> Init:
 
 
 _SESSION_KEYS = {"id", "name", "kind", "description", "ease", "lightness",
-                 "keybindings", "screenshot", "packages", "services", "shell_choices"}
-_SESSION_OPTIONAL_KEYS = frozenset({"session_type", "exec", "desktop"})
+                 "keybindings", "packages", "services", "shell_choices"}
+_SESSION_OPTIONAL_KEYS = frozenset({"session_type", "exec", "desktop"}) | SHOT_KEYS
 _VALID_SESSION_TYPES = {"x11", "wayland"}
 
 
@@ -290,7 +292,7 @@ def _parse_session(raw: dict, idx: int) -> Session:
         ease=_check_rating(raw["ease"], "ease", ctx),
         lightness=_check_rating(raw["lightness"], "lightness", ctx),
         keybindings=_parse_keybindings(raw["keybindings"], ctx),
-        screenshot=_optional_str(raw, "screenshot", ctx),
+        **shot_fields(raw, ctx),
         packages=_str_list(raw, "packages", ctx),
         services=_str_list(raw, "services", ctx),
         shell_choices=_str_list(raw, "shell_choices", ctx),
@@ -300,9 +302,8 @@ def _parse_session(raw: dict, idx: int) -> Session:
     )
 
 
-_SHELL_KEYS = {"id", "name", "description", "ease", "lightness",
-               "keybindings", "screenshot", "packages"}
-_SHELL_OPTIONAL_KEYS = frozenset({"exec"})
+_SHELL_KEYS = {"id", "name", "description", "ease", "lightness", "keybindings", "packages"}
+_SHELL_OPTIONAL_KEYS = frozenset({"exec"}) | SHOT_KEYS
 
 
 def _parse_shell(raw: dict, idx: int) -> Shell:
@@ -321,7 +322,7 @@ def _parse_shell(raw: dict, idx: int) -> Shell:
         # A shell/bar has no hotkeys of its own (the compositor owns keybinds),
         # so unlike sessions, shells may list none.
         keybindings=_parse_keybindings(raw["keybindings"], ctx, minimum=0),
-        screenshot=_optional_str(raw, "screenshot", ctx),
+        **shot_fields(raw, ctx),
         packages=_str_list(raw, "packages", ctx),
         exec=(_optional_str(raw, "exec", ctx) if "exec" in raw else None),
     )
@@ -461,9 +462,8 @@ def _validate_cross(catalog: Catalog) -> None:
 # ---------------------------------------------------------------------------
 
 def load_catalog(path: Path) -> Catalog:
-    """Parse and validate catalog.json, returning a Catalog dataclass.
+    """Parse and validate catalog.json; CatalogError on any violation.
 
-    Raises CatalogError with a human-readable message on any violation.
     Does NOT require screenshot files to exist on disk.
     """
     try:

@@ -21,6 +21,8 @@ package() {
     for f in "$startdir"/modules/*.conf; do
         install -Dm644 "$f" "$cfg/modules/$(basename "$f")"
     done
+    # Full screenshot gallery map (item id -> image paths) for the gallery page
+    install -Dm644 "$startdir/gluegallery.json" "$cfg/gluegallery.json"
     # Glue job modules (python): module.desc + main.py; Calamares reads their
     # config from modules/<name>.conf (installed by the loop above)
     local mod

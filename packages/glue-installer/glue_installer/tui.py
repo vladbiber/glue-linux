@@ -12,7 +12,7 @@ from __future__ import annotations
 import curses
 from typing import Optional
 
-from glue_installer.preview import screenshot_under_cursor
+from glue_installer.preview import screenshots_under_cursor
 from glue_installer.render import render_screen
 from glue_installer.ui_model import (
     Choose, SetFlag, Toggle, ValidationError, Wizard, WizardResult,
@@ -253,7 +253,7 @@ def _loop(stdscr, wizard: Wizard, hooks: dict) -> Optional[WizardResult]:
             wizard.back()
             cursor = 0
         elif key in (ord("p"), ord("P")):
-            shot = screenshot_under_cursor(screen, cursor)
+            shot = screenshots_under_cursor(screen, cursor)
             if shot and hooks.get("show_screenshot"):
                 _run_external(stdscr, lambda: hooks["show_screenshot"](shot))
         elif key in (ord("q"), ord("Q")):
@@ -274,7 +274,7 @@ def run_tui(catalog, disks=None, partitions=None, ask_identity: bool = False,
     nmtui, repartition(disk_path) runs cfdisk and returns fresh partitions,
     detect_timezone() -> "Area/City" or None (GeoIP; ran once the network
     screen confirms connectivity, prefills the identity timezone field),
-    show_screenshot(rel_path) draws a catalog screenshot (P key).
+    show_screenshot(rel_paths) shows a catalog screenshot gallery (P key).
     """
     wizard = Wizard(catalog, disks=disks, ask_identity=ask_identity,
                     identity_defaults=identity_defaults, cpu_v3=cpu_v3,

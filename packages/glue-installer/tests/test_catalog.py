@@ -484,7 +484,8 @@ class ScreenshotFilesTest(unittest.TestCase):
 
     def _referenced(self):
         raw = _load_raw()
-        return [(e["id"], e["screenshot"]) for e in raw["sessions"] + raw["shells"]]
+        return [(e["id"], shot) for e in raw["sessions"] + raw["shells"]
+                for shot in e["screenshots"]]
 
     def test_every_screenshot_is_a_png_under_screenshots_dir(self):
         for entry_id, shot in self._referenced():
@@ -510,7 +511,7 @@ class ScreenshotFilesTest(unittest.TestCase):
                 self.assertEqual((depth, ctype in (0, 2, 4, 6)), (8, True), name)
                 self.assertGreaterEqual(self._distinct_pixels(chunks, w, h, ctype), 2,
                                         f"{name} is a single colour, not a capture")
-        self.assertEqual(len(_load_raw()["sessions"] + _load_raw()["shells"]), 8)
+        self.assertEqual(len(self._referenced()), 8)
         self.assertEqual(checked, self.ALLOWED)
 
     def test_sources_manifest_covers_web_screenshots(self):

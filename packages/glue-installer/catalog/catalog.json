@@ -109,7 +109,7 @@
           "action": "Show Welcome and shortcuts"
         }
       ],
-      "screenshot": "screenshots/gluewc-glueqs.png",
+      "screenshots": ["screenshots/gluewc-glueqs.png"],
       "packages": [
         "gluewc",
         "polkit-gnome",
@@ -164,7 +164,7 @@
           "action": "Show Welcome and shortcuts"
         }
       ],
-      "screenshot": "screenshots/nvwm.png",
+      "screenshots": ["screenshots/nvwm.png"],
       "packages": [
         "nvwm",
         "st-glue",
@@ -215,7 +215,7 @@
           "action": "Switch windows"
         }
       ],
-      "screenshot": "screenshots/kde-plasma.png",
+      "screenshots": ["screenshots/kde-plasma.png"],
       "packages": [
         "plasma-meta",
         "dolphin",
@@ -264,7 +264,7 @@
           "action": "Take screenshot"
         }
       ],
-      "screenshot": "screenshots/xfce.png",
+      "screenshots": ["screenshots/xfce.png"],
       "packages": [
         "xfce4-session",
         "xfce4-panel",
@@ -313,7 +313,7 @@
           "action": "Switch workspace"
         }
       ],
-      "screenshot": "screenshots/gnome.png",
+      "screenshots": ["screenshots/gnome.png"],
       "packages": [
         "gnome-shell",
         "gnome-session",
@@ -363,7 +363,7 @@
           "action": "Show desktop"
         }
       ],
-      "screenshot": "screenshots/cinnamon.png",
+      "screenshots": ["screenshots/cinnamon.png"],
       "packages": [
         "cinnamon",
         "cinnamon-translations",
@@ -386,7 +386,7 @@
       "ease": 5,
       "lightness": 4,
       "keybindings": [],
-      "screenshot": "screenshots/gluewc-glueqs.png",
+      "screenshots": ["screenshots/gluewc-glueqs.png"],
       "packages": [
         "glueqs"
       ],
@@ -420,7 +420,7 @@
           "action": "Reload bar configuration"
         }
       ],
-      "screenshot": "screenshots/gluewc-noctalia.png",
+      "screenshots": ["screenshots/gluewc-noctalia.png"],
       "packages": [
         "noctalia-shell",
         "noctalia-qs"
