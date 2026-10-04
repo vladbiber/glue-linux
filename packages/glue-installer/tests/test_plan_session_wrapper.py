@@ -78,7 +78,14 @@ class TestSessionWrapperPolkit(unittest.TestCase):
         content = self._wrapper("gluewc", "glueqs")
         self.assertIn(_SHELL_AUTOSTART_TEMPLATE.format(shell_cmd="glueqs"), content)
         self.assertIn("wayland-*", content)
-        self.assertNotIn("sleep 0.2", self._wrapper("gluewc", None))
+        self.assertNotIn("exec glueqs", self._wrapper("gluewc", None))
+
+    def test_wayland_clients_wait_for_compositor(self):
+        content = self._wrapper("gluewc", "glueqs")
+        self.assertIn("wait_wayland() {", content)
+        self.assertIn("(wait_wayland && command -v glue-welcome", content)
+        self.assertIn("(wait_wayland && [ -x /usr/bin/glue-wallpaper-init ]", content)
+        self.assertNotIn("wait_wayland", self._wrapper("nvwm", None))
 
     def test_plan_includes_polkit_gnome_only_for_wm_sessions(self):
         self.assertIn(

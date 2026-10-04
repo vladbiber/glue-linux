@@ -48,13 +48,29 @@ start_once() {
     pgrep -u "$(id -u)" -x "$1" >/dev/null 2>&1 || "$1" &
 }
 
+wait_wayland() {
+    tries=0
+    while [ "$tries" -lt 150 ]; do
+        for s in "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"/wayland-*; do
+            if [ -S "$s" ]; then
+                WAYLAND_DISPLAY="${s##*/}"; export WAYLAND_DISPLAY
+                return 0
+            fi
+        done
+        sleep 0.2
+        tries=$((tries + 1))
+    done
+    return 1
+}
+
 if [ "${1:-}" = "--inner" ]; then
     start_once pipewire
     start_once wireplumber
     start_once pipewire-pulse
     [ -x "$POLKIT_AGENT" ] && "$POLKIT_AGENT" &
-    command -v glue-welcome >/dev/null 2>&1 && glue-welcome --autostart &
-    [ -x "$WALLPAPER_INIT" ] && "$WALLPAPER_INIT" gluewc glueqs &
+    # Wayland clients need the compositor socket first
+    (wait_wayland && command -v glue-welcome >/dev/null 2>&1 && exec glue-welcome --autostart) &
+    (wait_wayland && [ -x "$WALLPAPER_INIT" ] && exec "$WALLPAPER_INIT" gluewc glueqs) &
     if command -v glueqs >/dev/null 2>&1; then
     (
         tries=0

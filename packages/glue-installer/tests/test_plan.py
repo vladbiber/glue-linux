@@ -586,7 +586,7 @@ class TestGreeterProfile(unittest.TestCase):
     def test_shell_without_exec_not_autostarted(self):
         plan = self._plan(["wm-shell"], {"wm-shell": "shell-b"})
         wrapper = self._file(plan, "/usr/local/bin/glue-session-wm-shell")
-        self.assertNotIn("WAYLAND_DISPLAY", wrapper.content)
+        self.assertNotIn("                    exec ", wrapper.content)
 
     def test_session_entry_per_selected_session(self):
         plan = self._plan(["wm-bare", "de-full"])
@@ -788,7 +788,8 @@ class TestGamingFilesAndPrimeRun(unittest.TestCase):
             ["app-store"], False, False))
         wrapper = next(f for f in plan.files
                        if f.path == "/usr/local/bin/glue-session-gluewc")
-        self.assertIn("glue-welcome --autostart &", wrapper.content)
+        self.assertIn("(wait_wayland && command -v glue-welcome >/dev/null 2>&1 && "
+                      "exec glue-welcome --autostart) &", wrapper.content)
         session_cfg = next(f for f in plan.files
                            if f.path == "/etc/glue/session.conf")
         self.assertIn("shell.gluewc=glueqs", session_cfg.content)

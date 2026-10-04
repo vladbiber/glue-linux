@@ -129,8 +129,10 @@ class TestWrapperParity(unittest.TestCase):
         for tool in ("pipewire", "wireplumber", "pipewire-pulse"):
             self.assertIn(f"start_once {tool}", self.script)
             self.assertIn(f"{tool} &", self.wrapper)
-        self.assertIn("glue-welcome --autostart &", self.script)
-        self.assertIn("glue-welcome --autostart &", self.wrapper)
+        self.assertIn("exec glue-welcome --autostart) &", self.script)
+        self.assertIn("exec glue-welcome --autostart) &", self.wrapper)
+        self.assertIn("(wait_wayland && command -v glue-welcome", self.script)
+        self.assertIn("(wait_wayland && command -v glue-welcome", self.wrapper)
         polkit = re.search(r"/usr/lib/polkit-gnome/\S+", self.wrapper).group(0)
         self.assertIn(polkit, self.script)
         self.assertIn("exec gluewc-session", self.wrapper)
