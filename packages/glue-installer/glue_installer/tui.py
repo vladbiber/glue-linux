@@ -222,6 +222,13 @@ def _loop(stdscr, wizard: Wizard, hooks: dict) -> Optional[WizardResult]:
         elif key == 27:  # Esc quits everywhere ('q' is typeable on forms)
             if _confirm_quit(stdscr):
                 return None
+        elif screen.key == "network" and key in (ord("o"), ord("O")):
+            try:  # offline clone of the live system (3.6); straight on
+                wizard.allow_offline()
+                wizard.next()
+                cursor = 0
+            except ValidationError as exc:
+                error = str(exc)
         elif screen.key == "network" and key in (ord("n"), ord("N")):
             if hooks.get("open_net_tool"):
                 _run_external(stdscr, hooks["open_net_tool"])

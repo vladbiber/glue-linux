@@ -149,6 +149,47 @@ def compile_steps(
         from glue_installer.disk_swap import swapfile_fstab_steps
         steps.extend(swapfile_fstab_steps(disk_plan, target=target))
 
+    steps.extend(config_steps(plan, target=target, init_id=init_id))
+
+    # 6. Bootloader (only when a DiskPlan is provided) — always last
+    if disk_plan is not None:
+        steps.extend(bootloader_steps(disk_plan, boot, target=target))
+
+    return steps
+
+
+_SERVICE_LINKS = {  # init -> (service script dir, enabled-link dir)
+    "dinit": ("/etc/dinit.d", "/etc/dinit.d/boot.d"),
+    "runit": ("/etc/runit/sv", "/etc/runit/runsvdir/default"),
+    "openrc": ("/etc/init.d", "/etc/runlevels/default"),
+}
+
+
+def config_steps(
+    plan: InstallPlan, *, target: str = "/mnt", init_id: str,
+    only_if_present: bool = False,
+) -> List[Step]:
+    """Glue configuration of an already-populated target (pure).
+
+    In order: WriteTargetFile for every plan.files entry, one enable step per
+    plan.services entry (symlink per init), then the ModemManager D-Bus
+    activation guard. compile_steps appends exactly these after fstab;
+    clone.clone_steps reuses them on the rsync'd live system (roadmap 3.6)
+    and the Calamares adaptor (10.3) will call them on its own target.
+
+    only_if_present=True (clone): the service script may be missing on the
+    target (nothing was basestrap'ed), so each enable becomes a guarded
+    `sh -c '[ -e <src> ] && ln -sf <src> <dst> || true'` instead of a bare
+    ln that would leave a dangling link.
+    Raises ExecutorError for unsupported init_id.
+    """
+    if init_id not in _SUPPORTED_INITS:
+        raise ExecutorError(
+            f"Unsupported init_id: '{init_id}'; supported: {sorted(_SUPPORTED_INITS)}"
+        )
+    t = target.rstrip("/")
+    steps: List[Step] = []
+
     # 3. Write each planned file (plan.files already sorted by path)
     for pf in plan.files:
         steps.append(WriteTargetFile(
@@ -159,33 +200,18 @@ def compile_steps(
         ))
 
     # 4. Enable services — argv depends on init_id
+    src_dir, dst_dir = _SERVICE_LINKS[init_id]
     for svc in plan.services:
         isvc = _INIT_SERVICE_NAMES[init_id].get(svc, svc)
-        if init_id == "dinit":
-            argv = [
-                "artix-chroot", t,
-                "ln", "-sf",
-                f"/etc/dinit.d/{isvc}",
-                f"/etc/dinit.d/boot.d/{isvc}",
-            ]
-        elif init_id == "openrc":
-            argv = [
-                "artix-chroot", t,
-                "ln", "-sf",
-                f"/etc/init.d/{isvc}",
-                f"/etc/runlevels/default/{isvc}",
-            ]
-        else:  # runit
-            argv = [
-                "artix-chroot", t,
-                "ln", "-sf",
-                f"/etc/runit/sv/{isvc}",
-                f"/etc/runit/runsvdir/default/{isvc}",
-            ]
-        steps.append(RunCommand(
-            argv=argv,
-            description=f"Enable service {svc} ({init_id})",
-        ))
+        src, dst = f"{src_dir}/{isvc}", f"{dst_dir}/{isvc}"
+        if only_if_present:
+            argv = ["artix-chroot", t, "sh", "-c",
+                    f"[ -e {src} ] && ln -sf {src} {dst} || true"]
+            what = f"Enable service {svc} ({init_id}) if present"
+        else:
+            argv = ["artix-chroot", t, "ln", "-sf", src, dst]
+            what = f"Enable service {svc} ({init_id})"
+        steps.append(RunCommand(argv=argv, description=what))
 
     # 5. Neutralise ModemManager's D-Bus activation (ported from the proven
     # shell installer): NetworkManager D-Bus-activates it and its log spam
@@ -198,11 +224,6 @@ def compile_steps(
         ],
         description="Disable ModemManager D-Bus activation (console spam)",
     ))
-
-    # 6. Bootloader (only when a DiskPlan is provided) — always last
-    if disk_plan is not None:
-        steps.extend(bootloader_steps(disk_plan, boot, target=target))
-
     return steps
 
 

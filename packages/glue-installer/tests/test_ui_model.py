@@ -909,3 +909,127 @@ class TestSwapScreens(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestOfflineMode(unittest.TestCase):
+    """allow_offline() (3.6): clone of the live system, no network required."""
+
+    def _at_network(self, status="OFFLINE", **kw):
+        w = Wizard(_CATALOG, **kw)
+        w.set_network_status(status)
+        w.next()  # welcome -> network
+        return w
+
+    def test_offline_status_blocks_until_allow_offline(self):
+        w = self._at_network()
+        with self.assertRaises(ValidationError):
+            w.next()
+        w.allow_offline()
+        w.next()
+        self.assertEqual(w.current_screen().key, "shell:gluewc")
+
+    def test_screen_keys_skip_online_choices(self):
+        w = self._at_network()
+        w.allow_offline()
+        keys = w._screen_keys()
+        for skipped in ("mode", "kernel", "init", "sessions", "gaming", "scheduler"):
+            self.assertNotIn(skipped, keys)
+        self.assertEqual(keys, ["welcome", "network", "shell:gluewc", "support", "summary"])
+
+    def test_shell_screen_only_when_default_session_has_shells(self):
+        cat = _dc.replace(_CATALOG, sessions=[_dc.replace(_CATALOG.sessions[1])]
+                          + list(_CATALOG.sessions[1:]))  # nvwm first: no shells
+        w = Wizard(cat)
+        w.set_network_status("OFFLINE")
+        w.next()
+        w.allow_offline()
+        self.assertEqual(w._screen_keys(), ["welcome", "network", "support", "summary"])
+
+    def test_allow_offline_elsewhere_raises(self):
+        w = _new_wizard()
+        with self.assertRaises(ValidationError):
+            w.allow_offline()  # welcome
+        w.next(); w.next()  # -> mode
+        with self.assertRaises(ValidationError):
+            w.allow_offline()
+
+    def test_to_result_selection(self):
+        w = self._at_network()
+        w.allow_offline()
+        while not w.is_finished():
+            w.next()
+        sel = w.to_result().selection
+        self.assertTrue(sel.offline)
+        self.assertEqual(sel.init_id, "runit")
+        self.assertEqual(sel.kernel_id, next(k.id for k in _CATALOG.kernels if k.primary))
+        self.assertEqual(sel.session_ids, [_CATALOG.sessions[0].id])
+        self.assertEqual(sel.shell_choice, {"gluewc": "glueqs"})
+        self.assertFalse(sel.gaming)
+        self.assertFalse(sel.minimal)
+        resolve_plan(_CATALOG, sel)  # a valid plan for config_steps
+
+    def test_shell_choice_changes_apply(self):
+        w = self._at_network()
+        w.allow_offline()
+        w.next()
+        w.apply(Choose("noctalia"))
+        while not w.is_finished():
+            w.next()
+        self.assertEqual(w.to_result().selection.shell_choice, {"gluewc": "noctalia"})
+
+    def test_summary_shows_offline_not_kernel_or_init(self):
+        w = self._at_network()
+        w.allow_offline()
+        _advance_to(w, "summary")
+        labels = [i.label for i in w.current_screen().items]
+        self.assertIn("Mode: Offline install (clone of the live system: stock linux "
+                      "kernel, runit)", labels)
+        self.assertFalse(any(l.startswith("Kernel:") or l.startswith("Init:")
+                             or l.startswith("Gaming") for l in labels))
+        self.assertTrue(any(l.startswith("Session: gluewc") for l in labels))
+
+    def test_back_and_next_work(self):
+        w = self._at_network()
+        w.allow_offline()
+        w.next(); w.next()  # shell -> support
+        self.assertEqual(w.current_screen().key, "support")
+        w.back()
+        self.assertEqual(w.current_screen().key, "shell:gluewc")
+        w.back()
+        self.assertEqual(w.current_screen().key, "network")
+        w.next()  # still offline: passes without a connection
+        self.assertEqual(w.current_screen().key, "shell:gluewc")
+
+    def test_connected_status_still_allows_offline(self):
+        w = self._at_network("connected")
+        w.allow_offline()
+        w.next()
+        self.assertEqual(w.current_screen().key, "shell:gluewc")
+
+    def test_online_default_selection_has_offline_false(self):
+        w = _new_wizard()
+        while not w.is_finished():
+            scr = w.current_screen()
+            if scr.key == "kernel":
+                w.apply(Choose("linux-cachyos"))
+            elif scr.key == "init":
+                w.apply(Choose("dinit"))
+            w.next()
+        self.assertFalse(w.to_result().selection.offline)
+
+    def test_network_notice_mentions_offline_key(self):
+        w = self._at_network()
+        self.assertIn("O = install OFFLINE", w.current_screen().notice)
+
+    def test_offline_with_disks_and_identity(self):
+        class _D:
+            path = "/dev/sdx"; name = "sdx"; model = "m"; size_bytes = 64 * 2 ** 30
+            is_removable = False; has_mounted_partitions = False
+        w = Wizard(_CATALOG, disks=[_D()], ask_identity=True)
+        w.set_network_status("OFFLINE")
+        w.next()
+        w.allow_offline()
+        keys = w._screen_keys()
+        self.assertEqual(keys[:5], ["welcome", "network", "shell:gluewc", "support", "diskmode"])
+        self.assertIn("form:hostname", keys)
+        self.assertEqual(keys[-1], "summary")

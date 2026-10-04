@@ -37,16 +37,21 @@ rootfs:
     - pacman-contrib
     - gptfdisk
     - parted
-    # --- 'Offline express' install: clone the live system to disk with no net.
-    #     rsync does the copy; grub/efibootmgr install the bootloader. The clone
+    # --- 'Offline install' (3.6): clone the live system to disk with no net.
+    #     rsync does the copy; Limine is deployed by the target's own
+    #     `glue-boot-update --deploy` (glue-boot, ADR-022), no grub. The clone
     #     uses the live system's STOCK `linux` kernel — linux-cachyos can NOT be
     #     added here: a second kernel breaks artools' make_bootfs (live boot).
-    #     Choose 'Custom online' to get the CachyOS kernel. ---
+    #     Choose the online install to get the CachyOS kernel. ---
     - rsync
-    - grub
     - efibootmgr
-    # limine: the installer runs `limine bios-install` from the live side (3.1)
+    # grub: only for artix-grub-live (the ISO's own boot menu); the clone
+    # removes it from the target (glue_installer/clone.py LIVE_ONLY_PACKAGES)
+    - grub
+    # limine + glue-boot: `limine bios-install`/glue-boot-update on live and
+    # copied onto the offline clone (3.1, 3.6)
     - limine
+    - glue-boot
     # os-prober: live-only; the installer turns its output into /etc/glue/boot.d (3.4)
     - os-prober
     # --- keyring/mirrorlist the installer's basestrap -C resolves on the host ---

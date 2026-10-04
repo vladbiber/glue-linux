@@ -552,3 +552,66 @@ class TestAutodetectSpecTimezone(unittest.TestCase):
     def test_none_spec_passes_through(self):
         from glue_installer.run_ui import autodetect_spec_timezone
         self.assertIsNone(autodetect_spec_timezone(None, detect=lambda: "Europe/Paris"))
+
+
+class TestOfflineDryRun(unittest.TestCase):
+    """--offline (3.6): clone of the live system, no basestrap/keyring."""
+
+    def _steps(self, *extra):
+        from unittest import mock
+        from glue_installer import __main__ as m
+        captured = {}
+
+        def fake_execute(steps, **kw):
+            captured["steps"] = steps
+        import io
+        from contextlib import redirect_stdout
+        buf = io.StringIO()
+        with mock.patch.dict(os.environ, {"GLUE_RAM_BYTES": str(8 * 2 ** 30)}), \
+                mock.patch.object(m, "execute", fake_execute), redirect_stdout(buf):
+            rc = m.main(["--headless", "--dry-run", "--offline", "--disk", "/dev/fake",
+                         *extra])
+        self.assertEqual(rc, 0)
+        return captured["steps"], buf.getvalue()
+
+    @staticmethod
+    def _text(step):
+        return " ".join(getattr(step, "argv", []))
+
+    def test_clone_steps_listed(self):
+        steps, out = self._steps()
+        texts = [self._text(s) for s in steps]
+        self.assertTrue(any(t.startswith("rsync -aAXH") for t in texts))
+        self.assertIn("glue-boot-update --deploy", texts[-1])
+        self.assertIn("GLUE_BOOT_KERNEL=linux", texts[-1])
+        self.assertFalse(any("basestrap" in t or "pacman-key" in t for t in texts))
+        self.assertIn("Offline install: clone of the live system", out)
+        self.assertNotIn("basestrap", out)
+
+    def test_identity_steps_after_userdel(self):
+        steps, _ = self._steps("--username", "bob", "--password", "pw")
+        texts = [self._text(s) for s in steps]
+        userdel_at = next(i for i, t in enumerate(texts) if "userdel -r glue" in t)
+        useradd_at = next(i for i, t in enumerate(texts) if "useradd" in t)
+        self.assertLess(userdel_at, useradd_at)
+
+    def test_cli_dry_run_output(self):
+        result = _run_module("--headless", "--dry-run", "--offline", "--disk", "/dev/fake")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("(rsync)", result.stdout)
+        self.assertIn("glue-boot-update", result.stdout)
+        self.assertIn("userdel", result.stdout)
+        self.assertNotIn("basestrap", result.stdout)
+        self.assertNotIn("keyring", result.stdout)
+
+    def test_offline_without_disk_fails_cleanly(self):
+        result = _run_module("--headless", "--dry-run", "--offline")
+        self.assertEqual(result.returncode, 3)
+        self.assertIn("Offline install needs a disk", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+
+    def test_online_dry_run_unchanged(self):
+        result = _run_module("--headless", "--dry-run", "--disk", "/dev/fake")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("basestrap", result.stdout)
+        self.assertNotIn("rsync", result.stdout)

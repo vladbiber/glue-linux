@@ -8,7 +8,10 @@ final reboot prompt, and the best-effort timezone auto-detection.
 
 from __future__ import annotations
 
+import os
 import sys
+
+from glue_installer.disks import DiskError, discover_partitions
 
 _INSTALL_LOG = "/tmp/glue-install.log"
 
@@ -117,6 +120,62 @@ def sync_clock(fetch_date=None, set_time=None, now=None) -> "int | None":
             return None
         return int(drift)
     return None
+
+
+# -- host probes shared by __main__ and the TUI hooks ------------------------
+
+def detect_firmware(efi_dir_exists: bool) -> str:
+    """Pure helper: map /sys/firmware/efi presence to a firmware id."""
+    return "uefi" if efi_dir_exists else "bios"
+
+
+# -- TUI I/O hooks (the tui module itself never touches subprocess) ----------
+
+def _net_check() -> str:  # best-effort connectivity check (network screen)
+    import subprocess
+    try:
+        ok = subprocess.run(
+            ["ping", "-c", "1", "-W", "2", "artixlinux.org"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5,
+        ).returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        ok = False
+    return "connected" if ok else "OFFLINE"
+
+
+def _open_net_tool() -> None:  # nmtui full-screen (curses suspended by tui)
+    import subprocess
+    try:
+        subprocess.call(["nmtui"])
+    except OSError:
+        pass  # nmtui missing: the notice already explains the situation
+
+
+def _repartition(disk_path):  # cfdisk on disk_path, then fresh partition list
+    import subprocess
+    try:
+        subprocess.call(["cfdisk", disk_path])
+    except OSError:
+        pass
+    try:
+        return discover_partitions()
+    except DiskError:
+        return None
+
+
+def _capture(argv) -> str:
+    """stdout of argv; raises OSError when the tool is missing/fails."""
+    import subprocess
+    r = subprocess.run(list(argv), capture_output=True, text=True, timeout=120)
+    if r.returncode != 0:
+        raise OSError(f"{argv[0]} exited {r.returncode}")
+    return r.stdout
+
+
+def _firmware(args) -> str:
+    if args.firmware == "auto":
+        return detect_firmware(os.path.exists("/sys/firmware/efi"))
+    return args.firmware
 
 
 def _step_weight(step) -> int:

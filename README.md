@@ -103,6 +103,23 @@ git clone https://github.com/vladbiber/glue-apps.git ../glue-apps
 sh scripts/run-glue-welcome-dev.sh
 ```
 
+## Offline install
+
+No internet? Press `O` on the network screen. The installer then **clones the
+running live system** to the disk with `rsync` instead of downloading
+packages: same gluewc desktop (glueqs or Noctalia, chosen on the next screen),
+same tools, your own user and password. The live-only bits (the `glue` live
+user, root autologin on tty1, the installer, `rsync`, `grub`, `os-prober`,
+the artix-live packages) are removed; the clone gets its own `machine-id`,
+a normal initramfs (`mkinitcpio -P` with the standard hooks) and Limine via
+`glue-boot-update --deploy`, exactly like an online install.
+
+Limits: the clone boots the **stock `linux` kernel** under **runit** (what the
+ISO runs), and only the live desktop is available — Gaming Mode, KDE/XFCE/
+GNOME/Cinnamon/nvwm and dinit/OpenRC need the online install. Once online,
+Glue Apps → *Update all* brings the system up to date (`linux-cachyos` can be
+installed from there later).
+
 ## Terminal
 
 Every graphical session ships with **alacritty**, configured by Glue Linux
@@ -226,9 +243,9 @@ installing.
 - The current catalog contains six sessions: gluewc, nvwm, KDE Plasma, XFCE,
   GNOME and Cinnamon. Multiple sessions may be installed together and chosen
   at login.
-- The installer is **online-only**: it always `basestrap`s a fresh system, so
-  it can fit the CachyOS kernel and your chosen options. The network screen
-  hard-blocks until you're connected.
+- The regular install is **online**: it `basestrap`s a fresh system, so it
+  can fit the CachyOS kernel and your chosen options. Without a connection the
+  network screen offers the **offline install** below (`O`).
 - The live ISO itself runs runit (independent of the target's init) and
   auto-logs into the installer on tty1; every other tty is a normal shell.
 - GNOME needs `gnome-session-sysvinit` (the init-agnostic session worker) —

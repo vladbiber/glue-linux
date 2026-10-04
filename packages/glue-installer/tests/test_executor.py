@@ -451,3 +451,93 @@ class TestKeyringSteps(unittest.TestCase):
 if __name__ == "__main__":
     unittest.main()
 
+
+
+# ---------------------------------------------------------------------------
+# config_steps extraction (3.6): parity with the pre-refactor compile_steps
+# ---------------------------------------------------------------------------
+
+from glue_installer.executor import config_steps  # noqa: E402
+
+_PARITY_PLAN = InstallPlan(
+    packages=["pkg-a", "pkg-b"],
+    services=["NetworkManager", "bluetoothd", "openntpd"],
+    files=[PlannedFile("/etc/a.conf", "a\n", 0o644),
+           PlannedFile("/etc/skel/.bashrc", "b\n", 0o600)],
+    warnings=[],
+)
+_LINKS = {
+    "dinit": ("/etc/dinit.d", "/etc/dinit.d/boot.d",
+              {"NetworkManager": "NetworkManager", "bluetoothd": "bluetoothd",
+               "openntpd": "ntpd"}),
+    "runit": ("/etc/runit/sv", "/etc/runit/runsvdir/default",
+              {"NetworkManager": "NetworkManager", "bluetoothd": "bluetoothd",
+               "openntpd": "openntpd"}),
+    "openrc": ("/etc/init.d", "/etc/runlevels/default",
+               {"NetworkManager": "NetworkManager", "bluetoothd": "bluetooth",
+                "openntpd": "ntpd"}),
+}
+_MM_SCRIPT = ('f=/usr/share/dbus-1/system-services/org.freedesktop.ModemManager1.service; '
+              '[ -e "$f" ] && mv -f "$f" "$f.glue-disabled"; true')
+
+
+def _expected_pre_refactor(init_id):
+    """The exact step list compile_steps produced before config_steps existed."""
+    src, dst, names = _LINKS[init_id]
+    steps = [
+        RunCommand(argv=["basestrap", "/mnt", "pkg-a", "pkg-b"],
+                   description="Install 2 packages with basestrap"),
+        RunCommand(argv=["sh", "-c", "fstabgen -U /mnt >> /mnt/etc/fstab"],
+                   description="Generate fstab → /mnt/etc/fstab"),
+        WriteTargetFile(path="/mnt/etc/a.conf", content="a\n", mode=0o644,
+                        description="Write /etc/a.conf"),
+        WriteTargetFile(path="/mnt/etc/skel/.bashrc", content="b\n", mode=0o600,
+                        description="Write /etc/skel/.bashrc"),
+    ]
+    for svc in ("NetworkManager", "bluetoothd", "openntpd"):
+        isvc = names[svc]
+        steps.append(RunCommand(
+            argv=["artix-chroot", "/mnt", "ln", "-sf", f"{src}/{isvc}", f"{dst}/{isvc}"],
+            description=f"Enable service {svc} ({init_id})"))
+    steps.append(RunCommand(argv=["artix-chroot", "/mnt", "sh", "-c", _MM_SCRIPT],
+                            description="Disable ModemManager D-Bus activation (console spam)"))
+    return steps
+
+
+class TestConfigStepsParity(unittest.TestCase):
+    def test_compile_steps_unchanged_per_init(self):
+        for init_id in ("dinit", "runit", "openrc"):
+            self.assertEqual(compile_steps(_PARITY_PLAN, target="/mnt", init_id=init_id),
+                             _expected_pre_refactor(init_id), init_id)
+
+    def test_config_steps_is_the_tail_of_compile_steps(self):
+        for init_id in ("dinit", "runit", "openrc"):
+            cfg = config_steps(_PARITY_PLAN, target="/mnt", init_id=init_id)
+            self.assertEqual(cfg, _expected_pre_refactor(init_id)[2:], init_id)
+            self.assertEqual(compile_steps(_PARITY_PLAN, init_id=init_id)[2:], cfg)
+
+    def test_only_if_present_guards_each_enable(self):
+        for init_id, (src, dst, names) in _LINKS.items():
+            cfg = config_steps(_PARITY_PLAN, init_id=init_id, only_if_present=True)
+            enables = [s for s in cfg if "Enable service" in s.description]
+            self.assertEqual(len(enables), 3)
+            for s, svc in zip(enables, ("NetworkManager", "bluetoothd", "openntpd")):
+                isvc = names[svc]
+                self.assertEqual(s.argv, [
+                    "artix-chroot", "/mnt", "sh", "-c",
+                    f"[ -e {src}/{isvc} ] && ln -sf {src}/{isvc} {dst}/{isvc} || true"])
+                self.assertIn("if present", s.description)
+            # files and the ModemManager guard are identical either way
+            self.assertEqual([s for s in cfg if "Enable service" not in s.description],
+                             [s for s in config_steps(_PARITY_PLAN, init_id=init_id)
+                              if "Enable service" not in s.description])
+
+    def test_unknown_init_raises(self):
+        with self.assertRaises(ExecutorError):
+            config_steps(_PARITY_PLAN, init_id="systemd")
+        with self.assertRaises(ExecutorError):
+            config_steps(_PARITY_PLAN, init_id="s6", only_if_present=True)
+
+    def test_single_definition(self):
+        src = (_PKG_ROOT / "glue_installer" / "executor.py").read_text()
+        self.assertEqual(src.count("def config_steps"), 1)

@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional
 
 from glue_installer.catalog import SchedulerOption, Session, Shell
-from glue_installer.ui_forms import FormField, disk_label
+from glue_installer.ui_forms import FormField, disk_label, masked
 
 # -- notices -----------------------------------------------------------------
 
@@ -36,8 +36,12 @@ NETWORK_NOTICE_TEMPLATE = (
     "A working connection is REQUIRED — the installer downloads every "
     "package. You cannot continue until you are online. "
     "Press N to open the network tool (nmtui): connect to Wi-Fi or "
-    "check your cable there, then press Enter to re-check and continue."
+    "check your cable there, then press Enter to re-check and continue. "
+    "No internet?  O = install OFFLINE: clone this live system (gluewc + "
+    "stock kernel, runit; gaming and other desktops need the online install)."
 )
+
+OFFLINE_SUMMARY = "Offline install (clone of the live system: stock linux kernel, runit)"
 
 DISKMODE_NOTICE = (
     "How should Glue use your storage? Erasing a whole disk is the "
@@ -284,3 +288,59 @@ def shell_items(session, shells_by_id, chosen) -> List[Item]:
 
 def scheduler_items(options, chosen) -> List[Item]:
     return [scheduler_item(o, chosen == o.id) for o in options]
+
+
+# -- summary screen ----------------------------------------------------------
+
+def summary_items(w) -> List[Item]:
+    """Items of the wizard's summary screen, built from a Wizard's state
+    (kept here so ui_model.py stays small; it reads the wizard's private
+    fields on purpose — it is the view of exactly that state)."""
+    kernel_map = {k.id: k for k in w._catalog.kernels}
+    init_map = {i.id: i for i in w._catalog.inits}
+    items: List[Item] = []
+
+    def _add(sid: str, label: str) -> None:
+        items.append(Item(id=sid, label=label, description="", selected=True))
+
+    if w._mode == "offline":
+        _add("summary:mode", "Mode: " + OFFLINE_SUMMARY)
+    else:
+        _add("summary:mode", "Mode: " + (
+            "Minimal install" if w._mode == "minimal" else "Custom install"))
+        kernel, init = kernel_map.get(w._kernel_id), init_map.get(w._init_id)
+        _add("summary:kernel", f"Kernel: {kernel.name if kernel else '(none)'}")
+        _add("summary:init", f"Init: {init.name if init else '(none)'}")
+    for sid in sorted(w._session_ids):
+        session = w._sessions_by_id[sid]
+        label = f"Session: {session.name}"
+        shell_id = w._shell_choice.get(sid)
+        if shell_id:
+            label += f" (shell: {w._shells_by_id[shell_id].name})"
+        _add(f"summary:session:{sid}", label)
+    for tid in sorted(w._support_ids):
+        toggle = next(t for t in w._catalog.support if t.id == tid)
+        _add(f"summary:support:{tid}", f"Support: {toggle.name}")
+    if w._mode != "offline":
+        _add("summary:gaming", f"Gaming Mode: {'on' if w._gaming else 'off'}")
+    if w._gaming and w._catalog.gaming.schedulers:
+        sched = next(o for o in w._catalog.gaming.schedulers
+                     if o.id == w._scheduler)
+        _add("summary:scheduler", f"CPU scheduler: {sched.name}")
+    if w._disks is not None:
+        if w._disk_mode == "erase":
+            _add("summary:disk",
+                 f"Disk: {w._device_path or '(none)'} — WILL BE ERASED")
+        else:
+            _add("summary:disk",
+                 f"Partition: {w._partition_path or '(none)'} — will be "
+                 "formatted (rest of the disk untouched)")
+        _add("summary:swap", f"Swap: {SWAP_SUMMARY[w._swap_mode]}")
+        if w._hibernate:
+            _add("summary:hibernate", "Hibernation: on")
+    if w._forms is not None:
+        for fkey, form in w._forms.items():
+            if fkey == "password_confirm":
+                continue  # masked password shown once is enough
+            _add(f"summary:{fkey}", f"{form.label}: {masked(form)}")
+    return items

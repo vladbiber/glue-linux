@@ -26,6 +26,9 @@ class Selection:
     # Swap screen (roadmap 4.2; consumed by 4.3): auto|zram|none, hibernate laptop-only
     swap_mode: str = "auto"
     hibernate: bool = False
+    # Offline install (roadmap 3.6): clone the live system with rsync instead
+    # of basestrap; kernel_id/init_id are then the live ones (linux, runit).
+    offline: bool = False
 
 
 @dataclass

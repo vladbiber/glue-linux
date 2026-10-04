@@ -18,6 +18,7 @@ from glue_installer.disk_swap import (
     plan_disk_with_swap, plan_existing_with_swap, read_ram_bytes, resolve_disk,
     staged_pacman_conf,
 )
+from glue_installer.clone import CLONE_INIT, CLONE_KERNEL, CloneError, clone_steps
 from glue_installer.disks import (
     DiskError, discover, discover_partitions,
     plan_disk, plan_existing_partition,
@@ -34,9 +35,10 @@ from glue_installer.plan_types import PlannedFile
 from glue_installer.plan import PlanError, Selection, resolve_plan
 from glue_installer.swap import swap_plan
 from glue_installer.preview import make_show_screenshot
-from glue_installer.run_ui import (
-    _INSTALL_LOG, _TZ_ENDPOINTS, autodetect_spec_timezone, detect_timezone,
-    make_progress, print_log_tail, prompt_reboot, sync_clock,
+from glue_installer.run_ui import (  # noqa: F401 (re-exported host helpers)
+    _INSTALL_LOG, _TZ_ENDPOINTS, _capture, _firmware, _net_check,
+    _open_net_tool, _repartition, autodetect_spec_timezone, detect_firmware,
+    detect_timezone, make_progress, print_log_tail, prompt_reboot, sync_clock,
 )
 
 _REPO_CATALOG = Path(__file__).resolve().parent.parent / "catalog" / "catalog.json"
@@ -101,6 +103,11 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--timezone", default="UTC", metavar="TZ",
                         help="system timezone in Area/City form (default: UTC)")
     parser.add_argument(
+        "--offline", action="store_true",
+        help="headless/dry-run: offline install = clone the live system "
+             "(stock linux kernel, runit) instead of basestrap (3.6)",
+    )
+    parser.add_argument(
         "--headless", action="store_true",
         help="skip the interactive TUI and use a minimal default selection "
              "(useful for scripted/dry-run use)",
@@ -108,19 +115,19 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def detect_firmware(efi_dir_exists: bool) -> str:
-    """Pure helper: map /sys/firmware/efi presence to a firmware id."""
-    return "uefi" if efi_dir_exists else "bios"
-
-
-def _headless_selection(catalog) -> Selection:
-    """Build a minimal Selection from catalog defaults without running the TUI."""
+def _headless_selection(catalog, offline: bool = False) -> Selection:
+    """Build a minimal Selection from catalog defaults without running the TUI.
+    offline: the clone keeps the live init (runit); kernel stays the catalog
+    default for plan resolution, the clone itself boots CLONE_KERNEL."""
     kernel_id = catalog.kernels[0].id if catalog.kernels else "linux-cachyos"
     init_id = next(
         (i.id for i in catalog.inits if "dinit" in i.id),
         catalog.inits[0].id if catalog.inits else "dinit",
     )
+    if offline:
+        init_id = CLONE_INIT
     return Selection(
+        offline=offline,
         kernel_id=kernel_id,
         init_id=init_id,
         session_ids=[],
@@ -169,64 +176,20 @@ def _ensure_root(argv) -> None:
         sys.exit("This installer must run as root: sudo glue-install")
 
 
-# -- TUI I/O hooks (the tui module itself never touches subprocess) ----------
-
-def _net_check() -> str:  # best-effort connectivity check (network screen)
-    import subprocess
-    try:
-        ok = subprocess.run(
-            ["ping", "-c", "1", "-W", "2", "artixlinux.org"],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5,
-        ).returncode == 0
-    except (OSError, subprocess.TimeoutExpired):
-        ok = False
-    return "connected" if ok else "OFFLINE"
-
-
-def _open_net_tool() -> None:  # nmtui full-screen (curses suspended by tui)
-    import subprocess
-    try:
-        subprocess.call(["nmtui"])
-    except OSError:
-        pass  # nmtui missing: the notice already explains the situation
-
-
-def _repartition(disk_path):  # cfdisk on disk_path, then fresh partition list
-    import subprocess
-    try:
-        subprocess.call(["cfdisk", disk_path])
-    except OSError:
-        pass
-    try:
-        return discover_partitions()
-    except DiskError:
-        return None
-
-
-def _print_summary(plan, os_lines=()) -> None:
-    print(
-        f"Install plan: {len(plan.packages)} packages, "
-        f"{len(plan.services)} services, {len(plan.files)} files to write."
-    )
+def _print_summary(plan, os_lines=(), offline: bool = False) -> None:
+    if offline:
+        print(f"Offline install: clone of the live system (kernel {CLONE_KERNEL}, "
+              f"{CLONE_INIT}), {len(plan.services)} services, "
+              f"{len(plan.files)} files to write.")
+    else:
+        print(
+            f"Install plan: {len(plan.packages)} packages, "
+            f"{len(plan.services)} services, {len(plan.files)} files to write."
+        )
     for line in os_lines:
         print(line)
     for warning in plan.warnings:
         print(f"note: {warning}")
-
-
-def _capture(argv) -> str:
-    """stdout of argv; raises OSError when the tool is missing/fails."""
-    import subprocess
-    r = subprocess.run(list(argv), capture_output=True, text=True, timeout=120)
-    if r.returncode != 0:
-        raise OSError(f"{argv[0]} exited {r.returncode}")
-    return r.stdout
-
-
-def _firmware(args) -> str:
-    if args.firmware == "auto":
-        return detect_firmware(os.path.exists("/sys/firmware/efi"))
-    return args.firmware
 
 
 def main(argv=None) -> int:
@@ -260,7 +223,7 @@ def main(argv=None) -> int:
 
     wizard_result = None
     if args.headless:
-        selection = _headless_selection(catalog)
+        selection = _headless_selection(catalog, offline=args.offline)
     else:
         # Imported lazily so headless modes work even where curses is unusable.
         from glue_installer.tui import run_tui
@@ -396,16 +359,25 @@ def main(argv=None) -> int:
         resume=resume_wanted(disk_plan, selection.hibernate),
     )
     try:
-        steps = compile_steps(
-            plan, target=args.target, init_id=selection.init_id,
-            disk_plan=disk_plan, pacman_conf=pacman_conf_path, boot=boot,
-        )
-    except ExecutorError as exc:
+        if selection.offline:
+            # Offline clone (3.6): rsync of the live system, no basestrap and
+            # no host keyring; boots the live kernel through glue-boot-update.
+            if disk_plan is None:
+                return _fail("Offline install needs a disk or partition to "
+                             "clone onto (--disk).", EXIT_INSTALL)
+            boot = BootSpec(kernel=CLONE_KERNEL, cmdline_extra=boot.cmdline_extra,
+                            resume=boot.resume)
+            steps = clone_steps(plan, disk_plan, boot=boot, target=args.target)
+        else:
+            steps = compile_steps(
+                plan, target=args.target, init_id=selection.init_id,
+                disk_plan=disk_plan, pacman_conf=pacman_conf_path, boot=boot,
+            )
+            # Host keyring prep first: basestrap verifies [cachyos] against
+            # the HOST keyring (executor.keyring_steps).
+            steps = keyring_steps() + steps
+    except (ExecutorError, CloneError) as exc:
         return _fail(f"Executor error: {exc}", EXIT_INSTALL)
-
-    # Host keyring prep first: basestrap verifies [cachyos] against the HOST
-    # keyring (executor.keyring_steps).
-    steps = keyring_steps() + steps
 
     # Append identity steps: wizard-collected spec wins, else --username flags
     spec = wizard_result.identity if wizard_result is not None else None
@@ -431,7 +403,7 @@ def main(argv=None) -> int:
     if spec is not None:
         steps = steps + identity_steps(spec, target=args.target)
 
-    _print_summary(plan, os_lines)
+    _print_summary(plan, os_lines, selection.offline)
 
     if args.dry_run:
         execute(steps, dry_run=True)

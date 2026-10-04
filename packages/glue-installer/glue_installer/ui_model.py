@@ -3,15 +3,12 @@ Pure TUI wizard state machine for the Glue Linux installer.
 
 NO curses imports, NO I/O: takes a loaded Catalog and exposes a deterministic
 screen-by-screen wizard producing a plan.Selection. Screen sequence:
-  welcome -> mode -> kernel -> init -> sessions -> shell:<sid>... ->
-  support -> gaming -> [scheduler] -> [disk] -> [swap [hibernate]] ->
-  [form:*] -> summary
-Minimal mode skips 'sessions', 'shell:*' and 'gaming'; 'scheduler' shows only
-when gaming is on; 'disk'/'swap' only when Wizard(disks=...) injects devices ('hibernate'
-only with is_laptop and swap auto); the
-'form:*' identity screens (ADR-8) only with ask_identity=True (a password
-confirm mismatch clears both fields and returns to form:password). A finished
-wizard yields a WizardResult via to_result().
+  welcome -> network -> mode -> kernel -> init -> sessions -> shell:<sid>... ->
+  support -> gaming -> [scheduler] -> [diskmode, disk/partition, swap,
+  [hibernate]] -> [form:*] -> summary
+Minimal mode skips sessions/shell/gaming; offline mode (allow_offline on the
+network screen, roadmap 3.6) skips mode/kernel/init/sessions/gaming/scheduler
+and clones the live system (stock kernel, runit, default session).
 """
 
 from __future__ import annotations
@@ -19,6 +16,7 @@ from __future__ import annotations
 from typing import List, Optional
 
 from glue_installer.catalog import Catalog
+from glue_installer.clone import CLONE_INIT
 from glue_installer.plan import Selection
 from glue_installer.ui_forms import (
     FormField, build_identity_fields, build_identity_spec,
@@ -26,9 +24,9 @@ from glue_installer.ui_forms import (
 # Re-exported for compat: these lived here before the ui_view split.
 from glue_installer.ui_view import (  # noqa: F401
     DE_SECTION, DISK_MANUAL_NOTICE, DISK_NOTICE, DISKMODE_NOTICE,
-    HIBERNATE_NOTICE, NETWORK_NOTICE_TEMPLATE, PARTITION_NOTICE,
+    HIBERNATE_NOTICE, NETWORK_NOTICE_TEMPLATE, OFFLINE_SUMMARY, PARTITION_NOTICE,
     SCHEDULER_NOTICE, SESSIONS_NOTICE, SWAP_NOTICE, SWAP_SUMMARY, WELCOME_NOTICE,
-    Choose, Item, Screen, SetFlag, Toggle, WizardResult, diskmode_items,
+    Choose, Item, Screen, SetFlag, Toggle, WizardResult, diskmode_items, summary_items,
     disk_items, hibernate_item, init_items, kernel_items, mode_items, partition_item,
     scheduler_items, session_item, shell_item, sessions_items, shell_items, support_items,
     swap_items)
@@ -128,9 +126,12 @@ class Wizard:
     # -- navigation --------------------------------------------------------
 
     def _screen_keys(self) -> List[str]:
-        keys = ["welcome", "network", "mode", "kernel", "init"]
+        keys = ["welcome", "network"]
+        if self._mode != "offline":
+            keys += ["mode", "kernel", "init"]
         if self._mode == "custom":
             keys.append("sessions")
+        if self._mode != "minimal":
             keys.extend(
                 f"shell:{sid}"
                 for sid in sorted(self._session_ids)
@@ -157,9 +158,11 @@ class Wizard:
 
     def _validate_current(self) -> None:
         key = self._current_key
-        if key == "network" and self._network_status != "connected":
+        if key == "network" and self._network_status != "connected" \
+                and self._mode != "offline":
             raise ValidationError("No internet connection — press N to "
-                                  "connect (nmtui), then Enter to re-check.")
+                                  "connect (nmtui), then Enter to re-check, "
+                                  "or O to install offline.")
         if key == "kernel" and self._kernel_id is None:
             raise ValidationError("Select a kernel to continue.")
         if key == "init" and self._init_id is None:
@@ -190,6 +193,32 @@ class Wizard:
                 self._current_key = "form:password"
             if error:
                 raise ValidationError(error)
+
+    def allow_offline(self) -> None:
+        """Offline install (3.6): clone the live system instead of basestrap.
+        Only on the network screen. Fixes the live kernel/init and the default
+        session (its first shell preselected); gaming/other desktops need the
+        online path. The network check no longer blocks afterwards."""
+        if self._current_key != "network":
+            raise ValidationError("Offline install can only be chosen on the "
+                                  "network screen.")
+        self._mode = "offline"
+        self._kernel_id = self._default_kernel_id()
+        self._init_id = CLONE_INIT
+        self._gaming = False
+        self._session_ids.clear()
+        self._shell_choice.clear()
+        if self._catalog.sessions:
+            default_session = self._catalog.sessions[0]
+            self._session_ids.add(default_session.id)
+            if default_session.shell_choices:
+                self._shell_choice[default_session.id] = \
+                    default_session.shell_choices[0]
+
+    def _default_kernel_id(self) -> Optional[str]:
+        kernels = self._catalog.kernels
+        return next((k.id for k in kernels if k.primary),
+                    kernels[0].id if kernels else None)
 
     def next(self) -> None:
         """Advance to the next screen; raises ValidationError if invalid."""
@@ -316,30 +345,8 @@ class Wizard:
             return Screen(key="network", title="Network", kind="info", items=[],
                           notice=NETWORK_NOTICE_TEMPLATE.format(
                               status=self._network_status))
-        if key == "diskmode":
-            return self._diskmode_screen()
-        if key == "partition":
-            return self._partition_screen()
-        if key == "mode":
-            return self._mode_screen()
-        if key == "kernel":
-            return self._kernel_screen()
-        if key == "init":
-            return self._init_screen()
-        if key == "sessions":
-            return self._sessions_screen()
         if key.startswith("shell:"):
             return self._shell_screen(key.split(":", 1)[1])
-        if key == "support":
-            return self._support_screen()
-        if key == "gaming":
-            return self._gaming_screen()
-        if key == "scheduler":
-            return self._scheduler_screen()
-        if key == "swap":
-            return self._swap_screen()
-        if key == "hibernate":
-            return self._hibernate_screen()
         if key == "disk":
             items = disk_items(self._disks, self._device_path)
             manual = self._disk_mode == "manual"
@@ -351,7 +358,15 @@ class Wizard:
         if key.startswith("form:"):
             form = self._forms[key.split(":", 1)[1]]
             return Screen(key=key, title=form.label, kind="form", field=form)
-        return self._summary_screen()
+        builders = {
+            "diskmode": self._diskmode_screen, "partition": self._partition_screen,
+            "mode": self._mode_screen, "kernel": self._kernel_screen,
+            "init": self._init_screen, "sessions": self._sessions_screen,
+            "support": self._support_screen, "gaming": self._gaming_screen,
+            "scheduler": self._scheduler_screen, "swap": self._swap_screen,
+            "hibernate": self._hibernate_screen,
+        }
+        return builders.get(key, self._summary_screen)()
 
     def _diskmode_screen(self) -> Screen:
         return Screen(key="diskmode", title="Storage", kind="radio",
@@ -420,51 +435,8 @@ class Wizard:
                           self._catalog.gaming.schedulers, self._scheduler))
 
     def _summary_screen(self) -> Screen:
-        kernel_map = {k.id: k for k in self._catalog.kernels}
-        init_map = {i.id: i for i in self._catalog.inits}
-        items: List[Item] = []
-
-        def _add(sid: str, label: str) -> None:
-            items.append(Item(id=sid, label=label, description="", selected=True))
-
-        _add("summary:mode", "Mode: " + (
-            "Minimal install" if self._mode == "minimal" else "Custom install"))
-        kernel, init = kernel_map.get(self._kernel_id), init_map.get(self._init_id)
-        _add("summary:kernel", f"Kernel: {kernel.name if kernel else '(none)'}")
-        _add("summary:init", f"Init: {init.name if init else '(none)'}")
-        for sid in sorted(self._session_ids):
-            session = self._sessions_by_id[sid]
-            label = f"Session: {session.name}"
-            shell_id = self._shell_choice.get(sid)
-            if shell_id:
-                label += f" (shell: {self._shells_by_id[shell_id].name})"
-            _add(f"summary:session:{sid}", label)
-        for tid in sorted(self._support_ids):
-            toggle = next(t for t in self._catalog.support if t.id == tid)
-            _add(f"summary:support:{tid}", f"Support: {toggle.name}")
-        _add("summary:gaming", f"Gaming Mode: {'on' if self._gaming else 'off'}")
-        if self._gaming and self._catalog.gaming.schedulers:
-            sched = next(o for o in self._catalog.gaming.schedulers
-                         if o.id == self._scheduler)
-            _add("summary:scheduler", f"CPU scheduler: {sched.name}")
-        if self._disks is not None:
-            if self._disk_mode == "erase":
-                _add("summary:disk",
-                     f"Disk: {self._device_path or '(none)'} — WILL BE ERASED")
-            else:
-                _add("summary:disk",
-                     f"Partition: {self._partition_path or '(none)'} — will be "
-                     "formatted (rest of the disk untouched)")
-            _add("summary:swap", f"Swap: {SWAP_SUMMARY[self._swap_mode]}")
-            if self._hibernate:
-                _add("summary:hibernate", "Hibernation: on")
-        if self._forms is not None:
-            for fkey, form in self._forms.items():
-                if fkey == "password_confirm":
-                    continue  # masked password shown once is enough
-                _add(f"summary:{fkey}", f"{form.label}: {masked(form)}")
-        return Screen(key="summary", title="Summary",
-                      kind="summary", items=items)
+        return Screen(key="summary", title="Summary", kind="summary",
+                      items=summary_items(self))
 
     # -- output --------------------------------------------------------------
 
@@ -484,6 +456,7 @@ class Wizard:
             scheduler=self._scheduler,
             swap_mode=self._swap_mode,
             hibernate=self._hibernate,
+            offline=self._mode == "offline",
         )
 
     def to_result(self) -> WizardResult:

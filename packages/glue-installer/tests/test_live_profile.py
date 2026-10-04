@@ -20,6 +20,9 @@ _REQUIRED = (
     "power-profiles-daemon", "xdg-desktop-portal", "xdg-desktop-portal-wlr",
     "xdg-desktop-portal-gtk", "grim", "glue-installer", "glue-apps",
     "glue-welcome", "fastfetch", "chafa", "libnotify", "nautilus",
+    # offline clone (3.6): rsync copies the live root; glue-boot (+limine,
+    # efibootmgr) is what `glue-boot-update --deploy` needs on the target
+    "rsync", "glue-boot", "limine", "efibootmgr",
 )
 _FORBIDDEN = (
     "linux-cachyos", "linux-cachyos-bore", "calamares", "gnome-software",
@@ -81,6 +84,14 @@ class TestLiveProfile(unittest.TestCase):
         for sid in session.shell_choices:
             for pkg in shells[sid].packages:
                 self.assertIn(pkg, self.names)
+
+
+    def test_offline_clone_tools_on_live(self):
+        for pkg in ("rsync", "glue-boot", "limine", "efibootmgr"):
+            self.assertIn(pkg, self.names)
+
+    def test_no_dead_grub_bootloader_comment(self):
+        self.assertNotIn("grub/efibootmgr install", _PROFILE.read_text())
 
 
 if __name__ == "__main__":

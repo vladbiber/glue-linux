@@ -1,7 +1,7 @@
 # Maintainer: Glue Linux
 pkgname=glue-installer
 pkgver=1
-pkgrel=25
+pkgrel=26
 pkgdesc="Glue Linux TUI installer (Python curses, catalog-driven)"
 arch=('any')
 url="https://github.com/Vifuddyxg"
