@@ -3,7 +3,7 @@
 # generated selection pages, glueinstall/gluefstab job modules and branding.
 pkgname=glue-calamares-config
 pkgver=0.2.0
-pkgrel=4
+pkgrel=5
 pkgdesc="Glue Linux installer configuration for Calamares (sequence, pages, Glue job modules, branding)"
 arch=('any')
 url="https://github.com/vladbiber/glue-linux"
@@ -32,8 +32,9 @@ package() {
     done
     # Screenshot gallery page (QML view module; GalleryData.js is generated)
     local gal
-    for gal in module.desc gluegallery.qml GalleryNav.js GalleryData.js; do
-        install -Dm644 "$startdir/modules/gluegallery/$gal" "$cfg/modules/gluegallery/$gal"
+    # notesqml@gluegallery loads gluegallery.qml from the branding directory
+    for gal in gluegallery.qml GalleryNav.js GalleryData.js; do
+        install -Dm644 "$startdir/modules/gluegallery/$gal" "$cfg/branding/glue/$gal"
     done
     # Launcher (live-only, ADR-023): elevates Calamares with pkexec
     install -Dm755 "$startdir/glue-install-gui" "$pkgdir/usr/bin/glue-install-gui"

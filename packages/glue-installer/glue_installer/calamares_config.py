@@ -37,7 +37,9 @@ GS_PREFIX = "packagechooser_"
 SCREENSHOT_ROOT = "/usr/share/glue-installer/catalog"
 NO_SCREENSHOT = ":/images/no-selection.png"
 GAMING_ID_PREFIX = "gaming-"
-GALLERY_STEP = "gluegallery"
+# QML-only pages run as an instance of the stock notesqml view module; the
+# QML file is looked up in the branding directory (qmlSearch: branding)
+GALLERY_STEP = "notesqml@gluegallery"
 
 # Calamares pages in the order the user sees them (instances of packagechooser).
 PAGE_IDS = ("gluesessions", "glueshell", "gluekernel", "glueinit", "gluegaming",
@@ -228,8 +230,9 @@ def build_settings(catalog) -> Dict[str, object]:
         # `local` = /usr/lib/calamares/modules (system); the Glue job modules
         # (glueinstall, gluefstab) live under /etc/calamares/modules.
         "modules-search": ["local", "/etc/calamares/modules"],
-        "instances": [{"id": p.id, "module": "packagechooser", "config": f"{p.id}.conf"}
-                      for p in pages],
+        "instances": [{"id": "gluegallery", "module": "notesqml", "config": "gluegallery.conf"}]
+                     + [{"id": p.id, "module": "packagechooser", "config": f"{p.id}.conf"}
+                        for p in pages],
         "sequence": [{"show": show}, {"exec": list(EXEC)}, {"show": list(SHOW_FINISH)}],
     }
     settings.update(dict(_SETTINGS_FLAGS))

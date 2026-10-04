@@ -13,6 +13,9 @@ CFG=$(mktemp -d)
 cp -r "$REPO/packages/glue-calamares-config/." "$CFG/"
 cp "$REPO/packages/glue-welcome/data/icons/org.glue.Welcome.svg" "$CFG/branding/glue/logo.svg"
 cp "$REPO/packages/glue-branding/wallpaper.png" "$CFG/branding/glue/welcome.png"
+# same layout as the PKGBUILD: the gallery QML lives in the branding dir
+cp "$REPO"/packages/glue-calamares-config/modules/gluegallery/gluegallery.qml \
+   "$REPO"/packages/glue-calamares-config/modules/gluegallery/Gallery*.js "$CFG/branding/glue/"
 ln -s /usr/share/calamares/qml "$CFG/qml"
 docker run --rm --network host --device /dev/dri/renderD128 \
     -v "$CFG:/etc/calamares:ro" -v "$REPO/packages/glue-installer:/usr/lib/glue-installer:ro" \

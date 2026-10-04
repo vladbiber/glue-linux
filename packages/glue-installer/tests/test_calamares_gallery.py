@@ -71,7 +71,9 @@ class TestRender(unittest.TestCase):
         self.assertIn("Ünï", text)
 
     def test_qml_conf(self):
-        self.assertIn('step: "Previews"', render_gallery_qml_conf())
+        conf = render_gallery_qml_conf()
+        for needle in ("qmlSearch: branding", "qmlFilename: gluegallery", 'notes: "Previews"'):
+            self.assertIn(needle, conf)
 
     def test_no_artix_word(self):
         for text in (render_gallery_data_js(_ENTRIES), render_gallery_qml_conf()):
@@ -82,11 +84,14 @@ class TestIntegration(unittest.TestCase):
     def test_gallery_right_before_sessions_chooser(self):
         show = build_settings(_CATALOG)["sequence"][0]["show"]
         self.assertEqual(show[show.index("packagechooser@gluesessions") - 1],
-                         "gluegallery")
-        self.assertEqual(show.count("gluegallery"), 1)
+                         "notesqml@gluegallery")
+        self.assertEqual(show.count("notesqml@gluegallery"), 1)
         settings_conf = (_CFG / "settings.conf").read_text().splitlines()
         i = settings_conf.index("  - packagechooser@gluesessions")
-        self.assertEqual(settings_conf[i - 1], "  - gluegallery")
+        self.assertEqual(settings_conf[i - 1], "  - notesqml@gluegallery")
+        instances = build_settings(_CATALOG)["instances"]
+        self.assertIn({"id": "gluegallery", "module": "notesqml",
+                       "config": "gluegallery.conf"}, instances)
 
     def test_checked_in_equals_generator(self):
         files = render_all(_CATALOG)
@@ -95,17 +100,17 @@ class TestIntegration(unittest.TestCase):
             self.assertEqual((_CFG / rel).read_bytes(), files[rel].encode("utf-8"), rel)
 
     def test_static_files_and_pkgbuild(self):
+        # notesqml@gluegallery: no own module.desc (Calamares has no external
+        # "qtquick" interface); the QML is installed into the branding dir
         d = _CFG / "modules" / "gluegallery"
-        desc = (d / "module.desc").read_text()
-        for needle in ('type: "view"', 'interface: "qtquick"', 'name: "gluegallery"',
-                       'qmlPath: "gluegallery.qml"'):
-            self.assertIn(needle, desc)
+        self.assertFalse((d / "module.desc").exists())
         qml = (d / "gluegallery.qml").read_text()
         for needle in ("No preview available", "Previous", "Next", "Nav.label("):
             self.assertIn(needle, qml)
         pkgbuild = (_CFG / "PKGBUILD").read_text()
-        for name in ("module.desc", "gluegallery.qml", "GalleryNav.js", "GalleryData.js"):
+        for name in ("gluegallery.qml", "GalleryNav.js", "GalleryData.js"):
             self.assertIn(name, pkgbuild)
+        self.assertIn('"$cfg/branding/glue/$gal"', pkgbuild)
         self.assertTrue((_CFG / "modules" / "gluegallery.conf").is_file())
 
 

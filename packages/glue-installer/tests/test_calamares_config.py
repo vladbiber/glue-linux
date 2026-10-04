@@ -50,10 +50,12 @@ class TestSequence(unittest.TestCase):
         show = _phase(_SETTINGS, "show", 0)
         pages = [f"packagechooser@{p}" for p in PAGE_IDS]
         self.assertEqual(show, ["welcome", "locale", "keyboard", "partition", "users",
-                                "gluegallery"] + pages + ["summary"])
-        self.assertEqual([i["id"] for i in _SETTINGS["instances"]], list(PAGE_IDS))
+                                "notesqml@gluegallery"] + pages + ["summary"])
+        self.assertEqual([i["id"] for i in _SETTINGS["instances"]],
+                         ["gluegallery"] + list(PAGE_IDS))
         for inst in _SETTINGS["instances"]:
-            self.assertEqual(inst["module"], "packagechooser")
+            expected = "notesqml" if inst["id"] == "gluegallery" else "packagechooser"
+            self.assertEqual(inst["module"], expected)
             self.assertTrue((_CFG / "modules" / inst["config"]).is_file())
 
     def test_forbidden_modules_absent(self):

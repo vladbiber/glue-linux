@@ -52,4 +52,5 @@ def parse_gallery_data_js(text: str) -> List[Dict[str, object]]:
 
 
 def render_gallery_qml_conf() -> str:
-    return (_HEADER_YAML + "---\nlabels:\n    step: \"Previews\"\n")
+    return (_HEADER_YAML + "---\nqmlSearch: branding\nqmlFilename: gluegallery\n"
+            "qmlLabel:\n    notes: \"Previews\"\n")
