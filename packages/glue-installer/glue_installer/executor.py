@@ -173,6 +173,10 @@ def compile_steps(
 
     steps.extend(config_steps(plan, target=target, init_id=init_id))
 
+    # 5b. Early CPU microcode needs the `microcode` hook (roadmap 10.8 b)
+    from glue_installer.hw_compat import microcode_hook_steps
+    steps.extend(microcode_hook_steps(plan.packages, t, plan.files))
+
     # 6. Bootloader (only when a DiskPlan is provided) — always last
     if disk_plan is not None:
         steps.extend(bootloader_steps(disk_plan, boot, target=target))

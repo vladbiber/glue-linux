@@ -232,10 +232,16 @@ def main(argv=None) -> int:
         tui_partitions = None
         if args.disk is None:
             try:
-                tui_disks = discover() or None
+                found = discover()
+                tui_disks = found or None
                 tui_partitions = discover_partitions()
             except DiskError:
                 tui_disks = None  # no disk screen; install to prepared --target
+            else:
+                if not found:  # discovery worked but saw no disk: say why
+                    from glue_installer.hw_compat import detect_hardware
+                    from glue_installer.run_ui import report_no_disks
+                    report_no_disks(detect_hardware())
         try:
             from glue_installer.cpu import detect_cpu_v3 as _detect_cpu_v3
             from glue_installer.laptop import detect_laptop as _detect_laptop

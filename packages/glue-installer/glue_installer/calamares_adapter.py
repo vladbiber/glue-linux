@@ -326,6 +326,8 @@ def compile_adapter(
                                  extra_packages=bootloader_packages(disk_plan)))
     steps.extend(config_steps(plan, target=t, init_id=selection.init_id,
                               only_if_present=False))
+    from glue_installer.hw_compat import microcode_hook_steps
+    steps.extend(microcode_hook_steps(plan.packages, t, plan.files))
     swapfile_path = None
     if swap is not None and swap.disk_mib > 0 and swap_partition is None:
         steps.extend(swapfile_steps(t, swap.disk_mib, root_fstype))

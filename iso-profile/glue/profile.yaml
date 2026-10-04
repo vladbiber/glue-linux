@@ -54,6 +54,11 @@ rootfs:
     - glue-boot
     # os-prober: live-only; the installer turns its output into /etc/glue/boot.d (3.4)
     - os-prober
+    # laptop audio (SOF/UCM) and early CPU microcode on the live system (10.8 b/c)
+    - sof-firmware
+    - alsa-ucm-conf
+    - intel-ucode
+    - amd-ucode
     # --- graphical installer (10.2, ADR-023): Calamares, live-only. Started by
     #     `glue-install-gui` (pkexec); the clone and the online install never
     #     carry it (clone.py LIVE_ONLY_PACKAGES, absent from every plan) ---

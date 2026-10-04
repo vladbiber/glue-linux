@@ -92,6 +92,17 @@ class TestLiveProfile(unittest.TestCase):
         for pkg in ("rsync", "glue-boot", "limine", "efibootmgr"):
             self.assertIn(pkg, self.names)
 
+    def test_laptop_audio_and_ucode_on_live(self):
+        for pkg in ("sof-firmware", "alsa-ucm-conf", "intel-ucode", "amd-ucode"):
+            self.assertIn(pkg, self.names)
+
+    def test_vmd_dropin_in_overlay(self):
+        dropin = (_REPO_ROOT / "iso-profile" / "glue" / "root-overlay" / "etc"
+                  / "mkinitcpio.conf.d" / "glue-vmd.conf")
+        lines = [l for l in dropin.read_text().splitlines()
+                 if l and not l.startswith("#")]
+        self.assertEqual(lines, ["MODULES+=(vmd)"])
+
     def test_no_dead_grub_bootloader_comment(self):
         self.assertNotIn("grub/efibootmgr install", _PROFILE.read_text())
 

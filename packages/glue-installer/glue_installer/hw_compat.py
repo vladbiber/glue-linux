@@ -27,12 +27,21 @@ Several NVIDIA GPUs share one kernel module, so the oldest generation wins.
 Microcode is installed on every install, servers included: CPU security fixes
 matter everywhere (the default mkinitcpio.conf has the `microcode` hook).
 fwupd is activated on demand, so no service is enabled.
+
+Intel VMD (10.8 b/c): the PCI ids below are the ones in the kernel's
+drivers/pci/controller/vmd.c vmd_ids[] (read from torvalds/linux master,
+2026-10-04). With VMD on, NVMe disks sit behind the controller and only show
+up once the `vmd` module is loaded, so the initramfs gets it via a
+/etc/mkinitcpio.conf.d drop-in (mkinitcpio 42.2 in the system repo reads
+that directory after mkinitcpio.conf). Intel RST "RAID" mode is a PCI class
+0x0104 device from vendor 0x8086.
 """
 
 from __future__ import annotations
 
 import glob
 import os
+import re
 from dataclasses import dataclass
 from typing import Iterable, List, Set, Tuple
 
@@ -41,6 +50,19 @@ from glue_installer.plan_types import PlannedFile
 
 _NVIDIA_VENDOR = 0x10DE
 _BROADCOM_VENDOR = 0x14E4
+_INTEL_VENDOR = 0x8086
+_CLASS_RAID = 0x0104
+
+# Intel VMD controller device ids (vmd.c vmd_ids[])
+_VMD_IDS = frozenset({
+    0x201D, 0x28C0, 0x28C1, 0x467F, 0x4C3D, 0xA77F, 0x7D0B, 0xAD0B, 0x9A0B,
+    0xB60B, 0xB06F, 0xB07F, 0xD70B, 0xD73B,
+})
+_PCI_ADDR = re.compile(r"^[0-9a-fA-F]{4}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}\.[0-7]$")
+
+VMD_DROPIN_PATH = "/etc/mkinitcpio.conf.d/glue-vmd.conf"
+VMD_DROPIN = ("# Glue Linux: Intel VMD hides the NVMe disks until this module is loaded\n"
+              "MODULES+=(vmd)\n")
 
 # (first, last, generation), inclusive
 _NVIDIA_RANGES = (
@@ -88,6 +110,13 @@ class HardwareProfile:
     nvidia_devices: Tuple[int, ...] = ()
     wifi_devices: Tuple[Tuple[int, int], ...] = ()
     cpu_vendor: str = "other"
+    vmd_devices: Tuple[int, ...] = ()   # PCI ids of Intel VMD controllers
+    vmd_driver: bool = False            # the vmd driver has bound a device
+    intel_raid: bool = False            # Intel PCI class 0x0104 (RST RAID mode)
+
+    @property
+    def vmd_present(self) -> bool:
+        return bool(self.vmd_devices) or self.vmd_driver
 
 
 def nvidia_generation(device_id: int) -> str:
@@ -158,10 +187,91 @@ def apply_hw(packages: Set[str], hw: HardwareProfile, graphical: bool,
 
 
 def hw_files(hw: HardwareProfile) -> List[PlannedFile]:
+    files: List[PlannedFile] = []
     if needs_broadcom_wl(hw.wifi_devices):
-        return [PlannedFile(path=BROADCOM_BLACKLIST_PATH,
-                            content=_BROADCOM_BLACKLIST, mode=0o644)]
-    return []
+        files.append(PlannedFile(path=BROADCOM_BLACKLIST_PATH,
+                                 content=_BROADCOM_BLACKLIST, mode=0o644))
+    if hw.vmd_present:
+        files.append(PlannedFile(path=VMD_DROPIN_PATH, content=VMD_DROPIN,
+                                 mode=0o644))
+    return files
+
+
+_HOOKS_HAS_MICROCODE = re.compile(r"[ (]microcode[ )]")
+_HOOKS_AUTODETECT = re.compile(r"([ (]autodetect)([ )])")
+
+
+def ensure_microcode_hook(hooks: str) -> str:
+    """Add `microcode` right after `autodetect` in a `HOOKS=(...)` line.
+
+    Idempotent; a line without `autodetect` (or not a HOOKS line, or empty)
+    is returned unchanged. Works for busybox and systemd style lists alike.
+    Mirror of MICROCODE_HOOK_SCRIPT's sed.
+    """
+    if not hooks.startswith("HOOKS=") or _HOOKS_HAS_MICROCODE.search(hooks):
+        return hooks
+    return _HOOKS_AUTODETECT.sub(r"\1 microcode\2", hooks, count=1)
+
+
+# Early microcode through the initramfs is the only way Limine loads it. The
+# kernel's initramfs is built during pacstrap, before the Glue files (the VMD
+# drop-in) are written, so it is rebuilt here whenever the hook was added or a
+# drop-in exists, even if the default mkinitcpio.conf already had the hook.
+_HOOK_SNIPPET = (
+    "grep -Eq '^HOOKS=.*[ (]microcode[ )]' $f || {\n"
+    "  sed -i -E 's/^(HOOKS=.*[ (]autodetect)([ )])/\\1 microcode\\2/' $f\n"
+    "  grep -Eq '^HOOKS=.*[ (]microcode[ )]' $f && rebuild=1\n"
+    "}\n")
+MICROCODE_HOOK_SCRIPT = (
+    "set -e\nf=/etc/mkinitcpio.conf\nrebuild=0\n" + _HOOK_SNIPPET
+    + "[ $rebuild = 0 ] || mkinitcpio -P\n")
+REBUILD_SCRIPT = "set -e\nmkinitcpio -P\n"
+_UCODE_PACKAGES = {"intel-ucode", "amd-ucode"}
+
+
+def microcode_hook_steps(plan_packages: Iterable[str], target: str,
+                         files: Iterable[PlannedFile] = ()):
+    """Chroot step run after the plan files are written: puts the `microcode`
+    hook into the target's mkinitcpio.conf (when a ucode package is installed)
+    and rebuilds the initramfs when the hook was added or the VMD drop-in is
+    among `files`."""
+    ucode = bool(_UCODE_PACKAGES & set(plan_packages))
+    vmd = any(f.path == VMD_DROPIN_PATH for f in files)
+    if not (ucode or vmd):
+        return []
+    if ucode:
+        script = MICROCODE_HOOK_SCRIPT if not vmd else (
+            MICROCODE_HOOK_SCRIPT.replace("rebuild=0", "rebuild=1", 1))
+    else:
+        script = REBUILD_SCRIPT
+    from glue_installer.executor import RunCommand
+    return [RunCommand(
+        argv=["artix-chroot", target.rstrip("/"), "sh", "-c", script],
+        description="Add the microcode hook and rebuild the initramfs")]
+
+
+_NO_DISK_GENERIC = (
+    "No disk was detected. Check that the drive is connected (cables, M.2 "
+    "slot) and enabled in the BIOS/UEFI setup, then start the installer again.")
+_NO_DISK_INTEL = (
+    "No disk was detected: it is probably hidden by the Intel RST/VMD storage "
+    "controller.\n"
+    "In the BIOS/UEFI setup, set the SATA/storage mode to AHCI.\n"
+    "If Windows is installed on this computer, do NOT just switch the mode: "
+    "Windows may no longer boot. First boot Windows into Safe Mode (for "
+    "example run `bcdedit /set {current} safeboot minimal` as administrator "
+    "and restart), then change the mode to AHCI, boot Windows once into Safe "
+    "Mode, and clear it with `bcdedit /deletevalue {current} safeboot`.\n"
+    "Glue Linux never changes this setting for you.")
+
+
+def storage_hint(disks_found: bool, hw: HardwareProfile) -> str | None:
+    """Explain an empty disk list; None when disks exist."""
+    if disks_found:
+        return None
+    if hw.vmd_present or hw.intel_raid:
+        return _NO_DISK_INTEL
+    return _NO_DISK_GENERIC
 
 
 def _read_hex(path: str) -> int | None:
@@ -172,17 +282,33 @@ def _read_hex(path: str) -> int | None:
         return None
 
 
+def _vmd_driver_bound(sys_pci: str) -> bool:
+    """True when /sys/bus/pci/drivers/vmd (next to devices/) lists a device."""
+    drv = os.path.join(os.path.dirname(sys_pci.rstrip("/")), "drivers", "vmd")
+    try:
+        return any(_PCI_ADDR.match(n) for n in os.listdir(drv))
+    except OSError:
+        return False
+
+
 def detect_hardware(sys_pci: str = "/sys/bus/pci/devices",
                     cpuinfo_text: str | None = None) -> HardwareProfile:
-    """Read NVIDIA GPUs and Wi-Fi NICs from sysfs; never raises."""
+    """Read NVIDIA GPUs, Wi-Fi NICs, Intel VMD/RAID from sysfs; never raises."""
     nvidia: List[int] = []
     wifi: List[Tuple[int, int]] = []
+    vmd: List[int] = []
+    raid = False
     for dev in sorted(glob.glob(os.path.join(sys_pci, "*"))):
         cls = _read_hex(os.path.join(dev, "class"))
         vendor = _read_hex(os.path.join(dev, "vendor"))
         device = _read_hex(os.path.join(dev, "device"))
         if cls is None or vendor is None or device is None:
             continue
+        if vendor == _INTEL_VENDOR:
+            if device in _VMD_IDS:
+                vmd.append(device)
+            if cls >> 8 == _CLASS_RAID:
+                raid = True
         if vendor == _NVIDIA_VENDOR and cls >> 16 == 0x03:
             nvidia.append(device)
         elif (cls >> 8 == 0x0280) or (cls >> 8 == 0x0200 and vendor == _BROADCOM_VENDOR):
@@ -193,4 +319,5 @@ def detect_hardware(sys_pci: str = "/sys/bus/pci/devices",
                 cpuinfo_text = fh.read()
         except OSError:
             cpuinfo_text = ""
-    return HardwareProfile(tuple(nvidia), tuple(wifi), cpu_vendor(cpuinfo_text))
+    return HardwareProfile(tuple(nvidia), tuple(wifi), cpu_vendor(cpuinfo_text),
+                           tuple(vmd), _vmd_driver_bound(sys_pci), raid)

@@ -172,8 +172,11 @@ class TestKernelStep(unittest.TestCase):
                       self.script)
 
     def test_hooks_rewritten_whole_line_then_mkinitcpio(self):
-        self.assertEqual(MKINITCPIO_HOOKS, "HOOKS=(base udev autodetect modconf kms "
-                         "keyboard keymap consolefont block filesystems fsck)")
+        self.assertEqual(MKINITCPIO_HOOKS, "HOOKS=(base udev autodetect microcode modconf "
+                         "kms keyboard keymap consolefont block filesystems fsck)")
+        hooks = MKINITCPIO_HOOKS.split()
+        self.assertEqual(hooks[hooks.index("autodetect") + 1].lstrip("("), "microcode")
+        self.assertLess(MKINITCPIO_HOOKS.index("microcode"), MKINITCPIO_HOOKS.index("block"))
         self.assertIn(f"sed -i 's|^HOOKS=.*|{MKINITCPIO_HOOKS}|' /etc/mkinitcpio.conf",
                       self.script)
         self.assertLess(self.script.index("HOOKS="), self.script.index("mkinitcpio -P"))

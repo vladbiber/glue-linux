@@ -12,7 +12,8 @@ from glue_installer.catalog import load_catalog
 from glue_installer.gpu import detect_gpu_vendors
 from glue_installer.hw_compat import (
     BROADCOM_BLACKLIST_PATH, HardwareProfile, compat_packages, detect_hardware,
-    needs_broadcom_wl, nvidia_driver_packages, nvidia_generation)
+    VMD_DROPIN_PATH, ensure_microcode_hook, hw_files, microcode_hook_steps,
+    needs_broadcom_wl, nvidia_driver_packages, nvidia_generation, storage_hint)
 from glue_installer.plan import Selection, resolve_plan
 
 _CATALOG = load_catalog(_PKG_ROOT / "catalog" / "catalog.json")
@@ -203,6 +204,218 @@ class TestNoSystemd(unittest.TestCase):
                 plan = _plan(_fake_pci(devs), gaming=gaming)
                 self.assertFalse([p for p in plan.packages
                                   if p.startswith("systemd")])
+
+
+def _sysfs(devices, vmd_driver_devs=()):
+    """<root>/devices/* plus <root>/drivers/vmd/<addr> symlinks."""
+    root = Path(tempfile.mkdtemp())
+    (root / "devices").mkdir()
+    for i, (cls, vendor, device) in enumerate(devices):
+        d = root / "devices" / f"0000:0{i}:00.0"
+        d.mkdir()
+        (d / "class").write_text(cls + "\n")
+        (d / "vendor").write_text(vendor + "\n")
+        (d / "device").write_text(device + "\n")
+    if vmd_driver_devs is not None:
+        (root / "drivers" / "vmd").mkdir(parents=True)
+        for addr in vmd_driver_devs:
+            (root / "drivers" / "vmd" / addr).symlink_to(root / "devices")
+    return str(root / "devices")
+
+
+class TestVmdAndStorage(unittest.TestCase):
+    def _paths(self, hw):
+        return [f.path for f in hw_files(hw)]
+
+    def test_vmd_by_pci_id(self):
+        hw = detect_hardware(_sysfs([("0x010400", "0x8086", "0x9a0b")], None), _INTEL_CPU)
+        self.assertTrue(hw.vmd_present)
+        self.assertFalse(hw.vmd_driver)
+        self.assertEqual(self._paths(hw).count(VMD_DROPIN_PATH), 1)
+        f = [f for f in hw_files(hw) if f.path == VMD_DROPIN_PATH][0]
+        self.assertIn("MODULES+=(vmd)", f.content)
+        self.assertEqual(f.mode, 0o644)
+
+    def test_vmd_by_driver_symlink_only(self):
+        hw = detect_hardware(_sysfs([("0x060000", "0x8086", "0x1234")],
+                                    ["0000:00:0e.0"]), _INTEL_CPU)
+        self.assertTrue(hw.vmd_driver)
+        self.assertEqual(self._paths(hw), [VMD_DROPIN_PATH])
+
+    def test_driver_dir_without_devices_is_not_vmd(self):
+        hw = detect_hardware(_sysfs([("0x060000", "0x8086", "0x1234")], []), _INTEL_CPU)
+        self.assertFalse(hw.vmd_present)
+        self.assertEqual(self._paths(hw), [])
+
+    def test_vmd_id_from_other_vendor_ignored(self):
+        hw = detect_hardware(_sysfs([("0x010400", "0x1002", "0x9a0b")], None), "")
+        self.assertFalse(hw.vmd_present)
+
+    def test_amd_and_nvme_only_have_no_dropin(self):
+        for devs in ([("0x030000", "0x1002", "0x1638")],
+                     [("0x010802", "0x144d", "0xa808")]):
+            hw = detect_hardware(_sysfs(devs, None), _AMD_CPU)
+            self.assertEqual(self._paths(hw), [])
+            self.assertFalse(hw.intel_raid)
+
+    def test_intel_raid_class(self):
+        hw = detect_hardware(_sysfs([("0x010400", "0x8086", "0x2822")], None), _INTEL_CPU)
+        self.assertTrue(hw.intel_raid)
+        self.assertFalse(hw.vmd_present)
+        self.assertEqual(self._paths(hw), [])
+        hw = detect_hardware(_sysfs([("0x010400", "0x1000", "0x0079")], None), "")
+        self.assertFalse(hw.intel_raid)
+
+    def test_plan_has_dropin_once_and_hw_none_unchanged(self):
+        pci = _sysfs([("0x030000", "0x8086", "0x9a49"), ("0x010400", "0x8086", "0x467f")], None)
+        plan = _plan(pci)
+        self.assertEqual([f.path for f in plan.files].count(VMD_DROPIN_PATH), 1)
+        sel = Selection("linux-cachyos", "runit", ["gluewc"], {"gluewc": "glueqs"},
+                        [], False, False)
+        a = resolve_plan(_CATALOG, sel, hw=None)
+        b = resolve_plan(_CATALOG, sel)
+        self.assertEqual(a, b)
+        self.assertNotIn(VMD_DROPIN_PATH, [f.path for f in a.files])
+        self.assertEqual(resolve_plan(_CATALOG, sel, hw=HardwareProfile()).files, a.files)
+
+    def test_storage_hint(self):
+        vmd = HardwareProfile(vmd_devices=(0x9a0b,))
+        raid = HardwareProfile(intel_raid=True)
+        plain = HardwareProfile()
+        self.assertIsNone(storage_hint(True, vmd))
+        self.assertIsNone(storage_hint(True, plain))
+        for hw in (vmd, raid, HardwareProfile(vmd_driver=True)):
+            text = storage_hint(False, hw)
+            self.assertIn("AHCI", text)
+            self.assertIn("Windows", text)
+            self.assertIn("Safe Mode", text)
+            self.assertIn("bcdedit", text)
+        generic = storage_hint(False, plain)
+        self.assertIsNotNone(generic)
+        self.assertNotIn("AHCI", generic)
+        self.assertIn("No disk", generic)
+
+    def test_report_no_disks_prints_instead_of_skipping(self):
+        import io
+        from glue_installer.run_ui import report_no_disks
+        out, waited = io.StringIO(), []
+        text = report_no_disks(HardwareProfile(intel_raid=True), out, waited.append)
+        self.assertIn("AHCI", out.getvalue())
+        self.assertEqual(text, storage_hint(False, HardwareProfile(intel_raid=True)))
+        self.assertEqual(len(waited), 1)
+
+
+class TestMicrocodeHook(unittest.TestCase):
+    def test_table(self):
+        full = "HOOKS=(base udev autodetect microcode modconf kms block filesystems fsck)"
+        cases = [
+            (full, full),
+            ("HOOKS=(base udev autodetect modconf kms block filesystems fsck)", full.replace(" kms block", " kms block")),
+            ("HOOKS=(base systemd autodetect modconf sd-vconsole block filesystems fsck)",
+             "HOOKS=(base systemd autodetect microcode modconf sd-vconsole block filesystems fsck)"),
+            ("HOOKS=(base udev autodetect)", "HOOKS=(base udev autodetect microcode)"),
+            ("HOOKS=(base udev block)", "HOOKS=(base udev block)"),
+            ("HOOKS=()", "HOOKS=()"),
+            ("", ""),
+        ]
+        for before, after in cases:
+            self.assertEqual(ensure_microcode_hook(before), after, before)
+            self.assertEqual(ensure_microcode_hook(after), after)
+
+    def test_resume_order_kept(self):
+        line = "HOOKS=(base udev autodetect modconf block filesystems resume fsck)"
+        out = ensure_microcode_hook(line)
+        self.assertIn("autodetect microcode modconf", out)
+        self.assertIn("filesystems resume", out)
+
+    def test_steps_only_with_ucode(self):
+        self.assertEqual(microcode_hook_steps(["linux"], "/mnt"), [])
+        steps = microcode_hook_steps(["linux", "amd-ucode"], "/mnt/")
+        self.assertEqual(steps[0].argv[:3], ["artix-chroot", "/mnt", "sh"])
+        self.assertIn("grep -Eq", steps[0].argv[4])
+
+    def test_compile_steps_include_it_with_hw(self):
+        from glue_installer.executor import compile_steps
+        plan = _plan(_fake_pci([("0x030000", "0x8086", "0x9a49")]))
+        steps = compile_steps(plan, init_id="runit")
+        n = sum(1 for s in steps if "microcode" in str(getattr(s, "argv", "")))
+        self.assertEqual(n, 1)
+
+
+    def test_vmd_dropin_forces_rebuild_even_if_hook_present(self):
+        from glue_installer.plan import PlannedFile
+        from glue_installer.hw_compat import VMD_DROPIN, VMD_DROPIN_PATH
+        dropin = [PlannedFile(VMD_DROPIN_PATH, VMD_DROPIN, 0o644)]
+        steps = microcode_hook_steps(["linux", "intel-ucode"], "/mnt", dropin)
+        self.assertEqual(len(steps), 1)
+        self.assertIn("rebuild=1", steps[0].argv[4])
+        self.assertIn("mkinitcpio -P", steps[0].argv[4])
+        # VMD without ucode: rebuild only, no hook edit
+        only = microcode_hook_steps(["linux"], "/mnt", dropin)
+        self.assertEqual(len(only), 1)
+        self.assertIn("mkinitcpio -P", only[0].argv[4])
+        self.assertNotIn("sed", only[0].argv[4])
+        # ucode without VMD: rebuild only when the hook was added
+        plain = microcode_hook_steps(["amd-ucode"], "/mnt", [])
+        self.assertIn("rebuild=0", plain[0].argv[4])
+
+    def test_rebuild_step_runs_after_plan_files_are_written(self):
+        from glue_installer.executor import compile_steps
+        plan = _plan(_fake_pci([("0x010802", "0x8086", "0x9a0b")]))
+        plan.files.append(__import__("glue_installer.plan", fromlist=["x"]).PlannedFile(
+            VMD_DROPIN_PATH, "MODULES+=(vmd)\n", 0o644))
+        steps = compile_steps(plan, init_id="runit")
+        paths = [getattr(s, "path", "") for s in steps]
+        w = max(i for i, s in enumerate(steps)
+                if str(getattr(s, "path", "")).endswith("glue-vmd.conf"))
+        r = [i for i, s in enumerate(steps)
+             if "mkinitcpio -P" in str(getattr(s, "argv", ""))]
+        self.assertEqual(len(r), 1)
+        self.assertGreater(r[0], w)
+
+
+class TestMainNoDisks(unittest.TestCase):
+    def _run(self, found, args=()):
+        from unittest import mock
+        import glue_installer.__main__ as m
+        calls = []
+
+        class Stop(Exception):
+            pass
+
+        with mock.patch.object(m, "discover", return_value=found), \
+             mock.patch.object(m, "discover_partitions", return_value=[]), \
+             mock.patch("glue_installer.run_ui.report_no_disks",
+                        side_effect=lambda hw: calls.append(hw)), \
+             mock.patch("glue_installer.tui.run_tui", side_effect=Stop):
+            try:
+                m.main(["--dry-run", *args])
+            except Stop:
+                pass
+            except SystemExit:
+                pass
+        return calls
+
+    def test_reported_when_discovery_finds_no_disks(self):
+        self.assertEqual(len(self._run([])), 1)
+
+    def test_not_reported_with_disks(self):
+        self.assertEqual(self._run(["disk"]), [])
+
+    def test_not_reported_when_discovery_fails(self):
+        from unittest import mock
+        import glue_installer.__main__ as m
+        from glue_installer.disks import DiskError
+        calls = []
+        with mock.patch.object(m, "discover", side_effect=DiskError("x")), \
+             mock.patch("glue_installer.run_ui.report_no_disks",
+                        side_effect=lambda hw: calls.append(hw)), \
+             mock.patch("glue_installer.tui.run_tui", side_effect=SystemExit):
+            try:
+                m.main(["--dry-run"])
+            except SystemExit:
+                pass
+        self.assertEqual(calls, [])
 
 
 if __name__ == "__main__":

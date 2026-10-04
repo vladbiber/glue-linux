@@ -22,6 +22,24 @@ _TZ_ENDPOINTS = (
 )
 
 
+def report_no_disks(hw, stream=None, wait=None) -> str:
+    """Print the storage hint where the disk screen would have been skipped
+    silently (roadmap 10.8 c) and wait for Enter on a terminal. `wait` is
+    injectable; returns the printed text."""
+    from glue_installer.hw_compat import storage_hint
+    stream = stream or sys.stderr
+    text = storage_hint(False, hw) or ""
+    print(f"\n{text}\n", file=stream)
+    if wait is None:
+        wait = input if sys.stdin.isatty() else None
+    if wait is not None:
+        try:
+            wait("Press Enter to continue... ")
+        except EOFError:
+            pass
+    return text
+
+
 def detect_timezone(fetch=None) -> "str | None":
     """Best-effort GeoIP timezone ("Europe/Bucharest") for the identity
     default — the wizard still shows and lets the user change it. Returns

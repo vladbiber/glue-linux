@@ -53,12 +53,12 @@ RSYNC_EXCLUDES: Tuple[str, ...] = (
 )
 
 # Hook list of a normal installed system (mkinitcpio.conf default + kms,
-# keyboard, keymap, consolefont); the live initramfs hooks (artix-live,
-# overlay, nfs…) must not survive on disk. limine.bootloader_steps inserts
+# keyboard, keymap, consolefont, `microcode` for early ucode); the live
+# initramfs hooks (artix-live, overlay, nfs…) must not survive on disk. limine.bootloader_steps inserts
 # `resume` after `filesystems` when hibernation applies, so this rewrite
 # runs BEFORE it.
-MKINITCPIO_HOOKS = ("HOOKS=(base udev autodetect modconf kms keyboard keymap "
-                    "consolefont block filesystems fsck)")
+MKINITCPIO_HOOKS = ("HOOKS=(base udev autodetect microcode modconf kms keyboard "
+                    "keymap consolefont block filesystems fsck)")
 
 _AGETTY_CONF = "/etc/runit/sv/agetty-tty1/conf"
 # the exact agetty argument the ISO's tty1 conf carries (root-overlay)
