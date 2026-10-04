@@ -132,6 +132,36 @@ class TestTermfont(unittest.TestCase):
             self.assertGreater(self._font_size(home), 11.0)
 
 
+class TestFastfetchInBranding(unittest.TestCase):
+    def test_xdg_copy_installed_and_backed_up(self):
+        text = (_BRANDING / "PKGBUILD").read_text()
+        self.assertIn('install -Dm644 "$srcdir/fastfetch.jsonc" "$pkgdir/etc/xdg/fastfetch/config.jsonc"', text)
+        self.assertIn("'etc/xdg/fastfetch/config.jsonc'", text)
+
+
+class TestTerminalCheckScript(unittest.TestCase):
+    """scripts/terminal-check.sh (Faza 8.3) exists and is well-formed."""
+    _SCRIPT = _PKG_ROOT.parent.parent / "scripts" / "terminal-check.sh"
+
+    def test_exists_executable_small(self):
+        self.assertTrue(self._SCRIPT.is_file())
+        self.assertTrue(os.stat(self._SCRIPT).st_mode & 0o111)
+        self.assertLess(len(self._SCRIPT.read_text().splitlines()), 500)
+
+    @unittest.skipUnless(shutil.which("sh"), "sh missing")
+    def test_sh_n_clean(self):
+        r = subprocess.run(["sh", "-n", str(self._SCRIPT)], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_has_all_probes(self):
+        text = self._SCRIPT.read_text()
+        for name in ("fastfetch-config-path", "fastfetch-logo", "fastfetch-os",
+                     "fastfetch-latency", "alacritty-xdg-config",
+                     "alacritty-fastfetch-shot", "termfont"):
+            self.assertIn(name, text)
+        self.assertIn("GLUE_CHECK_IMAGE", text)
+
+
 class TestFontInPlan(unittest.TestCase):
     def test_liberation_on_every_graphical_install(self):
         from glue_installer import plan

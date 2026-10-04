@@ -1,7 +1,7 @@
 # Maintainer: Glue Linux
 pkgname=glue-branding
 pkgver=1
-pkgrel=8
+pkgrel=9
 pkgdesc="Glue Linux branding, default wallpaper, console palette and boot theme"
 arch=('any')
 url="https://github.com/Vifuddyxg"
@@ -10,7 +10,7 @@ depends=('kbd')                 # setvtrgb
 optdepends=('fastfetch: system info splash with the Glue logo'
             'alacritty: default terminal with the Glue config'
             'ttf-liberation: terminal font (Liberation Mono)')
-backup=('etc/glue/fastfetch.jsonc' 'etc/xdg/alacritty/alacritty.toml')
+backup=('etc/glue/fastfetch.jsonc' 'etc/xdg/fastfetch/config.jsonc' 'etc/xdg/alacritty/alacritty.toml')
 install='glue-branding.install'
 source=('logo.txt' 'fastfetch.jsonc' 'term-neutral.sh'
         'grub-theme.txt' 'grub-background.png' 'grub-icon.png'
@@ -30,6 +30,9 @@ package() {
 
     # ship fastfetch config in /etc/skel so every new user picks up the logo automatically
     install -Dm644 "$srcdir/fastfetch.jsonc" "$pkgdir/etc/skel/.config/fastfetch/config.jsonc"
+    # fastfetch also searches /etc/xdg/fastfetch: the Glue logo survives a user
+    # deleting ~/.config/fastfetch
+    install -Dm644 "$srcdir/fastfetch.jsonc" "$pkgdir/etc/xdg/fastfetch/config.jsonc"
 
     # ----- alacritty: Glue config (skel for new users, /etc/xdg for the rest)
     #       + termfont, which Ctrl+Shift +/-/Backspace call -----
