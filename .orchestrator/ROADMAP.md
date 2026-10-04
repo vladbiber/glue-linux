@@ -86,7 +86,7 @@ Surse: gluewc = `~/gluewc` (fork dwl 0.8, config runtime `~/.config/gluewc`, cer
 
 - [x] 8.1 `glue-branding` livrează `/etc/skel/.config/alacritty/alacritty.toml` (+ `/etc/xdg/alacritty/alacritty.toml`): exact configul din `.orchestrator/ALACRITTY.toml` (Liberation Mono 11, opacity 0.5, paleta dată, Ctrl+Shift +/−/Backspace → `termfont`). Scriptul `termfont` e deja în `packages/wheatley-branding/termfont` și se livrează la `/usr/bin/termfont` (partea de kitty cu guard sau scoasă). (2026-10-04: alacritty.toml + termfont în glue-branding pkgrel 8, kitty scos, teste în test_alacritty.py)
 - [x] 8.2 alacritty = terminalul default în TOATE sesiunile (gluewc config.def.conf, nvwm, KDE/XFCE/GNOME îl au instalat, își păstrează terminalul propriu); st rămâne doar fallback. (2026-10-04: nvwm păstrează alacritty, guard în PKGBUILD, ADR-021; ttf-liberation în _DESKTOP_PACKAGES)
-- [ ] 8.3 fastfetch la deschiderea terminalului există deja (plan.py: skel .bashrc/.zshrc + `/etc/glue/fastfetch.jsonc`). Verifică pe E2E că rulează în alacritty cu logo-ul Glue colorat corect și că nu întârzie deschiderea peste ~100 ms.
+- [x] 8.3 (2026-10-04, mediana fastfetch 4 ms, `sh scripts/terminal-check.sh`, `screenshots/terminal.png`) fastfetch la deschiderea terminalului există deja (plan.py: skel .bashrc/.zshrc + `/etc/glue/fastfetch.jsonc`). Verifică pe E2E că rulează în alacritty cu logo-ul Glue colorat corect și că nu întârzie deschiderea peste ~100 ms.
 - Criteriu: E2E: fișierele în skel-ul țintei, termfont executabil, fastfetch cu logo Glue în output.
 
 ## Faza 4 — Swap automat după RAM
