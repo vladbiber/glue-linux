@@ -5,8 +5,9 @@
 #
 #   sh scripts/boot-update-check.sh
 #
-# Host side: one `docker run --rm --privileged --network host` of
-# glue-pkgbuild-img with the repo on /glue; exit code non-zero on any FAIL.
+# Host side: one UNPRIVILEGED `docker run --rm --network host` of
+# glue-pkgbuild-img with the repo on /glue (the host has real disks and EFI
+# variables; nothing here needs them); exit code non-zero on any FAIL.
 # Inside (--inside, root) the probes are:
 #   install-pkg         makepkg + pacman -U glue-boot: script + two hooks present
 #   initial-conf        dummy kernel + /etc/glue/boot.conf -> limine.conf written
@@ -36,7 +37,7 @@ host_main() {
     command -v docker >/dev/null 2>&1 || die "docker not found"
     docker image inspect "$IMAGE" >/dev/null 2>&1 || die "docker image $IMAGE not found (run ./build.sh first)"
     start=$(date +%s)
-    docker run --rm --privileged --network host -v "$root:/glue" -w /glue \
+    docker run --rm --network host -v "$root:/glue" -w /glue \
         "$IMAGE" /bin/bash /glue/scripts/boot-update-check.sh --inside || rc=$?
     log "done in $(( $(date +%s) - start )) s (exit $rc)"
     return $rc

@@ -172,13 +172,15 @@ if [ "$PRINT" -eq 1 ]; then
     exit 0
 fi
 
-# atomic: write next to the target, then rename over it
+# atomic: write next to the target, then rename over it. stdout is redirected
+# with exec so emit_conf runs in this shell and FOREIGN (counted while the
+# fragments are read, once) survives for the log line below.
 trap 'rm -f "$OUT.new"' EXIT
-emit_conf > "$OUT.new"
+exec 3>&1 >"$OUT.new"
+emit_conf
+exec >&3 3>&-
 mv -f "$OUT.new" "$OUT"
 trap - EXIT
-# emit_conf ran in a subshell (redirection), so count the fragments again
-FOREIGN=$(foreign_entries 2>/dev/null | grep -c '^/' || true)
 log "wrote $OUT ($PRIMARY${OTHERS:+ +$OTHERS}; $FOREIGN other OS entries)"
 
 [ "$DEPLOY" -eq 1 ] || exit 0
