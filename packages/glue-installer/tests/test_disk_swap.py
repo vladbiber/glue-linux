@@ -63,7 +63,7 @@ class TestLayout(unittest.TestCase):
     def test_uefi_three_partitions(self):
         p = plan_disk_with_swap(_dev(), "uefi", swap_plan(16 * GIB, 500 * GIB))
         self.assertEqual(_rows(p), [
-            (1, "ef00", "+512M", "vfat", "/boot/efi", "/dev/sda1"),
+            (1, "ef00", "+512M", "vfat", "/boot", "/dev/sda1"),
             (2, "8200", "+4096M", "swap", "swap", "/dev/sda2"),
             (3, "8300", "0", "ext4", "/", "/dev/sda3"),
         ])

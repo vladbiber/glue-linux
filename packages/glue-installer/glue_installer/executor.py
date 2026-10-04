@@ -10,9 +10,12 @@ from __future__ import annotations
 import os
 import subprocess
 from dataclasses import dataclass, field
-from typing import Callable, List, Optional, Union
+from typing import TYPE_CHECKING, Callable, List, Optional, Union
 
 from glue_installer.plan import InstallPlan
+
+if TYPE_CHECKING:  # pragma: no cover - limine imports Step from this module
+    from glue_installer.limine import BootSpec
 
 
 class ExecutorError(Exception):
@@ -84,7 +87,7 @@ def keyring_steps() -> List[Step]:
 
 def compile_steps(
     plan: InstallPlan, *, target: str = "/mnt", init_id: str, disk_plan=None,
-    pacman_conf: Optional[str] = None,
+    pacman_conf: Optional[str] = None, boot: "Optional[BootSpec]" = None,
 ) -> List[Step]:
     """Compile an InstallPlan into a deterministic ordered list of Steps.
 
@@ -93,22 +96,27 @@ def compile_steps(
     Raises ExecutorError for unsupported init_id.
 
     disk_plan (a disks.DiskPlan, optional): when provided, disk-preparation
-    steps (partition, mkfs, mount) come FIRST, bootloader steps (grub) come
-    LAST, and grub (+ efibootmgr on UEFI) is added to the basestrap set.
+    steps (partition, mkfs, mount) come FIRST, Limine bootloader steps come
+    LAST, and limine (+ efibootmgr on UEFI) is added to the basestrap set.
     Swap (mkswap/swapon) is enabled right after the mounts, BEFORE basestrap
     and fstabgen, so that fstabgen lists it in the new fstab.
+    boot (limine.BootSpec, optional): kernel/cmdline/resume for limine.conf;
+    None means the default linux-cachyos kernel without extras.
     """
     if init_id not in _SUPPORTED_INITS:
         raise ExecutorError(
             f"Unsupported init_id: '{init_id}'; supported: {sorted(_SUPPORTED_INITS)}"
         )
 
-    # Deferred import: disks.py imports Step types from this module, so a
-    # top-level import here would be circular.
+    # Deferred import: disks.py/limine.py import Step types from this module,
+    # so a top-level import here would be circular.
     if disk_plan is not None:
-        from glue_installer.disks import (
-            bootloader_packages, bootloader_steps, disk_steps,
+        from glue_installer.disks import disk_steps
+        from glue_installer.limine import (
+            BootSpec, bootloader_packages, bootloader_steps,
         )
+        if boot is None:
+            boot = BootSpec(kernel="linux-cachyos")
 
     t = target.rstrip("/")
     steps: List[Step] = []
@@ -193,7 +201,7 @@ def compile_steps(
 
     # 6. Bootloader (only when a DiskPlan is provided) — always last
     if disk_plan is not None:
-        steps.extend(bootloader_steps(disk_plan, target=target))
+        steps.extend(bootloader_steps(disk_plan, boot, target=target))
 
     return steps
 

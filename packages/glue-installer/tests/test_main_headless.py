@@ -112,6 +112,23 @@ class TestKeyringPrepInDryRun(unittest.TestCase):
         self.assertLess(populate_at, basestrap_at)
 
 
+class TestLimineInDryRun(unittest.TestCase):
+    """The dry-run step list ends with Limine on the ESP, never GRUB."""
+
+    def test_limine_steps_listed_and_no_grub(self):
+        result = _run_module("--headless", "--dry-run", "--disk", "/dev/fake")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        out = result.stdout
+        self.assertNotIn("GRUB", out)
+        self.assertNotIn("grub", out)
+        self.assertIn("Install Limine", out)
+        self.assertIn("Write /boot/limine.conf", out)
+        lines = out.splitlines()
+        basestrap_at = next(i for i, l in enumerate(lines) if "basestrap" in l)
+        limine_at = next(i for i, l in enumerate(lines) if "limine.conf" in l)
+        self.assertLess(basestrap_at, limine_at)
+
+
 class TestIdentityFlags(unittest.TestCase):
     """Verify --username/--password/--hostname/--locale/--timezone in headless dry-run."""
 

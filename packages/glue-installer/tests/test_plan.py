@@ -223,6 +223,19 @@ class TestHappyPath(unittest.TestCase):
 # Negative tests — each must raise PlanError
 # ---------------------------------------------------------------------------
 
+class TestCmdlineExtra(unittest.TestCase):
+    """InstallPlan.cmdline_extra: kernel tokens for limine.conf (no grub.d file)."""
+
+    def test_default_empty_and_sorted_unique(self):
+        sel = Selection("k-main", "dinit", [], {}, [], False, True)
+        plan = resolve_plan(_make_catalog(), sel)
+        self.assertEqual(plan.cmdline_extra, [])
+        active = resolve_plan(_make_catalog(), sel, amd_pstate_active=True)
+        self.assertEqual(active.cmdline_extra, ["amd_pstate=active"])
+        self.assertFalse([f for f in active.files if "grub" in f.path])
+        self.assertEqual(InstallPlan([], [], [], []).cmdline_extra, [])
+
+
 class TestNetworkAndInitServicePackages(unittest.TestCase):
     """Rules 9 & 10: target always gets NetworkManager, and every enabled
     service pulls its init-specific service package (greetd-dinit etc.)."""
@@ -231,9 +244,8 @@ class TestNetworkAndInitServicePackages(unittest.TestCase):
         self.catalog = _make_catalog()
 
     def test_ntp_and_os_prober_always_present(self):
-        # openntpd keeps the installed clock right; os-prober gives the GRUB
-        # menu its dual-boot entries (the live USB's own cloned entries are
-        # stripped afterwards by the grub_filter bootloader step)
+        # openntpd keeps the installed clock right; os-prober feeds the
+        # Limine foreign-OS entries (roadmap 3.4)
         for minimal in (True, False):
             sel = Selection("k-main", "dinit", [] if minimal else ["wm-bare"],
                             {}, [], False, minimal)

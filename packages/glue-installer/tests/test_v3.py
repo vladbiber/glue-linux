@@ -165,25 +165,20 @@ class TestV3PacmanConf(unittest.TestCase):
 
 class TestCmdline(unittest.TestCase):
 
-    def test_grub_script_has_nowatchdog(self):
-        from glue_installer.disks import _GRUB_BRAND_SCRIPT
-        self.assertIn("nowatchdog", _GRUB_BRAND_SCRIPT)
+    def test_base_cmdline_has_nowatchdog(self):
+        from glue_installer.limine import BASE_CMDLINE
+        self.assertIn("nowatchdog", BASE_CMDLINE)
 
-    def test_grub_script_has_zswap_disabled(self):
-        from glue_installer.disks import _GRUB_BRAND_SCRIPT
-        self.assertIn("zswap.enabled=0", _GRUB_BRAND_SCRIPT)
+    def test_base_cmdline_has_zswap_disabled(self):
+        from glue_installer.limine import BASE_CMDLINE
+        self.assertIn("zswap.enabled=0", BASE_CMDLINE)
 
-    def test_grub_cmdline_both_flags_in_every_branch(self):
-        from glue_installer.disks import _GRUB_BRAND_SCRIPT
-        # Only the sed/echo lines that write the value must carry the flags
-        setting_lines = [
-            l for l in _GRUB_BRAND_SCRIPT.splitlines()
-            if "GRUB_CMDLINE_LINUX_DEFAULT=" in l and (
-                l.strip().startswith("sed ") or l.strip().startswith("echo ")
-            )
-        ]
-        self.assertGreater(len(setting_lines), 0, "no cmdline-setting lines found")
-        for line in setting_lines:
+    def test_both_flags_in_every_limine_entry(self):
+        from glue_installer.limine import BootSpec, limine_conf
+        cmdlines = [l for l in limine_conf(BootSpec("linux-cachyos"), "u").splitlines()
+                    if l.startswith("cmdline:")]
+        self.assertEqual(len(cmdlines), 2)
+        for line in cmdlines:
             self.assertIn("nowatchdog", line, line)
             self.assertIn("zswap.enabled=0", line, line)
 

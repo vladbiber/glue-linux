@@ -1,4 +1,4 @@
-"""Unit tests for compile_steps' disk_plan integration (disk prep + grub)."""
+"""Unit tests for compile_steps' disk_plan integration (disk prep + Limine)."""
 
 import sys
 import unittest
@@ -89,7 +89,7 @@ class TestNoDiskPlanRegression(unittest.TestCase):
     def test_no_grub_or_sgdisk_without_disk_plan(self):
         argvs = _argvs(compile_steps(_plan(), init_id="runit"))
         flat = [arg for argv in argvs for arg in argv]
-        for tool in ("sgdisk", "mkfs.ext4", "mkfs.fat", "grub-install", "mount"):
+        for tool in ("sgdisk", "mkfs.ext4", "mkfs.fat", "limine", "efibootmgr", "mount"):
             self.assertNotIn(tool, flat)
 
 
@@ -106,7 +106,8 @@ class TestUefiDiskPlan(unittest.TestCase):
         basestrap_at = _index_of(self.steps, "basestrap")
         prep_tools = {"sgdisk", "mkfs.fat", "mkfs.ext4", "mount", "mkdir"}
         for i, step in enumerate(self.steps):
-            if isinstance(step, RunCommand) and step.argv[0] in prep_tools:
+            if isinstance(step, RunCommand) and step.argv[0] in prep_tools \
+                    and "EFI" not in step.argv[-1]:  # Limine dirs come after
                 self.assertLess(i, basestrap_at, step.description)
 
     def test_partition_creation_commands(self):
@@ -121,42 +122,59 @@ class TestUefiDiskPlan(unittest.TestCase):
         self.assertIn(["mkfs.fat", "-F32", "/dev/sda1"], argvs)
         self.assertIn(["mkfs.ext4", "-F", "/dev/sda2"], argvs)
         root_mount = argvs.index(["mount", "/dev/sda2", "/mnt"])
-        esp_mount = argvs.index(["mount", "/dev/sda1", "/mnt/boot/efi"])
+        esp_mount = argvs.index(["mount", "/dev/sda1", "/mnt/boot"])
         self.assertLess(root_mount, esp_mount)
-        self.assertIn(["mkdir", "-p", "/mnt/boot/efi"], argvs)
+        self.assertIn(["mkdir", "-p", "/mnt/boot"], argvs)
 
-    def test_grub_steps_are_last_after_services(self):
-        self.assertEqual(self.steps[-4].argv, [
-            "artix-chroot", "/mnt", "grub-install", "--target=x86_64-efi",
-            "--efi-directory=/boot/efi", "--bootloader-id=Glue",
+    def test_limine_steps_are_last_after_services(self):
+        argvs = _argvs(self.steps)
+        tail = argvs[-5:]
+        self.assertEqual(tail[0], ["mkdir", "-p", "/mnt/boot/EFI/BOOT", "/mnt/boot/EFI/limine"])
+        self.assertEqual(tail[1], ["cp", "/mnt/usr/share/limine/BOOTX64.EFI",
+                                   "/mnt/boot/EFI/BOOT/BOOTX64.EFI"])
+        self.assertEqual(tail[2], ["cp", "/mnt/usr/share/limine/BOOTX64.EFI",
+                                   "/mnt/boot/EFI/limine/BOOTX64.EFI"])
+        # live side (not chrooted): firmware boot entry
+        self.assertEqual(tail[3], [
+            "efibootmgr", "--create", "--disk", "/dev/sda", "--part", "1",
+            "--loader", "\\EFI\\limine\\BOOTX64.EFI",
+            "--label", "Glue Linux", "--unicode",
         ])
-        # branding step (distributor/os-prober/quiet/theme) between install
-        # and mkconfig
-        self.assertEqual(self.steps[-3].argv[:4],
-                         ["artix-chroot", "/mnt", "sh", "-c"])
-        self.assertIn("GRUB_DISTRIBUTOR", self.steps[-3].argv[4])
-        # os-prober must be ON (dual-boot entries for Windows/other Linux);
-        # the live USB's own cloned entries are stripped by the grub_filter
-        # step that runs right after grub-mkconfig
-        self.assertIn("GRUB_DISABLE_OS_PROBER=false", self.steps[-3].argv[4])
-        self.assertNotIn("GRUB_DISABLE_OS_PROBER=true", self.steps[-3].argv[4])
-        self.assertEqual(self.steps[-2].argv, [
-            "artix-chroot", "/mnt", "grub-mkconfig", "-o", "/boot/grub/grub.cfg",
-        ])
-        # LAST step: live-side filter removing the plugged-in USB's entries
-        self.assertEqual(self.steps[-1].argv, [
-            "python3", "-m", "glue_installer.grub_filter",
-            "/mnt/boot/grub/grub.cfg",
-        ])
+        # LAST step: chrooted writer of /boot/limine.conf with the real UUIDs
+        self.assertEqual(self.steps[-1].argv[:4], ["artix-chroot", "/mnt", "sh", "-c"])
+        self.assertIn("findmnt -no UUID /", self.steps[-1].argv[4])
+        self.assertIn("/boot/limine.conf", self.steps[-1].argv[4])
+        self.assertIn("vmlinuz-linux-cachyos", self.steps[-1].argv[4])
         service_at = _index_of(self.steps, "artix-chroot")
         self.assertIn("ln", self.steps[service_at].argv)
-        self.assertLess(service_at, len(self.steps) - 4)
+        self.assertLess(service_at, len(self.steps) - 5)
 
-    def test_grub_and_efibootmgr_in_basestrap_sorted(self):
+    def test_no_grub_anywhere(self):
+        for argv in _argvs(self.steps):
+            for token in argv:
+                self.assertFalse(token.startswith("grub"), argv)
+                self.assertNotIn("grub-mkconfig", token)
+
+    def test_boot_spec_changes_kernel_and_cmdline(self):
+        from glue_installer.limine import BootSpec
+        steps = compile_steps(
+            _plan(), init_id="dinit", disk_plan=_disk_plan("uefi"),
+            boot=BootSpec("linux", ("amd_pstate=active",)),
+        )
+        script = steps[-1].argv[4]
+        self.assertIn("vmlinuz-linux\n", script)
+        self.assertIn("amd_pstate=active", script)
+        default = compile_steps(_plan(), init_id="dinit", disk_plan=_disk_plan("uefi"))
+        self.assertEqual(default, compile_steps(
+            _plan(), init_id="dinit", disk_plan=_disk_plan("uefi"),
+            boot=BootSpec("linux-cachyos")))
+
+    def test_limine_and_efibootmgr_in_basestrap_sorted(self):
         basestrap = self.steps[_index_of(self.steps, "basestrap")]
         packages = basestrap.argv[2:]
-        self.assertIn("grub", packages)
+        self.assertIn("limine", packages)
         self.assertIn("efibootmgr", packages)
+        self.assertNotIn("grub", packages)
         self.assertEqual(packages, sorted(packages))
 
     def test_input_plan_packages_not_mutated(self):
@@ -177,9 +195,10 @@ class TestUefiDiskPlan(unittest.TestCase):
         )
         argvs = _argvs(steps)
         self.assertIn(["mount", "/dev/sda2", "/target"], argvs)
-        self.assertIn(["mount", "/dev/sda1", "/target/boot/efi"], argvs)
-        self.assertEqual(steps[-2].argv[1], "/target")
-        self.assertEqual(steps[-1].argv[-1], "/target/boot/grub/grub.cfg")
+        self.assertIn(["mount", "/dev/sda1", "/target/boot"], argvs)
+        self.assertIn(["cp", "/target/usr/share/limine/BOOTX64.EFI",
+                       "/target/boot/EFI/limine/BOOTX64.EFI"], argvs)
+        self.assertEqual(steps[-1].argv[1], "/target")
 
 
 class TestBiosDiskPlan(unittest.TestCase):
@@ -192,7 +211,7 @@ class TestBiosDiskPlan(unittest.TestCase):
         argvs = _argvs(self.steps)
         flat = [arg for argv in argvs for arg in argv]
         self.assertNotIn("mkfs.fat", flat)
-        self.assertNotIn("/mnt/boot/efi", flat)
+        self.assertNotIn("/mnt/boot", flat)
 
     def test_bios_boot_partition_type_and_root(self):
         argvs = _argvs(self.steps)
@@ -201,24 +220,22 @@ class TestBiosDiskPlan(unittest.TestCase):
         self.assertIn(["mkfs.ext4", "-F", "/dev/nvme0n1p2"], argvs)
         self.assertIn(["mount", "/dev/nvme0n1p2", "/mnt"], argvs)
 
-    def test_grub_install_targets_i386_pc_with_disk(self):
-        self.assertEqual(self.steps[-4].argv, [
-            "artix-chroot", "/mnt", "grub-install", "--target=i386-pc",
-            "/dev/nvme0n1",
-        ])
-        self.assertIn("GRUB_DISTRIBUTOR", self.steps[-3].argv[4])
-        # os-prober ON for dual-boot; live-USB clones are stripped by the
-        # grub_filter step that follows grub-mkconfig
-        self.assertIn("GRUB_DISABLE_OS_PROBER=false", self.steps[-3].argv[4])
-        self.assertNotIn("GRUB_DISABLE_OS_PROBER=true", self.steps[-3].argv[4])
-        self.assertEqual(self.steps[-2].argv[2], "grub-mkconfig")
-        self.assertEqual(self.steps[-1].argv[1], "-m")
-        self.assertEqual(self.steps[-1].argv[2], "glue_installer.grub_filter")
+    def test_limine_bios_install_with_disk(self):
+        argvs = _argvs(self.steps)
+        self.assertIn(["limine", "bios-install", "/dev/nvme0n1"], argvs)
+        self.assertIn(["cp", "/mnt/usr/share/limine/limine-bios.sys", "/mnt/boot/"], argvs)
+        self.assertEqual(self.steps[-2].argv, ["limine", "bios-install", "/dev/nvme0n1"])
+        self.assertEqual(self.steps[-1].argv[:4], ["artix-chroot", "/mnt", "sh", "-c"])
+        self.assertIn("/boot/limine.conf", self.steps[-1].argv[4])
+        flat = [a for argv in argvs for a in argv]
+        self.assertNotIn("efibootmgr", flat)
+        self.assertFalse(any(a.startswith("grub") for a in flat))
 
-    def test_grub_but_no_efibootmgr_in_basestrap(self):
+    def test_limine_but_no_efibootmgr_in_basestrap(self):
         basestrap = self.steps[_index_of(self.steps, "basestrap")]
         packages = basestrap.argv[2:]
-        self.assertIn("grub", packages)
+        self.assertIn("limine", packages)
+        self.assertNotIn("grub", packages)
         self.assertNotIn("efibootmgr", packages)
 
 
@@ -269,6 +286,16 @@ class TestSwapSteps(unittest.TestCase):
         for argv in _argvs(steps):
             if argv[0].startswith("mkfs"):
                 self.assertNotEqual(argv[-1], "/dev/sda2")
+
+    def test_hibernate_boot_spec_adds_resume_to_writer(self):
+        from glue_installer.limine import BootSpec
+        steps = compile_steps(_plan(), init_id="dinit",
+                              disk_plan=self._plan_with_swap(swap_uuid="abc"),
+                              boot=BootSpec("linux-cachyos", (), True))
+        script = steps[-1].argv[4]
+        self.assertIn("blkid -s UUID -o value /dev/sda2", script)
+        self.assertIn("resume=UUID=@RESUME_UUID@", script)
+        self.assertIn("mkinitcpio -P", script)
 
     def test_swap_uuid_passed_to_mkswap(self):
         steps = compile_steps(_plan(), init_id="dinit",

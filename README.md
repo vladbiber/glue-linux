@@ -28,7 +28,7 @@ A small, amber-themed Linux distribution.
   D3 suspend (`NVreg_DynamicPowerManagement=0x02`) on Optimus laptops so the
   GPU stays off between games. Firmware controls the fans — Glue does not
   install nbfc/fancontrol.
-- **Theme:** amber on near-black for TTY, `st`, GRUB and the installer; the
+- **Theme:** amber on near-black for TTY, `st`, the Limine boot menu and the installer; the
   graphical login uses a clean light theme with a blue accent
 
 Palette: background `#100A02`, secondary/lines `#A66900`, primary text `#F1B00A`.
@@ -62,9 +62,15 @@ Palette: background `#100A02`, secondary/lines `#A66900`, primary text `#F1B00A`
 The install itself is a single progress bar (full log in
 `/tmp/glue-install.log`). Every install gets: a complete systemd-free base,
 NetworkManager, `openntpd` (clock stays right from first boot), sudo wheel
-setup, and a **Glue-branded GRUB** — `os-prober` dual-boot entries for the
-other OSes on the machine, while the plugged-in install USB's own entries are
-filtered out of the menu. Desktop installs add **ReGreet under Cage** on a
+setup, and **Limine** as the bootloader: the EFI partition is mounted at
+`/boot` (kernels live on it), `BOOTX64.EFI` goes to `EFI/BOOT` and
+`EFI/limine` with an `efibootmgr` entry named "Glue Linux" (BIOS machines get
+`limine bios-install`), and `/boot/limine.conf` is generated with an amber
+menu, a 5 s timeout, the Glue entry plus a fallback-initramfs entry, a quiet
+cmdline (`nowatchdog zswap.enabled=0`, `amd_pstate=active` where detected) and
+`resume=` when hibernation got its own swap partition. Automatic entries for
+the other OSes on the machine arrive with roadmap 3.4; the live ISO itself
+still boots with artools' GRUB until 3.7. Desktop installs add **ReGreet under Cage** on a
 dedicated VT7, with Tuigreet selected automatically on machines without KMS,
 plus the PipeWire stack and `power-profiles-daemon`
 (performance/balanced/power-saver in KDE/GNOME settings, `powerprofilesctl`
@@ -122,7 +128,7 @@ glue-linux/
 │   ├── glue-installer/  # the Python curses installer + catalog
 │   ├── glue-apps/       # PKGBUILD for the store (source: github.com/vladbiber/glue-apps)
 │   ├── glue-welcome/    # welcome window: shortcuts, system, settings
-│   └── glue-branding/   # amber TTY palette, /etc/issue, os-release, GRUB theme
+│   └── glue-branding/   # amber TTY palette, /etc/issue, os-release, live GRUB theme
 └── iso-profile/glue/    # artools profile (package lists + live overlay)
 ```
 
@@ -131,7 +137,7 @@ glue-linux/
 `packages/glue-installer/` is a small Python package with strictly pure
 logic layers — `catalog.py` (JSON catalog + validation) → `plan.py` (selection
 → package/service/file plan) → `executor.py` (plan → ordered steps) →
-`disks.py` / `identity.py` / `gpu.py` / `grub_filter.py` — driven by a curses
+`disks.py` / `limine.py` / `identity.py` / `gpu.py` — driven by a curses
 TUI (`ui_model.py` state machine, `render.py`, `tui.py`). All I/O is injected,
 so the installer and Glue Welcome are covered by **675+ unit tests that run without root**:
 

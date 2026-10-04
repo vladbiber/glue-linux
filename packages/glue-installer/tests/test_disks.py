@@ -29,7 +29,7 @@ _LSBLK_FIXTURE = json.dumps({
                 {
                     "name": "sda1", "path": "/dev/sda1", "size": 512 * 1024 ** 2,
                     "type": "part", "model": None, "rm": False,
-                    "mountpoints": ["/boot/efi"],
+                    "mountpoints": ["/boot"],
                 },
                 {
                     "name": "sda2", "path": "/dev/sda2", "size": 491 * _GIB,
@@ -223,7 +223,7 @@ class TestPlanDisk(unittest.TestCase):
         esp, root = plan.partitions
         self.assertEqual(
             (esp.number, esp.path, esp.type_code, esp.size, esp.filesystem, esp.mountpoint),
-            (1, "/dev/sda1", "ef00", "+512M", "vfat", "/boot/efi"),
+            (1, "/dev/sda1", "ef00", "+512M", "vfat", "/boot"),
         )
         self.assertEqual(
             (root.number, root.path, root.type_code, root.size, root.filesystem, root.mountpoint),
@@ -360,11 +360,31 @@ class TestParsePartitions(unittest.TestCase):
 
 class TestPlanExistingPartition(unittest.TestCase):
 
+    def test_real_partition_numbers_for_efibootmgr(self):
+        parts = _parts()
+        plan = plan_existing_partition(parts[2], "uefi", parts)
+        self.assertEqual([(p.number, p.path) for p in plan.partitions],
+                         [(1, "/dev/sda1"), (3, "/dev/sda3")])
+
+    def test_small_esp_warns_large_esp_does_not(self):
+        parts = _parts()
+        esp = parts[0]
+        small = [Partition(name=esp.name, path=esp.path, parent_path=esp.parent_path,
+                           size_bytes=100 * 1024 ** 2, fstype="vfat", is_esp=True,
+                           is_mounted=False)] + parts[1:]
+        plan = plan_existing_partition(small[2], "uefi", small)
+        self.assertEqual(len(plan.warnings), 1)
+        self.assertIn("EFI partition is small", plan.warnings[0])
+        big = [Partition(name=esp.name, path=esp.path, parent_path=esp.parent_path,
+                         size_bytes=512 * 1024 ** 2, fstype="vfat", is_esp=True,
+                         is_mounted=False)] + parts[1:]
+        self.assertEqual(plan_existing_partition(big[2], "uefi", big).warnings, ())
+
     def test_uefi_reuses_esp_and_formats_only_root(self):
         parts = _parts()
         plan = plan_existing_partition(parts[2], "uefi", parts)
         self.assertEqual(plan.mode, "existing")
-        esp = next(p for p in plan.partitions if p.mountpoint == "/boot/efi")
+        esp = next(p for p in plan.partitions if p.mountpoint == "/boot")
         root = next(p for p in plan.partitions if p.mountpoint == "/")
         self.assertEqual(esp.path, "/dev/sda1")
         self.assertEqual(esp.filesystem, "")   # reuse — never reformatted
@@ -398,4 +418,4 @@ class TestPlanExistingPartition(unittest.TestCase):
         self.assertFalse(any("mkfs.fat" in a for a in argvs))   # ESP untouched
         self.assertTrue(any("mkfs.ext4 -F /dev/sda3" in a for a in argvs))
         self.assertTrue(any(a.startswith("mount /dev/sda3 /mnt") for a in argvs))
-        self.assertTrue(any("mount /dev/sda1 /mnt/boot/efi" in a for a in argvs))
+        self.assertTrue(any("mount /dev/sda1 /mnt/boot" in a for a in argvs))

@@ -45,6 +45,8 @@ rootfs:
     - rsync
     - grub
     - efibootmgr
+    # limine: the installer runs `limine bios-install` from the live side (3.1)
+    - limine
     - os-prober
     # --- keyring/mirrorlist the installer's basestrap -C resolves on the host ---
     - cachyos-keyring

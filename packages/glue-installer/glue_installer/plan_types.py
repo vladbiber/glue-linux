@@ -4,7 +4,7 @@ Data types shared by the plan resolver and its helpers (no logic, no I/O).
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, List
 
 class PlanError(Exception):
@@ -41,3 +41,5 @@ class InstallPlan:
     services: List[str]    # deduplicated, sorted alphabetically
     files: List[PlannedFile]  # sorted by path
     warnings: List[str]    # in the fixed order documented above
+    # extra kernel cmdline tokens for limine.conf (sorted, deduplicated)
+    cmdline_extra: List[str] = field(default_factory=list)

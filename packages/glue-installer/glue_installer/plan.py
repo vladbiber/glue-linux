@@ -485,16 +485,13 @@ def resolve_plan(
         zramen_path, zramen_content = zramen
         files.append(PlannedFile(path=zramen_path, content=zramen_content, mode=0o644))
 
-    if amd_pstate_active:
-        files.append(PlannedFile(
-            path="/etc/default/grub.d/10-amd-pstate.cfg",
-            content='GRUB_CMDLINE_LINUX_DEFAULT_EXTRA="amd_pstate=active"\n',
-            mode=0o644,
-        ))
+    # Kernel cmdline extras land in /boot/limine.conf (limine.py)
+    cmdline_extra = {"amd_pstate=active"} if amd_pstate_active else set()
 
     return InstallPlan(
         packages=sorted(packages),
         services=sorted(services),
         files=sorted(files, key=lambda f: f.path),
         warnings=warnings,
+        cmdline_extra=sorted(cmdline_extra),
     )

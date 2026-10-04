@@ -260,23 +260,19 @@ class TestPlanLaptopRules(unittest.TestCase):
         plan = self._plan(is_laptop_=False)
         self.assertNotIn("glue-sensors-detect", plan.services)
 
-    def test_amd_pstate_active_adds_grub_dropin_file(self):
+    def test_amd_pstate_active_goes_to_cmdline_extra(self):
         plan = self._plan(cpu_vendor_id="amd", amd_pstate=True)
-        paths = [f.path for f in plan.files]
-        self.assertIn("/etc/default/grub.d/10-amd-pstate.cfg", paths)
+        self.assertEqual(plan.cmdline_extra, ["amd_pstate=active"])
 
-    def test_amd_pstate_active_file_contains_flag(self):
+    def test_amd_pstate_active_no_grub_dropin_file(self):
         plan = self._plan(cpu_vendor_id="amd", amd_pstate=True)
-        cfg = next(f for f in plan.files
-                   if f.path == "/etc/default/grub.d/10-amd-pstate.cfg")
-        self.assertIn("amd_pstate=active", cfg.content)
+        self.assertFalse([f.path for f in plan.files
+                          if f.path.startswith("/etc/default/grub")])
 
-    def test_no_amd_pstate_no_dropin_file(self):
+    def test_no_amd_pstate_empty_cmdline_extra(self):
         for vendor in ("intel", "amd", "other"):
             plan = self._plan(cpu_vendor_id=vendor, amd_pstate=False)
-            paths = [f.path for f in plan.files]
-            self.assertNotIn("/etc/default/grub.d/10-amd-pstate.cfg", paths,
-                             f"vendor={vendor}")
+            self.assertEqual(plan.cmdline_extra, [], f"vendor={vendor}")
 
     def test_intel_laptop_thermald_and_ppd(self):
         plan = self._plan(cpu_vendor_id="intel", is_laptop_=True)

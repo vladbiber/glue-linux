@@ -1,10 +1,9 @@
 """
-Disk & bootloader layer for Glue Linux installer.
+Disk layer for Glue Linux installer (bootloader steps live in limine.py).
 
 ADR-6: pure `parse_lsblk(json)` -> devices + pure `plan_disk(device, firmware)`
--> DiskPlan + pure step compilation (`disk_steps`, `bootloader_steps`) into the
-executor's existing Step types. The ONLY subprocess call in this module lives
-in the thin `discover()` wrapper, which is never called at import time.
+-> DiskPlan + pure step compilation (`disk_steps`) into the executor's Step
+types. The ONLY subprocess call is the thin `discover()` wrapper (never at import).
 UEFI vs BIOS is decided by the caller (/sys/firmware/efi presence) and passed
 in as a value — never probed inside pure code.
 """
@@ -12,6 +11,7 @@ in as a value — never probed inside pure code.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from typing import List, Tuple
 
@@ -35,6 +35,7 @@ _LSBLK_ARGV = [
 # GPT partition-type GUID of an EFI System Partition (lsblk PARTTYPE).
 _ESP_GUID = "c12a7328-f81f-11d2-ba4b-00a0c93ec93b"
 MIN_ROOT_PART_BYTES = 8 * (1024 ** 3)
+MIN_ESP_BYTES = 256 * (1024 ** 2)
 
 # sgdisk type codes
 _TYPE_ESP = "ef00"
@@ -63,7 +64,7 @@ class PartitionSpec:
     type_code: str       # sgdisk type code: ef00 / ef02 / 8300
     size: str            # sgdisk -n size field: '+512M', '+1M', or '0' (rest)
     filesystem: str      # 'vfat', 'ext4', 'swap', or '' (none)
-    mountpoint: str      # '/', '/boot/efi', 'swap', or '' (not mounted)
+    mountpoint: str      # '/', '/boot', 'swap', or '' (not mounted)
 
 
 @dataclass(frozen=True)
@@ -86,6 +87,7 @@ class DiskPlan:
     mode: str = "erase"                    # 'erase' (repartition) | 'existing'
     swap_uuid: str = ""                    # mkswap -U (hibernation resume)
     swapfile_mib: int = 0                  # swapfile on root (existing mode)
+    warnings: Tuple[str, ...] = ()         # shown in the summary (e.g. small ESP)
 
 
 # ---------------------------------------------------------------------------
@@ -101,6 +103,14 @@ def partition_path(disk_path: str, number: int) -> str:
     if disk_path[-1].isdigit():
         return f"{disk_path}p{number}"
     return f"{disk_path}{number}"
+
+
+def _partition_number(path: str) -> int:
+    """Trailing digits of a partition path (/dev/sda1 -> 1, /dev/nvme0n1p3 -> 3)."""
+    m = re.search(r"(\d+)$", path or "")
+    if not m:
+        raise DiskError(f"cannot read a partition number from {path!r}")
+    return int(m.group(1))
 
 
 def _is_mounted_value(mountpoint) -> bool:
@@ -219,7 +229,9 @@ def plan_existing_partition(
 ) -> DiskPlan:
     """Plan an install INTO an existing partition: format only that partition,
     never touch the partition table. On UEFI, reuses the disk's existing EFI
-    System Partition (mounted at /boot/efi, NOT reformatted).
+    System Partition (mounted at /boot, NOT reformatted). Partition numbers
+    are the real ones (efibootmgr --part needs them). A reused ESP under
+    256 MiB gets a warning: with Limine the kernels live on it.
 
     Raises DiskError when the root partition is mounted/too small, or when
     firmware is uefi and the root's disk has no ESP (use manual mode to add one).
@@ -237,6 +249,7 @@ def plan_existing_partition(
         )
 
     specs: List[PartitionSpec] = []
+    warnings: List[str] = []
     if firmware == "uefi":
         esp = next(
             (p for p in partitions
@@ -248,23 +261,29 @@ def plan_existing_partition(
                 "create one with 'Partition manually (cfdisk)' first"
             )
         specs.append(PartitionSpec(
-            number=1, path=esp.path, type_code=_TYPE_ESP, size="",
-            filesystem="", mountpoint="/boot/efi",  # reuse: no mkfs
+            number=_partition_number(esp.path), path=esp.path,
+            type_code=_TYPE_ESP, size="",
+            filesystem="", mountpoint="/boot",  # reuse: no mkfs
         ))
+        if 0 < esp.size_bytes < MIN_ESP_BYTES:
+            warnings.append(
+                "The existing EFI partition is small (<256 MiB); kernels live "
+                "on it with Limine — the install may run out of space")
     specs.append(PartitionSpec(
-        number=2, path=root.path, type_code=_TYPE_LINUX, size="",
+        number=_partition_number(root.path), path=root.path,
+        type_code=_TYPE_LINUX, size="",
         filesystem="ext4", mountpoint="/",
     ))
     return DiskPlan(
         device_path=root.parent_path, firmware=firmware,
-        partitions=tuple(specs), mode="existing",
+        partitions=tuple(specs), mode="existing", warnings=tuple(warnings),
     )
 
 
 def plan_disk(device: BlockDevice, firmware: str) -> DiskPlan:
     """Plan a full-disk GPT layout for the given firmware type.
 
-    uefi: p1 = 512MiB EFI System (vfat -> /boot/efi), p2 = rest ext4 -> /.
+    uefi: p1 = 512MiB EFI System (vfat -> /boot, holds the kernels), p2 = rest ext4 -> /.
     bios: p1 = 1MiB BIOS-boot (ef02, no fs), p2 = rest ext4 -> /.
     Raises DiskError on unknown firmware, disks < 8 GiB, or disks with
     mounted partitions (refuses to wipe the running system / live USB).
@@ -287,7 +306,7 @@ def plan_disk(device: BlockDevice, firmware: str) -> DiskPlan:
         first = PartitionSpec(
             number=1, path=partition_path(device.path, 1),
             type_code=_TYPE_ESP, size="+512M",
-            filesystem="vfat", mountpoint="/boot/efi",
+            filesystem="vfat", mountpoint="/boot",
         )
     else:
         first = PartitionSpec(
@@ -315,7 +334,7 @@ def disk_steps(disk_plan: DiskPlan, *, target: str = "/mnt") -> List[Step]:
     """Compile disk-preparation Steps: zap, partition, mkfs, mount.
 
     Runs BEFORE basestrap. Root is mounted at target first, then the ESP
-    (uefi only) at target/boot/efi.
+    (uefi only) at target/boot — Limine keeps kernels on the ESP.
     """
     t = target.rstrip("/")
     disk = disk_plan.device_path
@@ -342,7 +361,7 @@ def disk_steps(disk_plan: DiskPlan, *, target: str = "/mnt") -> List[Step]:
                 ),
             ))
 
-    esp = next((p for p in disk_plan.partitions if p.mountpoint == "/boot/efi"), None)
+    esp = next((p for p in disk_plan.partitions if p.mountpoint == "/boot"), None)
     root = next(p for p in disk_plan.partitions if p.mountpoint == "/")
 
     if esp is not None and disk_plan.mode == "erase":
@@ -360,101 +379,14 @@ def disk_steps(disk_plan: DiskPlan, *, target: str = "/mnt") -> List[Step]:
     ))
     if esp is not None:
         steps.append(RunCommand(
-            argv=["mkdir", "-p", f"{t}/boot/efi"],
-            description=f"Create {t}/boot/efi",
+            argv=["mkdir", "-p", f"{t}/boot"],
+            description=f"Create {t}/boot",
         ))
         steps.append(RunCommand(
-            argv=["mount", esp.path, f"{t}/boot/efi"],
-            description=f"Mount {esp.path} at {t}/boot/efi",
+            argv=["mount", esp.path, f"{t}/boot"],
+            description=f"Mount {esp.path} at {t}/boot",
         ))
     return steps
-
-
-# Branding + boot behaviour for the installed system's GRUB (ported from the
-# proven shell installer, plus the Glue theme):
-#   * GRUB_DISTRIBUTOR — menu entries say "Glue Linux", not "Artix"
-#   * os-prober ON — dual-boot entries (Windows, other Linux) appear in the
-#     installed menu. The one thing os-prober must NOT clone is the plugged-in
-#     live USB's own "installer" entries — those are stripped afterwards by
-#     the glue_installer.grub_filter step (device-based, see that module)
-#   * quiet cmdline — kernel/udev logs stop painting over the greeter's VT
-#   * theme — the amber Glue theme shipped by glue-branding
-_GRUB_BRAND_SCRIPT = """\
-set -e
-EXTRA=""
-for _f in /etc/default/grub.d/*.cfg; do [ -f "$_f" ] && . "$_f"; done
-[ -n "${GRUB_CMDLINE_LINUX_DEFAULT_EXTRA:-}" ] && EXTRA=" $GRUB_CMDLINE_LINUX_DEFAULT_EXTRA"
-if grep -q '^GRUB_DISTRIBUTOR=' /etc/default/grub; then
-    sed -i 's/^GRUB_DISTRIBUTOR=.*/GRUB_DISTRIBUTOR="Glue Linux"/' /etc/default/grub
-else
-    echo 'GRUB_DISTRIBUTOR="Glue Linux"' >> /etc/default/grub
-fi
-if grep -q '^GRUB_DISABLE_OS_PROBER' /etc/default/grub; then
-    sed -i 's/^GRUB_DISABLE_OS_PROBER=.*/GRUB_DISABLE_OS_PROBER=false/' /etc/default/grub
-else
-    echo 'GRUB_DISABLE_OS_PROBER=false' >> /etc/default/grub
-fi
-if grep -q '^GRUB_CMDLINE_LINUX_DEFAULT=' /etc/default/grub; then
-    sed -i "s/^GRUB_CMDLINE_LINUX_DEFAULT=.*/GRUB_CMDLINE_LINUX_DEFAULT=\\"quiet loglevel=3 rd.udev.log_level=3 nowatchdog zswap.enabled=0${EXTRA}\\"/" /etc/default/grub
-else
-    echo "GRUB_CMDLINE_LINUX_DEFAULT=\\"quiet loglevel=3 rd.udev.log_level=3 nowatchdog zswap.enabled=0${EXTRA}\\"" >> /etc/default/grub
-fi
-if [ -f /usr/share/grub/themes/glue/theme.txt ]; then
-    if grep -q '^#\\?GRUB_THEME=' /etc/default/grub; then
-        sed -i 's|^#\\?GRUB_THEME=.*|GRUB_THEME="/usr/share/grub/themes/glue/theme.txt"|' /etc/default/grub
-    else
-        echo 'GRUB_THEME="/usr/share/grub/themes/glue/theme.txt"' >> /etc/default/grub
-    fi
-fi
-"""
-
-
-def bootloader_steps(disk_plan: DiskPlan, *, target: str = "/mnt") -> List[Step]:
-    """Compile GRUB install Steps (chrooted). Runs LAST, after service enabling."""
-    t = target.rstrip("/")
-    if disk_plan.firmware == "uefi":
-        install = [
-            "artix-chroot", t,
-            "grub-install", "--target=x86_64-efi",
-            "--efi-directory=/boot/efi", "--bootloader-id=Glue",
-        ]
-    else:
-        install = [
-            "artix-chroot", t,
-            "grub-install", "--target=i386-pc", disk_plan.device_path,
-        ]
-    return [
-        RunCommand(
-            argv=install,
-            description=f"Install GRUB ({disk_plan.firmware})",
-        ),
-        RunCommand(
-            argv=["artix-chroot", t, "sh", "-c", _GRUB_BRAND_SCRIPT],
-            description="Brand GRUB (Glue Linux + dual-boot, quiet boot, theme)",
-        ),
-        RunCommand(
-            argv=["artix-chroot", t, "grub-mkconfig", "-o", "/boot/grub/grub.cfg"],
-            description="Generate GRUB config",
-        ),
-        # Runs on the LIVE system (not chrooted): os-prober just cloned every
-        # bootable thing it saw — including the plugged-in install USB. Strip
-        # entries pointing at removable/live-media partitions; keep real OSes.
-        RunCommand(
-            argv=[
-                "python3", "-m", "glue_installer.grub_filter",
-                f"{t}/boot/grub/grub.cfg",
-            ],
-            description="Remove live-USB entries from the GRUB menu",
-        ),
-    ]
-
-
-def bootloader_packages(disk_plan: DiskPlan) -> List[str]:
-    """Packages the bootloader needs in the basestrap set, sorted."""
-    packages = ["grub"]
-    if disk_plan.firmware == "uefi":
-        packages.append("efibootmgr")
-    return sorted(packages)
 
 
 # ---------------------------------------------------------------------------

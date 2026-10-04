@@ -26,6 +26,7 @@ from glue_installer.executor import (
     ExecutorError, compile_steps, execute, keyring_steps,
 )
 from glue_installer.identity import IdentityError, IdentitySpec, identity_steps
+from glue_installer.limine import BootSpec, kernel_name, resume_wanted
 from glue_installer.plan import PlanError, Selection, resolve_plan
 from glue_installer.swap import swap_plan
 from glue_installer.preview import make_show_screenshot
@@ -374,6 +375,8 @@ def main(argv=None) -> int:
         return _fail(f"Plan error: {exc}", EXIT_INSTALL)
     if swap is not None:
         plan.warnings.extend(swap.warnings)
+    if disk_plan is not None:
+        plan.warnings.extend(disk_plan.warnings)
 
     # Resolve pacman.conf path: env override (for tests) or installed location.
     pacman_conf_path = os.environ.get("GLUE_PACMAN_CONF")
@@ -383,10 +386,18 @@ def main(argv=None) -> int:
     pacman_conf_path = staged_pacman_conf(
         pacman_conf_path, _cpu_v3, selection.kernel_id)
 
+    # Limine entry: the selected kernel, plan extras, resume= only for a new
+    # swap partition (erase mode) when hibernation was requested.
+    kernel = next(k for k in catalog.kernels if k.id == selection.kernel_id)
+    boot = BootSpec(
+        kernel=kernel_name(kernel.packages),
+        cmdline_extra=tuple(plan.cmdline_extra),
+        resume=resume_wanted(disk_plan, selection.hibernate),
+    )
     try:
         steps = compile_steps(
             plan, target=args.target, init_id=selection.init_id,
-            disk_plan=disk_plan, pacman_conf=pacman_conf_path,
+            disk_plan=disk_plan, pacman_conf=pacman_conf_path, boot=boot,
         )
     except ExecutorError as exc:
         return _fail(f"Executor error: {exc}", EXIT_INSTALL)
