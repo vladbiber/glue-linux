@@ -1,7 +1,7 @@
 # Maintainer: Glue Linux
 pkgname=glue-branding
 pkgver=1
-pkgrel=14
+pkgrel=15
 pkgdesc="Glue Linux branding, default wallpaper and boot theme"
 arch=('any')
 url="https://github.com/vladbiber/glue-linux"
@@ -11,7 +11,7 @@ optdepends=('fastfetch: system info splash with the Glue logo'
             'ttf-liberation: terminal font (Liberation Mono)'
             'rofi: fullscreen application launcher'
             'glue-zsh: default terminal shell with Oh My Zsh')
-backup=('etc/glue/fastfetch.jsonc' 'etc/xdg/fastfetch/config.jsonc' 'etc/xdg/alacritty/alacritty.toml' 'etc/rofi.rasi')
+backup=('etc/xdg/xdg-desktop-portal-wlr/config' 'etc/glue/fastfetch.jsonc' 'etc/xdg/fastfetch/config.jsonc' 'etc/xdg/alacritty/alacritty.toml' 'etc/rofi.rasi')
 install='glue-branding.install'
 source=('logo.txt' 'fastfetch.jsonc' 'term-neutral.sh'
         'grub-theme.txt' 'grub-background.png' 'grub-icon.png'
@@ -19,10 +19,11 @@ source=('logo.txt' 'fastfetch.jsonc' 'term-neutral.sh'
         'palette.sh' 'palette.json'
         'wallpaper.png' 'WALLPAPER-CREDITS.md' 'glue-wallpaper-init'
         'alacritty.toml' 'termfont'
-        'rofi.rasi' 'rofi-fullscreen-preview.rasi')
+        'rofi.rasi' 'rofi-fullscreen-preview.rasi'
+        'glue-screencast-chooser' 'xdpw-config')
 sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
             '29986d12aa6b234ed72eead6d7fcfb1740ac847dc9812e92b446bfd7fe5ca4ca'
-            'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+            'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
     # ----- fastfetch logo + config -----
@@ -62,6 +63,9 @@ package() {
     # the default once, so later wallpaper choices remain untouched.
     install -Dm644 /dev/null \
         "$pkgdir/etc/skel/.local/state/glue/wallpaper-pending"
+    # screen sharing on gluewc: pick the only screen at once, rofi for several
+    install -Dm755 "$srcdir/glue-screencast-chooser" "$pkgdir/usr/lib/glue/glue-screencast-chooser"
+    install -Dm644 "$srcdir/xdpw-config" "$pkgdir/etc/xdg/xdg-desktop-portal-wlr/config"
     # the wallpaper pickers (glueqs, Noctalia) list ~/Pictures/Wallpapers
     install -dm755 "$pkgdir/etc/skel/Pictures/Wallpapers"
     ln -s /usr/share/backgrounds/glue/wallpaper.png \

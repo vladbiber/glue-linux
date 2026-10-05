@@ -1,0 +1,5 @@
+# xdg-desktop-portal-wlr settings for gluewc (Glue Linux)
+[screencast]
+chooser_type = dmenu
+chooser_cmd = /usr/lib/glue/glue-screencast-chooser
+max_fps = 60

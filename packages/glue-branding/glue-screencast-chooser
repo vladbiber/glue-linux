@@ -1,0 +1,11 @@
+#!/bin/sh
+# Screen-share picker for xdg-desktop-portal-wlr (chooser_type = dmenu): the
+# portal writes one line per output on stdin and reads the chosen one back.
+# One output is picked at once; several open a rofi list.
+list=$(cat)
+[ -n "$list" ] || exit 1
+if [ "$(printf '%s\n' "$list" | wc -l)" -eq 1 ]; then
+    printf '%s\n' "$list"
+    exit 0
+fi
+printf '%s\n' "$list" | rofi -dmenu -i -p "Share which screen?"
