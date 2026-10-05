@@ -1,6 +1,7 @@
 # scx — sched_ext userspace CPU scheduler (long-running process service).
 # The scheduler binary and its flags come from /etc/default/scx; the sh -c
-# wrapper exists because dinit does not expand environment variables itself.
+# wrapper reads it; $$ is a literal $ for dinit, which would otherwise expand
+# the variables itself, empty, when it loads the file.
 type = process
-command = /bin/sh -c ". /etc/default/scx && exec /usr/bin/${SCX_SCHEDULER:-scx_lavd} ${SCX_FLAGS:-}"
+command = /bin/sh -c ". /etc/default/scx && exec /usr/bin/$${SCX_SCHEDULER:-scx_lavd} $${SCX_FLAGS:-}"
 restart = true

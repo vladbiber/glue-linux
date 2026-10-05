@@ -65,6 +65,8 @@ _BASELINE_FILES: List[PlannedFile] = [
 # mirrorlists so the installed system can update).
 _ALWAYS_PACKAGES = frozenset({
     "base", "base-devel", "linux-firmware",
+    # Wi-Fi regulatory database: without it cfg80211 stays on the world domain
+    "wireless-regdb",
     "sudo", "nano", "vim", "git", "wget",
     "artix-keyring", "artix-mirrorlist",
     "cachyos-keyring", "cachyos-mirrorlist",

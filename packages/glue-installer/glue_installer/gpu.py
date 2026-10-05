@@ -46,7 +46,8 @@ _GPU_PACKAGES = {
 _SESSION_GPU_PACKAGES = {
     "nvidia": ["nvidia-open-dkms", "nvidia-utils", "egl-wayland"],
     "amd": ["vulkan-radeon"],
-    "intel": ["vulkan-intel"],
+    # intel-media-driver: VA-API video decode on Intel (Gen8 and newer)
+    "intel": ["vulkan-intel", "intel-media-driver"],
 }
 
 # Nothing detected (VM, exotic GPU): install both Mesa Vulkan drivers — they
