@@ -82,6 +82,12 @@ def keyring_steps() -> List[Step]:
             argv=["pacman-key", "--populate", "artix", "cachyos"],
             description="Populate host pacman keyring (artix + cachyos)",
         ),
+        # basestrap copies the host keyring into the target: the Glue key
+        # has to be in it for the target's signed [glue] repo
+        RunCommand(
+            argv=["pacman-key", "--populate", "glue"],
+            description="Add the Glue signing key to the host keyring",
+        ),
     ]
 
 

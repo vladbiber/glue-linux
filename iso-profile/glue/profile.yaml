@@ -25,6 +25,7 @@ rootfs:
   packages:
     # --- Glue custom repo packages ---
     - glue-branding
+    - glue-keyring
     - st-glue
     # --- TUI installer + its partitioning tools (must be runnable live) ---
     - glue-installer

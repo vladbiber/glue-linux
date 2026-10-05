@@ -1,0 +1,18 @@
+# Maintainer: Glue Linux
+pkgname=glue-keyring
+pkgver=20261005
+pkgrel=1
+pkgdesc="Glue Linux package signing key"
+arch=('any')
+url="https://github.com/vladbiber/glue-linux"
+license=('GPL-3.0-or-later')
+install=glue-keyring.install
+source=('glue.gpg' 'glue-trusted' 'glue-revoked')
+sha256sums=('SKIP' 'SKIP' 'SKIP')
+
+package() {
+    local f
+    for f in glue.gpg glue-trusted glue-revoked; do
+        install -Dm644 "$srcdir/$f" "$pkgdir/usr/share/pacman/keyrings/$f"
+    done
+}

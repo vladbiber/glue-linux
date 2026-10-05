@@ -1,0 +1,28 @@
+# Maintainer: Glue Linux
+pkgname=spotc
+pkgver=r0
+pkgrel=1
+pkgdesc="Spotify in the terminal, with slowed and reverb playback"
+arch=('x86_64')
+url="https://github.com/vladbiber/spotc"
+license=('MIT')
+depends=('ncurses' 'json-c' 'curl' 'openssl' 'librespot' 'libpulse')
+makedepends=('git' 'rust')
+source=("git+https://github.com/vladbiber/spotc.git")
+sha256sums=('SKIP')
+
+pkgver() {
+    cd "$pkgname"
+    printf 'r%s.%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+build() {
+    cd "$pkgname"
+    make
+}
+
+package() {
+    cd "$pkgname"
+    make PREFIX="$pkgdir/usr" install
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

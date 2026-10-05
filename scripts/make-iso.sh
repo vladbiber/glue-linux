@@ -34,23 +34,54 @@ pacman -Sy --noconfirm >/dev/null 2>&1 || true
 # quickshell-based bars (glue-bar, imperative-qs + its swww/matugen deps)
 # are no longer built: quickshell was dropped from the catalog and the ISO.
 # order matters: lib32-mangohud needs lib32-glew, glueqs needs gluewc, both from [glue]
-for pkg in glue-zsh glue-branding glue-settings glue-boot st-glue nvwm proton-ge-custom-bin \
+# signing key mounted by build.sh: every package gets a detached signature
+# and the database is signed, so installed systems can require signatures
+SIGN_KEY=""
+if [ -d /glue-sign ]; then
+    export GNUPGHOME=/tmp/glue-gnupg
+    rm -rf "$GNUPGHOME"; cp -r /glue-sign "$GNUPGHOME"; chmod 700 "$GNUPGHOME"
+    SIGN_KEY=$(gpg --list-secret-keys --with-colons | awk -F: '/^fpr/{print $10; exit}')
+    echo "    signing with $SIGN_KEY"
+fi
+sign_pkgs() {
+    [ -n "$SIGN_KEY" ] || return 0
+    for f in "$REPO"/*.pkg.tar.zst; do
+        [ -f "$f.sig" ] && [ "$f.sig" -nt "$f" ] && continue
+        gpg --batch --yes --pinentry-mode loopback --passphrase '' -u "$SIGN_KEY" \
+            --detach-sign --no-armor "$f"
+    done
+}
+
+# glue-keyring first: everything after it is signed with that key.
+# ctify, spotc (with librespot) and creader are optional apps of the repo,
+# not installed on the ISO.
+for pkg in glue-keyring glue-zsh glue-branding glue-settings glue-boot st-glue nvwm proton-ge-custom-bin \
            scx-scheds ananicy-cpp lib32-glew lib32-mangohud cage gluewc glueqs \
-           glue-apps glue-welcome glue-installer glue-calamares-config; do
+           glue-apps glue-welcome glue-installer glue-calamares-config \
+           librespot spotc ctify creader; do
     # GLUE_PKGS="a b" rebuilds only those; the rest come from the persisted repo
     if [ -n "${GLUE_PKGS:-}" ] && ls "$REPO/$pkg"-[0-9r]*.pkg.tar.* >/dev/null 2>&1; then
         case " $GLUE_PKGS " in *" $pkg "*) ;; *) echo "    -- $pkg (kept)"; continue ;; esac
     fi
     echo "    -- $pkg"
-    rm -f "$REPO/$pkg"-[0-9r]*.pkg.tar.*
+    rm -f "$REPO/$pkg"-[0-9r]*.pkg.tar.zst "$REPO/$pkg"-[0-9r]*.pkg.tar.zst.sig
     ( cd "$ROOT/packages/$pkg" && \
       sudo -u builder makepkg -f --syncdeps --noconfirm --skippgpcheck )
-    cp "$ROOT/packages/$pkg"/*.pkg.tar.* "$REPO"/ 2>/dev/null || true
-    repo-add -q "$REPO/glue.db.tar.gz" "$REPO"/*.pkg.tar.* >/dev/null 2>&1 || true
+    cp "$ROOT/packages/$pkg"/*.pkg.tar.zst "$REPO"/ 2>/dev/null || true
+    repo-add -q "$REPO/glue.db.tar.gz" "$REPO"/*.pkg.tar.zst >/dev/null 2>&1 || true
     pacman -Sy --noconfirm >/dev/null 2>&1 || true
 done
-repo-add "$REPO/glue.db.tar.gz" "$REPO"/*.pkg.tar.* 2>/dev/null || \
-    repo-add "$REPO/glue.db.tar.zst" "$REPO"/*.pkg.tar.*
+sign_pkgs
+rm -f "$REPO"/glue.db* "$REPO"/glue.files*
+if [ -n "$SIGN_KEY" ]; then
+    repo-add -q --sign --key "$SIGN_KEY" "$REPO/glue.db.tar.gz" "$REPO"/*.pkg.tar.zst
+    # this container's pacman (and buildiso's) verifies the signed database
+    ( unset GNUPGHOME
+      pacman-key --add "$ROOT/packages/glue-keyring/glue.gpg"
+      pacman-key --lsign-key "$SIGN_KEY" ) >/dev/null
+else
+    repo-add -q "$REPO/glue.db.tar.gz" "$REPO"/*.pkg.tar.zst
+fi
 
 # make the [glue] repo visible to buildiso's pacman
 install -Dm644 "$ROOT/repo/pacman.conf" /etc/pacman.conf

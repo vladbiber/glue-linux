@@ -431,9 +431,9 @@ class TestIntegration(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 class TestKeyringSteps(unittest.TestCase):
-    def test_two_run_command_steps(self):
+    def test_three_run_command_steps(self):
         steps = keyring_steps()
-        self.assertEqual(len(steps), 2)
+        self.assertEqual(len(steps), 3)
         for s in steps:
             self.assertIsInstance(s, RunCommand)
 
@@ -443,6 +443,7 @@ class TestKeyringSteps(unittest.TestCase):
         self.assertEqual(
             steps[1].argv, ["pacman-key", "--populate", "artix", "cachyos"]
         )
+        self.assertEqual(steps[2].argv, ["pacman-key", "--populate", "glue"])
 
     def test_pure_and_deterministic(self):
         self.assertEqual(keyring_steps(), keyring_steps())

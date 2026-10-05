@@ -3,6 +3,11 @@
 A light, Arch-based Linux distribution without systemd, tuned for gaming and
 easy enough for someone who has never installed Linux.
 
+> **Beta.** Glue Linux is tested on a small number of machines. Back up your
+> data before installing next to another system, and please report problems in
+> [Issues](https://github.com/vladbiber/glue-linux/issues) (attach the link
+> from `glue-debug --upload`).
+
 ![gluewc with the glueqs bar](packages/glue-installer/catalog/screenshots/gluewc-glueqs-bar.png)
 
 - **No systemd:** pick **dinit** (default), **runit** or **OpenRC** at install time.
@@ -32,7 +37,7 @@ Boot the ISO (Ventoy works). The live desktop opens **Glue Welcome**; press
    of the original `limine.conf`. Other operating systems found on the disks
    get their own entries.
 3. **Desktop:** cards with a preview, how light each desktop is and how much
-   memory it uses when idle. Tick one or more.
+   memory it uses when idle. Pick one or more.
 4. **Kernel** and **init system** (the defaults are fine for most people).
 5. **Gaming:** yes or no.
 
@@ -70,6 +75,35 @@ dedicated GPU of a hybrid laptop.
   videos in Celluloid and PDFs in Papers, even when KDE or Cinnamon are
   installed next to them.
 
+## The [glue] repository
+
+Glue's own packages live in a signed pacman repository,
+[glue-repo](https://github.com/vladbiber/glue-repo/releases/tag/x86_64), so
+gluewc, glueqs, Glue Apps, the installer and the gaming pieces built without
+systemd are updated with the rest of the system. It comes first in
+`/etc/pacman.conf`, which keeps a package of the same name from another
+repository or the AUR from replacing them. The signing key is in the
+`glue-keyring` package.
+
+It also carries a few apps that are not installed by default:
+
+| Package | What it is |
+|---|---|
+| `ctify` | Lightweight music player (SDL2) |
+| `spotc` | Spotify in the terminal, with slowed and reverb playback |
+| `creader` | PDF, EPUB and comic reader (SDL2 + MuPDF) |
+| `librespot` | Spotify Connect client, used by spotc |
+
+```sh
+sudo pacman -S ctify      # or: yay -S ctify
+```
+
+## Known limitations
+
+- Secure Boot has to be turned off in the firmware settings.
+- The install downloads its packages, so it needs an internet connection.
+- Disk encryption (LUKS) is not offered by the installer yet.
+
 ## gluewc and glueqs
 
 [gluewc](https://github.com/vladbiber/gluewc) is the default Wayland
@@ -90,7 +124,9 @@ cd glue-linux
 ```
 
 `build.sh` builds the `[glue]` packages from `packages/` and runs `buildiso`
-on `iso-profile/glue/`. The ISO lands in `out/` (about 2.6 GB). Later runs
+on `iso-profile/glue/`. When a GnuPG home with the signing key exists at
+`~/.local/share/glue-signing` (or `GLUE_SIGN_HOME`), the packages and the
+database are signed, and `scripts/publish-repo.sh` uploads the repository. The ISO lands in `out/` (about 2.6 GB). Later runs
 reuse the package cache; `GLUE_PKGS="gluewc glueqs" ./build.sh` rebuilds only
 the packages you name.
 
@@ -120,6 +156,8 @@ glue-linux/
     ├── glue-branding/          # wallpaper, os-release, terminal and rofi themes
     ├── glue-settings/          # sysctl and udev tuning
     ├── gluewc/, glueqs/, nvwm/ # desktops
+    ├── glue-keyring/           # signing key of the [glue] repository
+    ├── ctify/, spotc/, creader/, librespot/  # optional apps of the repository
     └── scx-scheds/, ananicy-cpp/, lib32-mangohud/, ... # gaming pieces without systemd
 ```
 

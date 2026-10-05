@@ -70,6 +70,8 @@ _ALWAYS_PACKAGES = frozenset({
     "sudo", "nano", "vim", "git", "wget",
     "artix-keyring", "artix-mirrorlist",
     "cachyos-keyring", "cachyos-mirrorlist",
+    # signing key of the online [glue] repo (Glue's own packages and updates)
+    "glue-keyring",
     "wpa_supplicant", "openresolv",
     # os-prober is NOT installed on the target: it runs on the live side only
     # (iso-profile) and its results become /etc/glue/boot.d/*.conf

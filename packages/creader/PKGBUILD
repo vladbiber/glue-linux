@@ -1,0 +1,28 @@
+# Maintainer: Glue Linux
+pkgname=creader
+pkgver=r0
+pkgrel=1
+pkgdesc="Small PDF, comic and EPUB reader written in C with SDL2 and MuPDF"
+arch=('x86_64')
+url="https://github.com/vladbiber/creader"
+license=('MIT')
+depends=('sdl2-compat' 'sdl2_ttf' 'libmupdf' 'ttf-dejavu')
+makedepends=('git')
+source=("git+https://github.com/vladbiber/creader.git")
+sha256sums=('SKIP')
+
+pkgver() {
+    cd "$pkgname"
+    printf 'r%s.%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+build() {
+    cd "$pkgname"
+    make
+}
+
+package() {
+    cd "$pkgname"
+    make PREFIX=/usr DESTDIR="$pkgdir" install
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

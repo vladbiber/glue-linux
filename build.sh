@@ -26,6 +26,11 @@ mkdir -p "$WORK" "$PKGCACHE" "$GLUEREPO"
 
 echo ">>> running ISO build (privileged — needs loop devices / overlayfs)"
 RUN_TTY=""; [ -t 1 ] && RUN_TTY="-it"   # only attach a TTY when interactive
+# packages and the [glue] database are signed with this key when it exists
+SIGNHOME=${GLUE_SIGN_HOME:-$HOME/.local/share/glue-signing}
+SIGN_MOUNT=""
+[ -d "$SIGNHOME" ] && SIGN_MOUNT="-v $SIGNHOME:/glue-sign:ro"
+
 docker run --rm $RUN_TTY \
     --privileged \
     --network=host \
@@ -34,6 +39,7 @@ docker run --rm $RUN_TTY \
     -v "$WORK:/var/lib/artools" \
     -v "$PKGCACHE:/var/cache/pacman/pkg" \
     -v "$GLUEREPO:/glue/repo/x86_64" \
+    $SIGN_MOUNT \
     -e GLUE_PKGS="${GLUE_PKGS:-}" \
     "$IMAGE"
 

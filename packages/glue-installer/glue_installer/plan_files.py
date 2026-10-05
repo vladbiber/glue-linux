@@ -45,6 +45,13 @@ LocalFileSigLevel = Optional
 # needs electron43, which none of these repos has: it stopped every update
 IgnorePkg   = heroic-games-launcher
 
+# Glue's own packages (gluewc, glueqs, Glue Apps, the gaming pieces built
+# without systemd) and their updates; first, so a package with the same name
+# elsewhere never replaces them
+[glue]
+SigLevel = Required DatabaseOptional
+Server = https://github.com/vladbiber/glue-repo/releases/download/$arch
+
 [system]
 Include = /etc/pacman.d/mirrorlist
 
