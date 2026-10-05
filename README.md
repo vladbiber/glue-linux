@@ -1,229 +1,87 @@
 # Glue Linux
 
-A small, amber-themed Linux distribution.
+A light, Arch-based Linux distribution without systemd, tuned for gaming and
+easy enough for someone who has never installed Linux.
 
-- **Base:** Arch-based, **no systemd** — pick **dinit**, **runit** or **OpenRC**
-  at install time
-- **Kernel:** `linux-cachyos` (CachyOS performance kernel, EEVDF scheduler, default) or `linux-zen`
-- **Installer:** a full-screen **Python curses TUI** (`glue-install`) —
-  catalog-driven wizard with Back navigation on every screen, automatic GeoIP
-  timezone detection, network clock sync, and GPU driver auto-detection
-- **Sessions (pick one or more, or minimal):** **gluewc** with glueqs or
-  Noctalia (default), **nvwm**, **KDE Plasma**, **XFCE**, **GNOME** and
-  **Cinnamon**
-- **Glue Apps:** the single application store. It searches
-  the system repositories, Flathub and AUR through `yay` in one window;
-  Shelly, Discover and PackageKit are not installed by default.
-- **Gaming Mode (optional):** Steam (+ Proton GE preinstalled), Heroic, Vulkan
-  32/64-bit, GameMode, MangoHud, Gamescope, `prime-run` for hybrid NVIDIA
-  (also Lutris, Faugus, Wine, a sched_ext scheduler via `scx_lavd`, and
-  ananicy-cpp process priorities; do not wrap a game in `gamemoderun` and
-  expect ananicy to manage it too, pick one)
-  laptops, and a persistent NVIDIA shader cache
-- **Laptop tuning (auto-detected):** `thermald` on Intel CPUs (RAPL thermal
-  management before hard throttling); `power-profiles-daemon` always enabled
-  on laptops — the `performance` profile raises the firmware fan curve via
-  `platform_profile`; `amd_pstate=active` on AMD Zen2+ (CPPC flag); sensors
-  auto-detected at first boot via `sensors-detect --auto`; NVIDIA dGPU runtime
-  D3 suspend (`NVreg_DynamicPowerManagement=0x02`) on Optimus laptops so the
-  GPU stays off between games. Firmware controls the fans — Glue does not
-  install nbfc/fancontrol.
-- **Theme:** amber on near-black for TTY, `st`, the Limine boot menu and the installer; the
-  graphical login uses a clean light theme with a blue accent
+![gluewc with the glueqs bar](packages/glue-installer/catalog/screenshots/gluewc-glueqs-bar.png)
 
-Palette: background `#100A02`, secondary/lines `#A66900`, primary text `#F1B00A`.
+- **No systemd:** pick **dinit** (default), **runit** or **OpenRC** at install time.
+- **Kernel:** `linux-cachyos` (default) or `linux-zen`. On CPUs with
+  x86-64-v3 the kernel and the gaming packages come from CachyOS's v3 builds.
+- **Graphical installer:** Calamares with Glue's own pages for the network,
+  the desktops, the kernel, the init system and gaming.
+- **Seven desktops, install as many as you like:** gluewc + glueqs (default),
+  gluewc + Noctalia, nvwm, KDE Plasma, XFCE, GNOME and Cinnamon. The login
+  screen lets you pick one each time.
+- **Glue Apps:** one store for the system repositories, Flathub, the AUR and
+  AppImages, with a system update that keeps going when one package can't.
+- **Gaming in one click:** Steam with Proton-CachyOS and GE-Proton, Heroic,
+  Lutris, Wine, GameMode, MangoHud, Gamescope, the `scx_lavd` scheduler and
+  ananicy-cpp priorities. Graphics drivers are picked for your card.
 
-## What the installer does
+## Installing
 
-`glue-install` auto-starts on the live ISO (tty1) and walks you through:
+Boot the ISO (Ventoy works). The live desktop opens **Glue Welcome**; press
+**Install Glue Linux**. The installer asks, in this order:
 
-1. **network** — required for every install; wired or Wi-Fi via `nmtui` (press
-   `N`). As soon as you're online the installer detects your **local timezone**
-   and syncs the live clock from the network before it ever touches the RTC
-2. **mode** — custom install or **minimal** (bootable base only)
-3. **kernel** — `linux-cachyos` (recommended) or `linux-zen`
-4. **init system** — `dinit` (recommended), `runit` or `OpenRC`; every service
-   is installed with the matching `-dinit`/`-runit`/`-openrc` script package
-5. **sessions** — multi-select from the 6 WMs/DEs, each with ease/lightness
-   ratings, keybinding cheat-sheet and screenshot path; gluewc offers glueqs
-   or Noctalia as its shell
-6. **support toggles** — the Glue Apps store backends (repository + Flathub +
-   AUR, enabled by default) and Bluetooth (BlueZ + Blueman)
-7. **Gaming Mode** — the full Steam stack; the right Vulkan driver
-   (NVIDIA open module / RADV / Intel ANV, 32-bit included) is pinned from the
-   detected GPU instead of pacman's alphabetical default
-8. **storage** — **erase a whole disk** (guided GPT, UEFI or BIOS), **install
-   into an existing partition** (only that partition is formatted, the ESP is
-   reused — dual-boot friendly), or **manual** via `cfdisk`
-9. **identity** — hostname, user, password, locale, timezone (prefilled with
-   the detected one)
-10. a final summary — nothing is written until you type `yes`
+1. **Network:** shows whether you are online and opens the Wi-Fi window. The
+   install downloads its packages, so it needs a connection.
+2. **Location, keyboard, partitions, user.** An existing EFI partition can be
+   reused without formatting: when another system already boots with Limine
+   from it, Glue adds its entries at the end of that menu and keeps a backup
+   of the original `limine.conf`. Other operating systems found on the disks
+   get their own entries.
+3. **Desktop:** cards with a preview, how light each desktop is and how much
+   memory it uses when idle. Tick one or more.
+4. **Kernel** and **init system** (the defaults are fine for most people).
+5. **Gaming:** yes or no.
 
-The install itself is a single progress bar (full log in
-`/tmp/glue-install.log`). Every install gets: a complete systemd-free base,
-NetworkManager, `openntpd` (clock stays right from first boot), sudo wheel
-setup, and **Limine** as the bootloader: the EFI partition is mounted at
-`/boot` (kernels live on it), `BOOTX64.EFI` goes to `EFI/BOOT` and
-`EFI/limine` with an `efibootmgr` entry named "Glue Linux" (BIOS machines get
-`limine bios-install`), and `/boot/limine.conf` is generated with an amber
-menu, a 5 s timeout, the Glue entry plus a fallback-initramfs entry, a quiet
-cmdline (`nowatchdog zswap.enabled=0`, `amd_pstate=active` where detected) and
-`resume=` when hibernation got its own swap partition. Automatic entries for
-the other OSes on the machine arrive with roadmap 3.4; the live ISO itself
-still boots with artools' GRUB until 3.7. Desktop installs add **ReGreet under Cage** on a
-dedicated VT7, with Tuigreet selected automatically on machines without KMS,
-plus the PipeWire stack and `power-profiles-daemon`
-(performance/balanced/power-saver in KDE/GNOME settings, `powerprofilesctl`
-elsewhere), fonts, portals, and per-session wrappers that bring up D-Bus +
-audio (+ `startx` for the X11 WMs). On NVIDIA machines the installer also
-writes `/usr/local/bin/prime-run` (no `nvidia-prime` package needed) — set a
-Steam game's launch options to `prime-run %command%` to run it on the dGPU.
+The app store, Bluetooth, PipeWire, NetworkManager, zram swap, Wi-Fi
+regulatory data and microcode are always installed. SSDs are mounted with
+TRIM, everything with `noatime`.
 
-Glue Apps and Glue Welcome stay installed when the store
-toggle is disabled. With the default enabled, it adds Flatpak, Flathub,
-AppStream metadata, `yay` and update checks. AUR recipes are community-made;
-Glue Apps asks once before the first AUR installation, and recipes that require
-systemd may not work on Glue Linux.
+### Graphics on the live system
 
-### Glue Apps and Glue Welcome
+The live desktop runs gluewc on your graphics card. If the card can't run it
+(an unsupported or very old GPU), the installer opens in a simple full-screen
+mode instead; the boot menu also has **NVIDIA off** and **safe graphics**
+entries. When something goes wrong, `glue-debug --upload` in a terminal
+collects the graphics and session logs and gives you a link to share.
 
-**[Glue Apps](https://github.com/vladbiber/glue-apps)** is the app store, kept in
-its own repository because it also runs on plain Arch, CachyOS and Artix. It
-searches Pacman, Flathub and the AUR at once, shows every source on each app page,
-installs AppImages, and updates the whole system with one button.
+Laptops with NVIDIA work both in hybrid mode (Intel or AMD drives the screen)
+and with the MUX switched to the NVIDIA card. The installed system gets the
+NVIDIA driver for your card's generation and a `prime-run` helper; put
+`prime-run %command%` in a Steam game's launch options to run it on the
+dedicated GPU of a hybrid laptop.
 
-**Glue Welcome** (`packages/glue-welcome`) opens at login and on Super+Shift+F1. It
-shows the shortcuts of the window manager you are running (open apps and close a
-window first), has a button that updates the whole system through Glue Apps, and
-holds the System and Settings pages. Both windows share the look chosen in
-Settings. English by default, Romanian in Settings → Language.
+## After the install
 
-```sh
-git clone https://github.com/vladbiber/glue-apps.git ../glue-apps
-sh scripts/run-glue-welcome-dev.sh
-```
+- **Glue Welcome** opens at login (Super+Shift+F1 brings it back): the keys of
+  the desktop you are in, an update button, system information and settings.
+- **Glue Apps** ([separate repository](https://github.com/vladbiber/glue-apps))
+  searches every source at once. *Update all* asks for the password once,
+  clears a lock left by a power cut, refreshes the package keys, and if one
+  package cannot be upgraded it leaves it for later and updates the rest.
+  Flatpak and AUR apps are updated after the system, so a broken AUR recipe
+  never blocks system updates.
+- **Screen sharing** works on gluewc through the desktop portal (Discord,
+  OBS, browsers).
+- On the tiling desktops folders open in Files, pictures in Image Viewer,
+  videos in Celluloid and PDFs in Papers, even when KDE or Cinnamon are
+  installed next to them.
 
-## Offline install
+## gluewc and glueqs
 
-No internet? Press `O` on the network screen. The installer then **clones the
-running live system** to the disk with `rsync` instead of downloading
-packages: same gluewc desktop (glueqs or Noctalia, chosen on the next screen),
-same tools, your own user and password. The live-only bits (the `glue` live
-user and its tty1 autologin, the installer, `rsync`, `grub`, `os-prober`,
-the artix-live packages) are removed; the clone gets its own `machine-id`,
-a normal initramfs (`mkinitcpio -P` with the standard hooks) and Limine via
-`glue-boot-update --deploy`, exactly like an online install.
+[gluewc](https://github.com/vladbiber/gluewc) is the default Wayland
+compositor: tiling with three layouts (bsp, scroll, drift) on one key, an
+overview on a tap of Super, animations and blur.
+[glueqs](https://github.com/vladbiber/glueqs) is its bar and shell: launcher,
+notifications, network, volume and brightness panels (with sleep mode), media
+controls and a settings window for gluewc itself.
 
-Limits: the clone boots the **stock `linux` kernel** under **runit** (what the
-ISO runs), and only the live desktop is available — Gaming Mode, KDE/XFCE/
-GNOME/Cinnamon/nvwm and dinit/OpenRC need the online install. Once online,
-Glue Apps → *Update all* brings the system up to date (`linux-cachyos` can be
-installed from there later).
+## Building the ISO
 
-On the live ISO, tty1 autologins as `glue` and starts the graphical live
-session (gluewc + glueqs + Glue Welcome, `Super+Shift+F1` reopens Welcome)
-when the machine has a KMS device. Without KMS, with `glue.tui` on the kernel
-command line, or once the desktop is closed, you get the text installer
-(`glue-install`) instead; there is no display manager on the live ISO.
-Glue Welcome adds an **Install Glue Linux** button that starts
-`glue-install-gui`, plus quick actions (terminal, files, browser, network).
-
-## Terminal
-
-Graphical installs and the live image include Alacritty with Zsh and Oh My Zsh
-(`robbyrussell`, `git` plugin). The framework is pinned in the `glue-zsh` package;
-it needs no download at first login. Personal additions live in
-`~/.config/oh-my-zsh/custom`, and its cache stays under `~/.cache/oh-my-zsh`.
-The terminal keeps its 50% opacity, Liberation Mono font and persistent font-size
-shortcuts (Ctrl+Shift +/- and Backspace to reset).
-
-Alacritty starts with GlueQS's default palette and follows the active GlueQS
-scheme, including wallpaper changes. Settings → THEME controls window borders,
-terminal detection, Kitty opt-in, and whether text colours are included. Disabling
-text-colour sync keeps the current text and ANSI palette and changes only the
-background. Config backups use the `.pre-glueqs` suffix.
-
-Rofi defaults to the fullscreen-preview theme used on the development desktop.
-`PREVIEW=true rofi -show drun` also opens its side preview. The bundled theme lives
-in `/usr/share/glue/rofi/`; new users get `~/.config/rofi/config.rasi` and the system
-fallback is `/etc/rofi.rasi`.
-
-## Layout
-
-```
-glue-linux/
-├── build.sh                 # build the ISO on any Docker host
-├── Dockerfile               # build env (Arch-based + artools + CachyOS)
-├── scripts/make-iso.sh      # runs inside the container: repo + buildiso
-├── repo/pacman.conf         # base + lib32 + CachyOS + [glue] repos
-├── packages/                # custom packages (built into the [glue] repo)
-│   ├── gluewc/              # default Wayland compositor
-│   ├── glueqs/              # default gluewc shell/bar
-│   ├── glue-zsh/            # Zsh + pinned Oh My Zsh terminal defaults
-│   ├── nvwm/                # BSP tiling WM, built-in bar, media keys enabled,
-│   │                        #   user config at ~/.config/nvwm/config.conf
-│   ├── st-glue/         # st patched to the Glue palette + JetBrains Mono
-│   ├── proton-ge-custom-bin/# GE-Proton for Steam, preinstalled system-wide
-│   ├── glue-installer/  # the Python curses installer + catalog
-│   ├── glue-apps/       # PKGBUILD for the store (source: github.com/vladbiber/glue-apps)
-│   ├── glue-welcome/    # welcome window: shortcuts, system, settings
-│   └── glue-branding/   # amber TTY palette, /etc/issue, os-release, live GRUB theme
-└── iso-profile/glue/    # artools profile (package lists + live overlay)
-```
-
-The graphical installer (Calamares) is started on the live ISO with
-`glue-install-gui` (or the *Install Glue Linux* launcher); it is live-only, never
-installed on the target, and without KMS graphics it points you to the `glue-install` TUI.
-
-## The installer, under the hood
-
-`packages/glue-installer/` is a small Python package with strictly pure
-logic layers — `catalog.py` (JSON catalog + validation) → `plan.py` (selection
-→ package/service/file plan) → `executor.py` (plan → ordered steps) →
-`disks.py` / `limine.py` / `identity.py` / `gpu.py` — driven by a curses
-TUI (`ui_model.py` state machine, `render.py`, `tui.py`). All I/O is injected,
-so the installer and Glue Welcome are covered by **675+ unit tests that run without root**:
-
-```sh
-sh scripts/gate.sh
-```
-
-Adding a session/kernel/shell is a catalog edit (`catalog/catalog.json`), not
-a code change.
-
-## Get the ISO
-
-**Pick ONE of the two options below — you don't need both.**
-
-- **Just want to run it?** → Option A (download).
-- **Want to build it from source / change something?** → Option B (build).
-
-### Option A — Download a prebuilt ISO (easiest)
-
-The ISO is hosted on the Internet Archive (it is over GitHub's 2 GiB
-per-file release limit):
-
-- **Direct download:**
-  [glue-runit-20260722-x86_64.iso](https://archive.org/download/glue-linux/glue-runit-20260722-x86_64.iso)
-- Item page (with torrent): <https://archive.org/details/glue-linux>
-
-Verify it:
-
-```sh
-sha256sum glue-runit-20260722-x86_64.iso
-# a93c8d7acdfaf512e2df4c80a9b2105f7798295d387c5b0f0667491aa5d961e4
-```
-
-Then jump to [Putting the ISO on a USB stick](#putting-the-iso-on-a-usb-stick).
-No build needed. Release notes and checksums also live on the
-[Releases page](https://github.com/vladbiber/glue-linux/releases).
-
-### Option B — Build it yourself
-
-Only needed if you want to compile the ISO from source. You need **Docker**
-(the build runs in a container, so it works from any distro — including a
-Gentoo host). The image needs `--privileged` for loop devices / squashfs;
-`build.sh` handles that.
+You need Docker; the build runs in a container, so any host distro works.
 
 ```sh
 git clone https://github.com/vladbiber/glue-linux.git
@@ -231,68 +89,49 @@ cd glue-linux
 ./build.sh
 ```
 
-The whole thing is self-contained: `build.sh` spins up the build container,
-builds the custom `[glue]` packages via `scripts/make-iso.sh`, and runs
-`buildiso` against `iso-profile/glue/`. The custom window managers are cloned
-from GitHub during the build. First run downloads packages and takes a while;
-re-runs reuse the `.pkgcache/` so they are much faster.
+`build.sh` builds the `[glue]` packages from `packages/` and runs `buildiso`
+on `iso-profile/glue/`. The ISO lands in `out/` (about 2.6 GB). Later runs
+reuse the package cache; `GLUE_PKGS="gluewc glueqs" ./build.sh` rebuilds only
+the packages you name.
 
-The finished ISO lands in **`./out/`** (≈2.1 GB).
-
-## Putting the ISO on a USB stick
-
-**Ventoy** (recommended — just copy the file):
+Copy it to a Ventoy stick (`cp out/glue-runit-*.iso /run/media/$USER/Ventoy/ && sync`)
+or write it with `dd`. To try it in a VM:
 
 ```sh
-cp out/glue-runit-*-x86_64.iso /run/media/<you>/Ventoy/
-sync          # IMPORTANT: wait for this to finish before unplugging
+qemu-system-x86_64 -enable-kvm -m 6G -cdrom out/glue-runit-*-x86_64.iso
 ```
 
-Or write the whole stick with `dd` (erases it):
+Prebuilt ISOs are published on the
+[Releases page](https://github.com/vladbiber/glue-linux/releases).
+
+## Repository layout
+
+```
+glue-linux/
+├── build.sh, Dockerfile        # containerised ISO build
+├── scripts/                    # make-iso.sh, headless checks and screenshot tools
+├── iso-profile/glue/           # live ISO profile and overlay
+└── packages/
+    ├── glue-installer/         # install logic and the catalog of desktops/kernels
+    ├── glue-calamares-config/  # Calamares pages, job modules and branding
+    ├── glue-welcome/           # Welcome window and the Wi-Fi window
+    ├── glue-apps/              # PKGBUILD for the store
+    ├── glue-boot/              # Limine config generator and pacman hooks
+    ├── glue-branding/          # wallpaper, os-release, terminal and rofi themes
+    ├── glue-settings/          # sysctl and udev tuning
+    ├── gluewc/, glueqs/, nvwm/ # desktops
+    └── scx-scheds/, ananicy-cpp/, lib32-mangohud/, ... # gaming pieces without systemd
+```
+
+Adding a desktop, kernel or shell is an edit of
+`packages/glue-installer/catalog/catalog.json`; the Calamares pages are
+generated from it (`python -m glue_installer.calamares_config`).
+
+## Tests
+
+The install logic, the generated Calamares files, the boot menu generator and
+Glue Welcome are covered by about 1100 tests that run without root:
 
 ```sh
-sudo dd if=out/glue-runit-*-x86_64.iso of=/dev/sdX bs=4M status=progress oflag=sync
+sh scripts/gate.sh
 ```
-
-Test it without hardware first:
-
-```sh
-qemu-system-x86_64 -enable-kvm -m 4G -bios /usr/share/edk2-ovmf/OVMF_CODE.fd \
-    -cdrom out/glue-runit-*-x86_64.iso
-```
-
-On the live system you can preview gluewc with glueqs or Noctalia before
-installing.
-
-## Status / notes
-
-- The current catalog contains six sessions: gluewc, nvwm, KDE Plasma, XFCE,
-  GNOME and Cinnamon. Multiple sessions may be installed together and chosen
-  at login.
-- The regular install is **online**: it `basestrap`s a fresh system, so it
-  can fit the CachyOS kernel and your chosen options. Without a connection the
-  network screen offers the **offline install** below (`O`).
-- The live ISO itself runs runit (independent of the target's init) and
-  auto-logs into the installer on tty1; every other tty is a normal shell.
-- GNOME needs `gnome-session-sysvinit` (the init-agnostic session worker) —
-  the catalog includes it, and the GNOME session coexists cleanly with a
-  parallel KDE install (no gdm; greetd stays the greeter).
-- `iso-profile/glue/profile.yaml` follows the current `artools` iso-profiles
-  (YAML) format. **artools changes these keys between versions** — if `buildiso`
-  rejects a key, diff against the official `base` profile that `make-iso.sh`
-  clones into place and adjust.
-
-## The window managers
-
-- **gluewc** — the default Wayland compositor, paired with glueqs or Noctalia.
-- **nvwm** — minimalist X11 tiling with a plain-text configuration and st-glue
-  as its small terminal fallback.
-
-Session wrappers start D-Bus and PipeWire and expose every installed session
-through the login screen.
-
-The login screen uses a clean light palette, a solid background and a simple
-white card. It remembers the last user and session; every desktop selected in
-the installer is available from its session chooser.
-
-![Glue Linux ReGreet login screen](screenshots/greeter.png)
