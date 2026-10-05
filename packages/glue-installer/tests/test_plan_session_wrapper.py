@@ -63,7 +63,11 @@ class TestSessionWrapperPolkit(unittest.TestCase):
     def test_nvwm_x11_wrapper_has_polkit(self):
         content = self._wrapper("nvwm")
         self.assertEqual(self.sessions["nvwm"].session_type, "x11")
-        self.assertIn(f"[ -x {_POLKIT} ] && {_POLKIT} &", content)
+        self.assertIn(f"([ -x {_POLKIT} ] && exec {_POLKIT}) &", content)
+
+    def test_wayland_polkit_waits_for_the_compositor(self):
+        content = self._wrapper("gluewc", "glueqs")
+        self.assertIn(f"(wait_wayland && [ -x {_POLKIT} ] && exec {_POLKIT}) &", content)
 
     def test_desktop_environments_have_no_polkit_gnome(self):
         for session in self.catalog.sessions:

@@ -291,13 +291,15 @@ def _session_wrapper_content(
     )
     # Only WMs: KDE/GNOME start their own polkit agent, XFCE/Cinnamon get one
     # via xdg autostart; a bare WM has nothing unless the wrapper starts it.
-    polkit_block = (
-        f"    [ -x {_POLKIT_AGENT} ] && {_POLKIT_AGENT} &\n"
-        if session.kind == "wm" else ""
-    )
     # Wayland clients started before the compositor has no display to open:
     # wait for its socket first (X11 sessions already run inside startx)
     wait = "wait_wayland && " if session.session_type == "wayland" else ""
+    # the agent is a GTK window too: started before the compositor it exits
+    # at once and every pkexec (Glue Apps, updates) fails without a prompt
+    polkit_block = (
+        f"    ({wait}[ -x {_POLKIT_AGENT} ] && exec {_POLKIT_AGENT}) &\n"
+        if session.kind == "wm" else ""
+    )
     welcome_block = (
         f"    ({wait}command -v glue-welcome >/dev/null 2>&1 && "
         "exec glue-welcome --autostart) &\n"

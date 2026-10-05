@@ -118,7 +118,8 @@ if [ "${1:-}" = "--inner" ]; then
     start_once pipewire
     start_once wireplumber
     start_once pipewire-pulse
-    [ -x "$POLKIT_AGENT" ] && "$POLKIT_AGENT" &
+    # a GTK window: started before the compositor it exits at once
+    (wait_wayland && [ -x "$POLKIT_AGENT" ] && exec "$POLKIT_AGENT") &
     # the live desktop opens Glue Welcome; its "Install Glue Linux" button
     # starts the installer (Super+Shift+F1 brings Welcome back)
     (wait_wayland && { network_first
