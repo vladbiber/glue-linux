@@ -24,6 +24,23 @@ easy enough for someone who has never installed Linux.
   Lutris, Wine, GameMode, MangoHud, Gamescope, the `scx_lavd` scheduler and
   ananicy-cpp priorities. Graphics drivers are picked for your card.
 
+## Download
+
+**[Glue Linux Beta 2026-10-05](https://archive.org/details/glue-runit-20261005-x86_64)**
+(`glue-runit-20261005-x86_64.iso`, 2.6 GB, on the Internet Archive)
+
+Download the `.sha256` and `.sig` files next to the ISO and check it:
+
+```sh
+sha256sum -c glue-runit-20261005-x86_64.iso.sha256
+curl -LO https://raw.githubusercontent.com/vladbiber/glue-linux/main/packages/glue-keyring/glue.gpg
+gpg --import glue.gpg
+gpg --verify glue-runit-20261005-x86_64.iso.sig glue-runit-20261005-x86_64.iso
+```
+
+The signature must come from `AD7968C58A7207B04514DB731B8E340953FBCD66`,
+the same key that signs the [glue] repository.
+
 ## Installing
 
 Boot the ISO (Ventoy works). The live desktop opens **Glue Welcome**; press
