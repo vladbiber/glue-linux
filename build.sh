@@ -41,6 +41,7 @@ docker run --rm $RUN_TTY \
     -v "$GLUEREPO:/glue/repo/x86_64" \
     $SIGN_MOUNT \
     -e GLUE_PKGS="${GLUE_PKGS:-}" \
+    -e GLUE_REPO_ONLY="${GLUE_REPO_ONLY:-0}" \
     "$IMAGE"
 
 echo

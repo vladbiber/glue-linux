@@ -128,7 +128,8 @@ on `iso-profile/glue/`. When a GnuPG home with the signing key exists at
 `~/.local/share/glue-signing` (or `GLUE_SIGN_HOME`), the packages and the
 database are signed, and `scripts/publish-repo.sh` uploads the repository. The ISO lands in `out/` (about 2.6 GB). Later runs
 reuse the package cache; `GLUE_PKGS="gluewc glueqs" ./build.sh` rebuilds only
-the packages you name.
+the packages you name, and `GLUE_REPO_ONLY=1` stops after the repository
+(for publishing package updates without a new ISO).
 
 Copy it to a Ventoy stick (`cp out/glue-runit-*.iso /run/media/$USER/Ventoy/ && sync`)
 or write it with `dd`. To try it in a VM:

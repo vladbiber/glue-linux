@@ -119,6 +119,11 @@ Server = file://$REPO
 EOF
 done
 
+if [ "${GLUE_REPO_ONLY:-0}" = 1 ]; then
+    echo ">>> repository updated in $REPO (no ISO: GLUE_REPO_ONLY=1)"
+    exit 0
+fi
+
 echo ">>> [3/4] assemble iso profile"
 # start from the official artix iso-profiles, layer our 'glue' profile on top
 PROFILES=/usr/share/artools/iso-profiles
