@@ -91,3 +91,14 @@ def binding_rows(data: dict, desktop: str, choices: dict[str, str]) -> tuple[str
     rows = [(str(item.get("keys", "")), str(item.get("action", "")))
             for item in bindings if item.get("keys") and item.get("action")]
     return session_id, order_rows(rows)
+
+
+def session_name(session: str, sessions_dir: Path = Path("/usr/share/glue/sessions")) -> str:
+    """Name the login screen shows for a session id."""
+    try:
+        for line in (sessions_dir / f"{session}.desktop").read_text().splitlines():
+            if line.startswith("Name="):
+                return line[5:].strip() or session
+    except OSError:
+        pass
+    return session

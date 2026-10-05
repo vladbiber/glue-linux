@@ -54,6 +54,17 @@ def _gs_partitions(gs):
     return root, boot, swap, fstype
 
 
+def _bios_boot_problem(gs):
+    """Limine reads its BIOS stage and the kernels only from FAT."""
+    for part in gs.value("partitions") or []:
+        if isinstance(part, dict) and part.get("mountPoint") == "/boot":
+            if (part.get("fsName") or part.get("fs") or "").lower() in ("fat32", "vfat", "fat16"):
+                return None
+    return ("This computer starts in BIOS (legacy) mode. Glue Linux then needs a "
+            "separate /boot partition of at least 300 MiB formatted as FAT32. Go back "
+            "to Partitions and add one, or pick Erase disk, which creates it for you.")
+
+
 def _firmware(gs):
     kind = gs.value("firmwareType")
     if kind in ("efi", "uefi"):
@@ -156,6 +167,8 @@ def run(execute_steps=execute, facts=None, online=_online):
         facts = dict(facts or _host_facts())
         stage_conf = facts.pop("stage_conf", None)
         firmware = _firmware(gs)
+        if firmware == "bios" and (problem := _bios_boot_problem(gs)):
+            raise AdapterError(problem)
         root, boot, swap, fstype = _gs_partitions(gs)
         other_os, os_warnings = (None, [])
         if os.path.exists("/usr/bin/os-prober"):

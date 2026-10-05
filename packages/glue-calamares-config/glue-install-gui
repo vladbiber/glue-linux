@@ -55,14 +55,34 @@ for var in QT_QUICK_BACKEND LIBGL_ALWAYS_SOFTWARE; do
     [ -z "$val" ] || set -- "$@" "$var=$val"
 done
 
+if [ ! -f "$config_dir/settings.conf" ] && [ "${GLUE_INSTALL_DRYRUN:-}" != 1 ]; then
+    echo "glue-install-gui: installer configuration not found in $config_dir." >&2
+    exit 5
+fi
+
+# BIOS: Limine reads only FAT, so Erase disk also creates a FAT32 /boot
+# (on UEFI the EFI partition is mounted at /boot and plays that role)
+if [ ! -d "${GLUE_EFI_DIR:-/sys/firmware/efi}" ] && [ -f "$config_dir/settings.conf" ]; then
+    bios_dir=$(mktemp -d /tmp/glue-calamares-bios.XXXXXX) || exit 5
+    cp -a "$config_dir/." "$bios_dir/"
+    cat >> "$bios_dir/modules/partition.conf" <<'EOF'
+
+partitionLayout:
+    - name: "boot"
+      filesystem: "fat32"
+      mountPoint: "/boot"
+      size: 1GiB
+    - name: "root"
+      filesystem: "unknown"
+      mountPoint: "/"
+      size: 100%
+EOF
+    config_dir=$bios_dir
+fi
+
 if [ "${GLUE_INSTALL_DRYRUN:-}" = 1 ]; then
     echo "pkexec env $* calamares -c $config_dir"
     exit 0
-fi
-
-if [ ! -f "$config_dir/settings.conf" ]; then
-    echo "glue-install-gui: installer configuration not found in $config_dir." >&2
-    exit 5
 fi
 
 exec pkexec env "$@" calamares -c "$config_dir"

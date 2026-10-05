@@ -35,11 +35,20 @@ set_xfce() {
                 ;;
         esac
     done
-    if [ "$found" -eq 0 ]; then
-        xfconf-query -c xfce4-desktop \
-            -p /backdrop/screen0/monitor0/workspace0/last-image \
-            -n -t string -s "$wallpaper" || return 1
-    fi
+    [ "$found" -eq 1 ]
+}
+
+# xfdesktop names monitors after the output (monitorVirtual-1, monitoreDP-1)
+set_xfce_outputs() {
+    outputs=$(xrandr --listmonitors 2>/dev/null | awk 'NR > 1 { print $NF }')
+    [ -n "$outputs" ] || outputs=0
+    for out in $outputs; do
+        for ws in 0 1 2 3; do
+            xfconf-query -c xfce4-desktop \
+                -p "/backdrop/screen0/monitor$out/workspace$ws/last-image" \
+                -n -t string -s "$wallpaper" || return 1
+        done
+    done
 }
 
 ok=1
@@ -57,7 +66,7 @@ case "$session:$shell" in
         run_until_ok plasma-apply-wallpaperimage "$wallpaper" || ok=0
         ;;
     xfce:*)
-        run_until_ok set_xfce || ok=0
+        run_until_ok set_xfce || set_xfce_outputs || ok=0
         ;;
     gnome:*)
         uri="file://$wallpaper"

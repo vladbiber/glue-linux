@@ -427,7 +427,7 @@
       "services": [],
       "shell_choices": [],
       "session_type": "wayland",
-      "exec": "gnome-session",
+      "exec": "env SHELL=/bin/bash gnome-session",
       "desktop": "GNOME",
       "idle_ram": "about 1 GB"
     },

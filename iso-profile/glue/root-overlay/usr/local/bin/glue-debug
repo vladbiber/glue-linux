@@ -52,7 +52,7 @@ report() {
     section "live session tries"
     cat "$STATE/glue-live-tries.log" 2>&1
 
-    for f in gluewc.log.old gluewc.log; do
+    for f in gluewc.log.old gluewc.log glue-session.log.old glue-session.log; do
         section "$f (errors)"
         grep -n -i -E "error|fail|couldn|cannot|unable|denied|abort|segv|crash|EGL|GLES|renderer|drm|backend|seat|gpu" "$STATE/$f" 2>/dev/null | head -150
         section "$f (last 80 lines)"

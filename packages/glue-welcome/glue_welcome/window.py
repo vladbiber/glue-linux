@@ -24,7 +24,8 @@ from glue_apps.widgets import clickable, grid, label  # noqa: E402
 
 from . import live
 from .login_screen import login_screen_panel
-from .keybindings import binding_rows, detect_session, load_shell_choices, running_processes
+from .keybindings import (binding_rows, detect_session, load_shell_choices, running_processes,
+                          session_name)
 from .strings import RO
 from .system import system_page
 
@@ -222,15 +223,17 @@ class WelcomeWindow(ShellWindow):
 
     def _shortcuts(self) -> Gtk.Widget:
         session, rows = session_bindings()
+        config = Path.home() / ".config" / session
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
         heading = Gtk.Box(css_classes=["section-header"])
         heading.append(label(_("Keyboard shortcuts"), "section-title"))
-        heading.append(label(f"  ·  {session}", "section-session"))
+        heading.append(label(f"  ·  {session_name(session)}", "section-session"))
         heading.append(Gtk.Box(hexpand=True))
-        config = Path.home() / ".config" / session
-        open_config = Gtk.Button(label=_("Open config"), css_classes=["flat", "section-link"])
-        open_config.connect("clicked", lambda _b: _spawn(["xdg-open", str(config)]))
-        heading.append(open_config)
+        # the classic desktops keep their settings in their own apps
+        if config.is_dir():
+            open_config = Gtk.Button(label=_("Open config"), css_classes=["flat", "section-link"])
+            open_config.connect("clicked", lambda _b: _spawn(["xdg-open", str(config)]))
+            heading.append(open_config)
         box.append(heading)
         if not rows:
             box.append(label(_("Shortcuts are not available for this session."), "dim-label"))

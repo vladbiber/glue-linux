@@ -6,7 +6,7 @@ ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
 
 from glue_welcome.info import parse_sensors
-from glue_welcome.keybindings import binding_rows, detect_session, order_rows
+from glue_welcome.keybindings import binding_rows, detect_session, order_rows, session_name
 
 
 class TestKeybindings(unittest.TestCase):
@@ -47,6 +47,15 @@ class TestKeybindings(unittest.TestCase):
         self.assertIn("Super+←↑↓→", keys)
         self.assertIn("Super", keys)
         self.assertFalse(any("h/j/k/l" in k for k in keys))
+
+
+class TestSessionName(unittest.TestCase):
+    def test_name_from_the_login_entry(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            Path(d, "kde-plasma.desktop").write_text("[Desktop Entry]\nName=KDE Plasma\n")
+            self.assertEqual(session_name("kde-plasma", Path(d)), "KDE Plasma")
+            self.assertEqual(session_name("nvwm", Path(d)), "nvwm")
 
 
 class TestInfo(unittest.TestCase):

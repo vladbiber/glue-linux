@@ -583,6 +583,17 @@ class TestGreeterProfile(unittest.TestCase):
         entry = self._file(plan, "/usr/share/glue/sessions/wm-shell.desktop")
         self.assertIn("Name=Shell WM + Shell A", entry.content)
 
+    def test_shell_already_in_session_name_is_not_repeated(self):
+        from glue_installer.plan_greeter import _session_desktop_content
+        session = type("S", (), {"name": "gluewc + glueqs", "description": "d",
+                                 "session_type": "wayland", "id": "gluewc",
+                                 "desktop": "gluewc"})()
+        content = _session_desktop_content(session, "glueqs")
+        self.assertIn("Name=gluewc + glueqs\n", content)
+        session.name = "gluewc + Noctalia"
+        content = _session_desktop_content(session, "Noctalia Shell")
+        self.assertIn("Name=gluewc + Noctalia\n", content)
+
     def test_shell_without_exec_not_autostarted(self):
         plan = self._plan(["wm-shell"], {"wm-shell": "shell-b"})
         wrapper = self._file(plan, "/usr/local/bin/glue-session-wm-shell")
@@ -668,7 +679,9 @@ class TestGreeterProfile(unittest.TestCase):
         gnome = next(s for s in catalog.sessions if s.id == "gnome")
         self.assertEqual(gnome.kind, "de")
         self.assertEqual(gnome.session_type, "wayland")
-        self.assertEqual(gnome.exec, "gnome-session")
+        # gnome-session-sysvinit's start script ends in bash's `wait -n`; with
+        # zsh as the login shell it ran under `emulate sh` and exited at once
+        self.assertEqual(gnome.exec, "env SHELL=/bin/bash gnome-session")
         self.assertEqual(gnome.desktop, "GNOME")
         # minimal: core desktop only, no full gnome group, no gdm (greetd
         # is the greeter; gdm also CONFLICTS with gnome-session-sysvinit),

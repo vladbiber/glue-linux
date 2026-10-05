@@ -54,6 +54,25 @@ class TestLauncher(_Launcher):
         r = subprocess.run(["sh", "-n", str(_SCRIPT)], capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stderr)
 
+    def test_bios_erase_disk_gets_a_fat_boot_partition(self):
+        cfg = self.tmp / "cfg"
+        (cfg / "modules").mkdir(parents=True)
+        (cfg / "settings.conf").write_text("sequence: []\n")
+        (cfg / "modules" / "partition.conf").write_text("efi:\n    mountPoint: /boot\n")
+        r = self.run_gui(GLUE_CALAMARES_CONFIG=str(cfg), GLUE_EFI_DIR=str(self.tmp / "no-efi"))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        used = Path(r.stdout.split("calamares -c ")[1].strip())
+        self.addCleanup(subprocess.run, ["rm", "-rf", str(used)])
+        self.assertNotEqual(used, cfg)
+        layout = (used / "modules" / "partition.conf").read_text()
+        self.assertIn('filesystem: "fat32"', layout)
+        self.assertIn('mountPoint: "/boot"', layout)
+        self.assertNotIn("partitionLayout", (cfg / "modules" / "partition.conf").read_text())
+        efi = self.tmp / "efi"
+        efi.mkdir()
+        r = self.run_gui(GLUE_CALAMARES_CONFIG=str(cfg), GLUE_EFI_DIR=str(efi))
+        self.assertIn(f"calamares -c {cfg}", r.stdout)
+
     def test_not_live_exit_2(self):
         r = self.run_gui(GLUE_LIVE_MARKER=str(self.tmp / "missing"))
         self.assertEqual(r.returncode, 2)
@@ -164,7 +183,7 @@ class TestPackaging(unittest.TestCase):
 
     def test_make_iso_builds_config_package(self):
         text = (_REPO_ROOT / "scripts" / "make-iso.sh").read_text()
-        self.assertIn("glue-installer glue-calamares-config; do", text)
+        self.assertIn("glue-installer glue-calamares-config", text)
 
     def test_never_in_a_resolved_plan(self):
         cat = load_catalog(_CATALOG)

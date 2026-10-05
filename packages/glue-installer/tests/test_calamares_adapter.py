@@ -320,7 +320,7 @@ class TestGlueinstallModule(unittest.TestCase):
         result, ran, cala = self._run(gs, {"log_file": "/tmp/x.log", "pacman_conf": "/nope"})
         self.assertIsNone(result)
         self.assertEqual(ran[0].argv[0], "pacman-key")
-        self.assertEqual(ran[2].argv[0], "basestrap")
+        self.assertEqual(ran[3].argv[0], "basestrap")
         self.assertIn("glue-boot-update --deploy", ran[-1].argv[-1])
         self.assertEqual(cala.job.progress[-1], 1.0)
         self.assertEqual(cala.globalstorage.value("glue_swapfile_fstab_line"),
@@ -368,14 +368,24 @@ class TestGlueinstallModule(unittest.TestCase):
         self.assertEqual(ran, [])
         self.assertIn("unknown choice", result[1])
 
+    def test_bios_without_fat_boot_is_rejected_before_any_step(self):
+        gs = {"rootMountPoint": "/tmp/calamares-root", "firmwareType": "bios",
+              "partitions": [{"device": "/dev/sda1", "mountPoint": "/", "fs": "ext4"}],
+              "glue_selection": _SEL_KDE}
+        result, ran, _ = self._run(gs)
+        self.assertEqual(ran, [])
+        self.assertEqual(result[0], "Glue Linux configuration rejected")
+        self.assertIn("FAT32", result[1])
+
     def test_selection_file_fallback_and_module_desc(self):
         import json
         import tempfile
         with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as fh:
             json.dump(_SEL_KDE, fh)
         gs = {"rootMountPoint": "/tmp/calamares-root", "firmwareType": "bios",
-              "partitions": [{"device": "/dev/sda1", "mountPoint": "/", "fs": "btrfs"},
-                             {"device": "/dev/sda2", "mountPoint": "", "fs": "linuxswap"}]}
+              "partitions": [{"device": "/dev/sda1", "mountPoint": "/boot", "fs": "fat32"},
+                             {"device": "/dev/sda2", "mountPoint": "/", "fs": "btrfs"},
+                             {"device": "/dev/sda3", "mountPoint": "", "fs": "linuxswap"}]}
         result, ran, _ = self._run(gs, {"selection_file": fh.name})
         self.assertIsNone(result)
         self.assertNotIn("swapfile", " ".join(_argv_text(ran)))

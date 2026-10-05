@@ -364,6 +364,10 @@ def _session_wrapper_content(
 {polkit_block}{welcome_block}{wallpaper_block}{shell_block}    exec {cmd}
 fi
 
+# keep the last two starts for glue-debug and bug reports
+log="${{XDG_STATE_HOME:-$HOME/.local/state}}/glue-session.log"
+mkdir -p "${{log%/*}}" && {{ [ ! -f "$log" ] || mv -f "$log" "$log.old"; }} && exec >"$log" 2>&1
+
 {x11_block}export GLUE_SESSION={session.id}
 export XDG_CURRENT_DESKTOP={desktop}
 export XDG_SESSION_DESKTOP={desktop}
@@ -375,7 +379,10 @@ export XCURSOR_SIZE=24
 
 
 def _session_desktop_content(session: Session, shell_name: Optional[str]) -> str:
-    name = session.name if not shell_name else f"{session.name} + {shell_name}"
+    name = session.name
+    # catalog names like "gluewc + glueqs" already carry the shell
+    if shell_name and " + " not in name:
+        name = f"{name} + {shell_name}"
     return f"""\
 [Desktop Entry]
 Name={name}
