@@ -305,12 +305,10 @@ def resolve_plan(
             services.add("scx")
 
     # Rule 17: thermal management and laptop power tuning.
-    # thermald: Intel-only thermal daemon (AMD has its own firmware path).
+    # No thermald: on laptops with DPTF tables (ASUS TUF) it drops the CPU
+    # long-term power limit to ~5 W under load. Firmware throttling is enough.
     # power-profiles-daemon + lm_sensors + glue-sensors-detect: on any laptop
     # (BAT* present), even without sessions or gaming (Rule 10 handles init pkgs).
-    if cpu_vendor_id == "intel":
-        packages.add("thermald")
-        services.add("thermald")
     if is_laptop:
         packages.add("power-profiles-daemon")
         services.add("power-profiles-daemon")

@@ -190,7 +190,7 @@ class TestAmdNeedsPstateActive(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Plan rules: thermald (Intel only), ppd on laptop, sensors-detect on laptop
+# Plan rules: no thermald, ppd on laptop, sensors-detect on laptop
 # ---------------------------------------------------------------------------
 
 class TestPlanLaptopRules(unittest.TestCase):
@@ -210,15 +210,12 @@ class TestPlanLaptopRules(unittest.TestCase):
             amd_pstate_active=amd_pstate,
         )
 
-    def test_intel_desktop_has_thermald(self):
-        plan = self._plan(cpu_vendor_id="intel")
-        self.assertIn("thermald", plan.packages)
-        self.assertIn("thermald", plan.services)
-
-    def test_intel_desktop_has_thermald_init_package(self):
+    def test_intel_no_thermald(self):
         for init_id in ("dinit", "runit", "openrc"):
             plan = self._plan(init_id=init_id, cpu_vendor_id="intel")
-            self.assertIn(f"thermald-{init_id}", plan.packages, init_id)
+            self.assertNotIn("thermald", plan.packages)
+            self.assertNotIn("thermald", plan.services)
+            self.assertNotIn(f"thermald-{init_id}", plan.packages)
 
     def test_amd_desktop_no_thermald(self):
         plan = self._plan(cpu_vendor_id="amd")
@@ -274,9 +271,9 @@ class TestPlanLaptopRules(unittest.TestCase):
             plan = self._plan(cpu_vendor_id=vendor, amd_pstate=False)
             self.assertEqual(plan.cmdline_extra, [], f"vendor={vendor}")
 
-    def test_intel_laptop_thermald_and_ppd(self):
+    def test_intel_laptop_ppd_without_thermald(self):
         plan = self._plan(cpu_vendor_id="intel", is_laptop_=True)
-        self.assertIn("thermald", plan.packages)
+        self.assertNotIn("thermald", plan.packages)
         self.assertIn("power-profiles-daemon", plan.packages)
         self.assertIn("lm_sensors", plan.packages)
 
@@ -284,9 +281,8 @@ class TestPlanLaptopRules(unittest.TestCase):
         catalog = load_catalog(_CATALOG_PATH)
         sel = Selection("linux-cachyos", "dinit", [], {}, [], False, False)
         plan = resolve_plan(catalog, sel, is_laptop=True, cpu_vendor_id="intel")
-        self.assertIn("thermald", plan.packages)
-        self.assertIn("thermald", plan.services)
-        self.assertIn("thermald-dinit", plan.packages)
+        self.assertNotIn("thermald", plan.services)
+        self.assertNotIn("thermald-dinit", plan.packages)
         self.assertIn("power-profiles-daemon", plan.packages)
         self.assertIn("lm_sensors", plan.packages)
 
