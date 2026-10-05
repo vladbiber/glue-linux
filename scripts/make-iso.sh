@@ -12,6 +12,10 @@ OUT=/out
 echo ">>> [1/4] refresh keyrings"
 pacman -Sy --noconfirm --needed artix-keyring cachyos-keyring || true
 pacman-key --populate artix cachyos 2>/dev/null || true
+# the persisted [glue] repo is signed with this key
+pacman-key --add "$ROOT/packages/glue-keyring/glue.gpg" >/dev/null 2>&1 &&
+    pacman-key --lsign-key "$(gpg --show-keys --with-colons "$ROOT/packages/glue-keyring/glue.gpg" |
+        awk -F: '/^fpr/{print $10; exit}')" >/dev/null 2>&1 || true
 
 echo ">>> [2/4] build custom packages -> [glue] repo"
 mkdir -p "$REPO"
@@ -26,7 +30,7 @@ repo-add -q "$REPO/glue.db.tar.gz" 2>/dev/null || true
 grep -q '^\[glue\]' /etc/pacman.conf || cat >> /etc/pacman.conf <<EOF
 
 [glue]
-SigLevel = Optional TrustAll
+SigLevel = Never
 Server = file://$REPO
 EOF
 pacman -Sy --noconfirm >/dev/null 2>&1 || true
@@ -36,19 +40,23 @@ pacman -Sy --noconfirm >/dev/null 2>&1 || true
 # order matters: lib32-mangohud needs lib32-glew, glueqs needs gluewc, both from [glue]
 # signing key mounted by build.sh: every package gets a detached signature
 # and the database is signed, so installed systems can require signatures
+# (only the signing commands see this GnuPG home, pacman keeps its own)
 SIGN_KEY=""
+SIGN_HOME=/tmp/glue-gnupg
 if [ -d /glue-sign ]; then
-    export GNUPGHOME=/tmp/glue-gnupg
-    rm -rf "$GNUPGHOME"; cp -r /glue-sign "$GNUPGHOME"; chmod 700 "$GNUPGHOME"
-    SIGN_KEY=$(gpg --list-secret-keys --with-colons | awk -F: '/^fpr/{print $10; exit}')
+    rm -rf "$SIGN_HOME"; cp -r /glue-sign "$SIGN_HOME"; chmod 700 "$SIGN_HOME"
+    SIGN_KEY=$(GNUPGHOME=$SIGN_HOME gpg --list-secret-keys --with-colons | awk -F: '/^fpr/{print $10; exit}')
     echo "    signing with $SIGN_KEY"
 fi
 sign_pkgs() {
     [ -n "$SIGN_KEY" ] || return 0
+    for f in "$REPO"/*.pkg.tar.zst.sig; do
+        [ -f "${f%.sig}" ] || rm -f "$f"
+    done
     for f in "$REPO"/*.pkg.tar.zst; do
         [ -f "$f.sig" ] && [ "$f.sig" -nt "$f" ] && continue
-        gpg --batch --yes --pinentry-mode loopback --passphrase '' -u "$SIGN_KEY" \
-            --detach-sign --no-armor "$f"
+        GNUPGHOME=$SIGN_HOME gpg --batch --yes --pinentry-mode loopback --passphrase '' \
+            -u "$SIGN_KEY" --detach-sign --no-armor "$f"
     done
 }
 
@@ -65,20 +73,20 @@ for pkg in glue-keyring glue-zsh glue-branding glue-settings glue-boot st-glue n
     fi
     echo "    -- $pkg"
     rm -f "$REPO/$pkg"-[0-9r]*.pkg.tar.zst "$REPO/$pkg"-[0-9r]*.pkg.tar.zst.sig
+    # a rebuild with the same version must not meet the old copy in the cache
+    rm -f /var/cache/pacman/pkg/"$pkg"-[0-9r]*.pkg.tar.zst
     ( cd "$ROOT/packages/$pkg" && \
       sudo -u builder makepkg -f --syncdeps --noconfirm --skippgpcheck )
     cp "$ROOT/packages/$pkg"/*.pkg.tar.zst "$REPO"/ 2>/dev/null || true
+    # the database is re-signed once at the end; until then it is unsigned
+    rm -f "$REPO"/glue.db.tar.gz.sig "$REPO"/glue.files.tar.gz.sig /var/lib/pacman/sync/glue.db.sig
     repo-add -q "$REPO/glue.db.tar.gz" "$REPO"/*.pkg.tar.zst >/dev/null 2>&1 || true
     pacman -Sy --noconfirm >/dev/null 2>&1 || true
 done
 sign_pkgs
 rm -f "$REPO"/glue.db* "$REPO"/glue.files*
 if [ -n "$SIGN_KEY" ]; then
-    repo-add -q --sign --key "$SIGN_KEY" "$REPO/glue.db.tar.gz" "$REPO"/*.pkg.tar.zst
-    # this container's pacman (and buildiso's) verifies the signed database
-    ( unset GNUPGHOME
-      pacman-key --add "$ROOT/packages/glue-keyring/glue.gpg"
-      pacman-key --lsign-key "$SIGN_KEY" ) >/dev/null
+    GNUPGHOME=$SIGN_HOME repo-add -q --sign --key "$SIGN_KEY" "$REPO/glue.db.tar.gz" "$REPO"/*.pkg.tar.zst
 else
     repo-add -q "$REPO/glue.db.tar.gz" "$REPO"/*.pkg.tar.zst
 fi

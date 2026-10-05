@@ -1,7 +1,7 @@
 # Maintainer: Glue Linux
 pkgname=glue-branding
 pkgver=1
-pkgrel=15
+pkgrel=16
 pkgdesc="Glue Linux branding, default wallpaper and boot theme"
 arch=('any')
 url="https://github.com/vladbiber/glue-linux"
