@@ -1,0 +1,24 @@
+# thermald pins some Intel laptops (ASUS TUF) at ~5 W / 400 MHz under load.
+# Turned off once for systems installed before Glue stopped shipping it;
+# re-enabling it afterwards is left alone.
+_drop_thermald() {
+    if [ -L /etc/dinit.d/boot.d/thermald ]; then
+        dinitctl stop thermald >/dev/null 2>&1
+        rm -f /etc/dinit.d/boot.d/thermald
+    fi
+    if [ -L /etc/runit/runsvdir/default/thermald ]; then
+        sv down thermald >/dev/null 2>&1
+        rm -f /etc/runit/runsvdir/default/thermald
+    fi
+    if [ -L /etc/runlevels/default/thermald ]; then
+        rc-service thermald stop >/dev/null 2>&1
+        rc-update del thermald default >/dev/null 2>&1
+    fi
+    return 0
+}
+
+post_upgrade() {
+    if [ "$(vercmp "$2" 1-4)" -lt 0 ]; then
+        _drop_thermald
+    fi
+}

@@ -1,7 +1,7 @@
 # Maintainer: Glue Linux
 pkgname=glue-settings
 pkgver=1
-pkgrel=3
+pkgrel=4
 pkgdesc="Glue Linux performance defaults (CachyOS-Settings ported to Artix inits): sysctl, udev rules, modprobe, limits, THP oneshot, game-performance"
 arch=('any')
 url="https://github.com/vladbiber/glue-linux"
@@ -9,6 +9,7 @@ license=('GPL-3.0-or-later')
 # hdparm: 69-hdparm.rules RUN; pciutils: setpci in pci-latency
 depends=('hdparm' 'pciutils')
 optdepends=('power-profiles-daemon: profile switching for game-performance')
+install=glue-settings.install
 source=('70-glue.conf'
         '60-ioschedulers.rules' '50-sata.rules' '69-hdparm.rules'
         '40-hpet-permissions.rules' '99-cpu-dma-latency.rules'
