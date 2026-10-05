@@ -220,7 +220,7 @@ class TestHappyPath(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Negative tests — each must raise PlanError
+# Negative tests - each must raise PlanError
 # ---------------------------------------------------------------------------
 
 class TestCmdlineExtra(unittest.TestCase):
@@ -245,7 +245,7 @@ class TestNetworkAndInitServicePackages(unittest.TestCase):
 
     def test_ntp_always_present_os_prober_live_only(self):
         # openntpd keeps the installed clock right; os-prober runs on the
-        # live medium only (roadmap 3.4: boot.d fragments), never on the target
+        # live medium only, never on the target
         for minimal in (True, False):
             sel = Selection("k-main", "dinit", [] if minimal else ["wm-bare"],
                             {}, [], False, minimal)
@@ -443,7 +443,7 @@ class TestDeterminism(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Integration tests — uses the real catalog/catalog.json
+# Integration tests - uses the real catalog/catalog.json
 # ---------------------------------------------------------------------------
 
 class TestIntegration(unittest.TestCase):
@@ -611,7 +611,7 @@ class TestGreeterProfile(unittest.TestCase):
     def test_real_catalog_wm_sessions_are_usable_out_of_the_box(self):
         # gluewc is self-contained (terminal/launcher ship with the
         # compositor's own package set); nvwm needs an explicit terminal
-        # (st-glue, kept per ADR-016) and launcher (rofi).
+        # (st-glue, kept per) and launcher (rofi).
         catalog = load_catalog(_CATALOG_PATH)
         gluewc = next(s for s in catalog.sessions if s.id == "gluewc")
         self.assertEqual(gluewc.packages, ["gluewc", "rofi", "polkit-gnome", "nautilus",
@@ -798,11 +798,11 @@ class TestGamingFilesAndPrimeRun(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Zram (roadmap 1.2) and gaming additions (roadmap 1.3)
+# Zram and gaming additions
 # ---------------------------------------------------------------------------
 
 class TestZramAndGaming(unittest.TestCase):
-    """1.2: zramen on every install with zstd; 1.3: gaming package additions."""
+    """zramen on every install with zstd: gaming package additions."""
 
     def _plan(self, init_id, gaming=False, session_ids=None, gpu_vendors=None):
         catalog = _make_catalog()
@@ -881,7 +881,7 @@ class TestZramAndGaming(unittest.TestCase):
 
 
 class TestScheduler(unittest.TestCase):
-    """1.4: sched_ext scheduler package, service and config on gaming installs."""
+    """sched_ext scheduler package, service and config on gaming installs."""
 
     def _plan(self, scheduler, gaming=True, init_id="dinit"):
         catalog = load_catalog(_CATALOG_PATH)
@@ -933,7 +933,7 @@ class TestScheduler(unittest.TestCase):
 
 
 class TestAnanicyAndGamingExtras(unittest.TestCase):
-    """1.5: ananicy-cpp with the CachyOS rules; 1.6: the remaining gaming set."""
+    """ananicy-cpp with the CachyOS rules: the remaining gaming set."""
 
     def _plan(self, gaming, gpu_vendors=None):
         catalog = load_catalog(_CATALOG_PATH)
@@ -973,7 +973,7 @@ class TestAnanicyAndGamingExtras(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# ADR-015 — Repo ordering: Artix repos always before [cachyos] / [cachyos-v3]
+# - Repo ordering: Artix repos always before [cachyos] / [cachyos-v3]
 # Audit (2026-10-03): 18 of 117 [cachyos]-vs-Artix overlaps have systemd* deps
 # (vulkan-radeon, vulkan-intel, gamescope, pacman, …). systemd-libs does not
 # exist in Artix, so [cachyos] MUST come AFTER system/world/galaxy/lib32.
@@ -1034,7 +1034,7 @@ class TestRepoOrder(unittest.TestCase):
         conf = self._target_conf(cpu_v3=True)
         pos = self._section_positions(conf)
         self.assertIn("cachyos-v3", pos)
-        # [cachyos-v3] must appear before [cachyos] (task-011 requirement)
+        # [cachyos-v3] must appear before [cachyos]
         self.assertLess(pos["cachyos-v3"], pos["cachyos"])
         # Both CachyOS repos must still appear AFTER all Artix repos
         for artix_repo in ("system", "world", "galaxy", "lib32"):
@@ -1082,7 +1082,7 @@ if __name__ == "__main__":
 
 
 # ---------------------------------------------------------------------------
-# Bar runtime of WM sessions (roadmap 5.9, ADR-020)
+# Bar runtime of WM sessions
 # ---------------------------------------------------------------------------
 
 _BAR_WAYLAND = {

@@ -1,4 +1,4 @@
-"""Parity tests for packages/glue-boot/glue-boot-update (roadmap 3.3 + 3.5).
+"""Parity tests for packages/glue-boot/glue-boot-update.
 
 The POSIX script is run with `sh ... --root TMP --print` on a synthetic
 root and its output is compared byte for byte with limine_conf().
@@ -126,7 +126,7 @@ _FEDORA = ("# Fedora on /dev/sdc1 (os-prober)\n/Fedora\nprotocol: efi\n"
 
 
 class TestForeignEntries(BootUpdateCase):
-    """boot.d fragments (roadmap 3.4): shell and limine_conf() byte-identical."""
+    """boot.d fragments: shell and limine_conf() byte-identical."""
 
     def bootd(self, name, text):
         d = self.root / "etc" / "glue" / "boot.d"

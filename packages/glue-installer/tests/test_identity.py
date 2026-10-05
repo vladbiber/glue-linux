@@ -1,4 +1,4 @@
-"""Tests for glue_installer.identity — IdentitySpec validation and identity_steps()."""
+"""Tests for glue_installer.identity - IdentitySpec validation and identity_steps()."""
 
 import sys
 import unittest
@@ -69,7 +69,7 @@ class TestIdentitySpecValid(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 class TestIdentitySpecInvalid(unittest.TestCase):
-    """Negative validation tests — IdentityError must be raised."""
+    """Negative validation tests - IdentityError must be raised."""
 
     def _bad(self, **kwargs):
         defaults = dict(hostname="glue", username="alice", password="secret")

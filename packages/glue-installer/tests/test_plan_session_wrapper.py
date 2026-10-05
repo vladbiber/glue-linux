@@ -107,7 +107,7 @@ class TestSessionWrapperPolkit(unittest.TestCase):
 
 
 class TestPortalConfig(unittest.TestCase):
-    """xdg-desktop-portal backend file for Wayland WM sessions (roadmap 5.9)."""
+    """xdg-desktop-portal backend file for Wayland WM sessions."""
 
     _DIR = "/usr/share/xdg-desktop-portal"
 

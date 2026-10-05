@@ -1,7 +1,7 @@
 #!/bin/bash
-# boot-update-check.sh — probe, in the build container, that the glue-boot
+# boot-update-check.sh - probe, in the build container, that the glue-boot
 # package keeps /boot/limine.conf and the Limine files current through pacman
-# (roadmap 3.3 + 3.5, ADR-022).
+#.
 #
 #   sh scripts/boot-update-check.sh
 #
@@ -20,7 +20,7 @@
 #   no-bootconf-noop    without boot.conf: exit 0, limine.conf untouched
 #   foreign-entry-survives-kernel-update  boot.d/10-windows-deadbeef.conf stays
 #                       in limine.conf, after the kernel entries, across
-#                       pacman -U / pacman -R of the fake kernel (3.4)
+#                       pacman -U / pacman -R of the fake kernel
 set -u
 
 IMAGE="${GLUE_CHECK_IMAGE:-glue-pkgbuild-img}"
@@ -46,7 +46,7 @@ host_main() {
 record() { printf '%-38s %-4s %s\n' "$1" "$2" "$3" >> "$RESULTS"; }
 sha() { sha256sum "$1" 2>/dev/null | cut -d' ' -f1; }
 
-build_and_install() { # build_and_install DIR — makepkg as builder, then pacman -U
+build_and_install() { # build_and_install DIR - makepkg as builder, then pacman -U
     local dir=$1 pkg
     chown -R builder:builder "$dir"
     ( cd "$dir" && sudo -u builder makepkg -f --syncdeps --noconfirm --skippgpcheck ) >"$dir/makepkg.log" 2>&1 \
@@ -162,7 +162,7 @@ PKG
         record no-bootconf-noop PASS "exit 0, limine.conf unchanged"
     else record no-bootconf-noop FAIL "exit $rc: $out"; fi
 
-    # (8) boot.d entry survives a kernel install + removal (roadmap 3.4)
+    # (8) boot.d entry survives a kernel install + removal
     mkdir -p /etc/glue/boot.d
     printf '# Windows Boot Manager on /dev/sdz1 (os-prober)\n/Windows Boot Manager\nprotocol: efi\nimage_path: guid(deadbeef-1111-2222-3333-444444444444):/EFI/Microsoft/Boot/bootmgfw.efi\n' \
         > /etc/glue/boot.d/10-windows-deadbeef.conf

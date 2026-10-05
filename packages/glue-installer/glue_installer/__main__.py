@@ -47,7 +47,7 @@ EXIT_OK = 0
 
 
 def find_catalog(*, base_prefix: str = "/") -> Path:
-    """Locate catalog.json using ADR-9 search order.
+    """Locate catalog.json using search order.
 
     1. $GLUE_CATALOG env var (explicit override)
     2. {base_prefix}/usr/share/glue-installer/catalog/catalog.json (packaged)
@@ -75,7 +75,7 @@ def _build_parser() -> argparse.ArgumentParser:
         description="Glue Linux installer — compose your own system.",
     )
     parser.add_argument("--catalog", type=Path, default=None, metavar="PATH",
-                        help="path to catalog.json (default: ADR-9 search order)")
+                        help="path to catalog.json (default: search the installed and source locations)")
     parser.add_argument("--target", default="/mnt", metavar="PATH",
                         help="mount point of the target system (default: /mnt)")
     parser.add_argument("--dry-run", action="store_true",
@@ -105,7 +105,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--offline", action="store_true",
         help="headless/dry-run: offline install = clone the live system "
-             "(stock linux kernel, runit) instead of basestrap (3.6)",
+             "(stock linux kernel, runit) instead of basestrap",
     )
     parser.add_argument(
         "--headless", action="store_true",
@@ -161,7 +161,7 @@ def build_elevation_argv(argv, *, which, executable) -> list:
 def _ensure_root(argv) -> None:
     """Re-exec under sudo when a REAL install could follow (never for
     --dry-run / --validate-catalog). Everything disk-touching (sgdisk, mkfs,
-    basestrap, chroot) needs root — failing at step 1 of the install after
+    basestrap, chroot) needs root - failing at step 1 of the install after
     the whole wizard was filled in is the worst possible moment."""
     import shutil
     if os.geteuid() == 0:
@@ -367,7 +367,7 @@ def main(argv=None) -> int:
     )
     try:
         if selection.offline:
-            # Offline clone (3.6): rsync of the live system, no basestrap and
+            # Offline clone: rsync of the live system, no basestrap and
             # no host keyring; boots the live kernel through glue-boot-update.
             if disk_plan is None:
                 return _fail("Offline install needs a disk or partition to "
@@ -417,7 +417,7 @@ def main(argv=None) -> int:
         return EXIT_OK
 
     # Last line of defense (normally unreachable: _ensure_root re-execs at
-    # startup) — never start real steps without root.
+    # startup) - never start real steps without root.
     if os.geteuid() != 0:
         return _fail(
             "Installer is not running as root — the install cannot proceed. "

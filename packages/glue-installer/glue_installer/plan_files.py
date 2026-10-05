@@ -28,7 +28,7 @@ exec "$@"
 """
 
 # The installed system's /etc/pacman.conf. basestrap -C uses the LIVE conf
-# (which also has the local file:// [glue] repo — that path does not exist
+# (which also has the local file:// [glue] repo - that path does not exist
 # on the installed disk), so the target gets its own conf with the online
 # repos only. cachyos-keyring/cachyos-mirrorlist are in _ALWAYS_PACKAGES so
 # these Includes resolve and future `pacman -Syu` keeps seeing the kernel repo.

@@ -20,13 +20,13 @@ class Selection:
     support_ids: List[str]
     gaming: bool
     minimal: bool
-    # CPU scheduler from the Gaming screen (roadmap 1.4); only consulted when
+    # CPU scheduler from the Gaming screen; only consulted when
     # gaming is True. Defaults to scx_lavd so existing callers keep working.
     scheduler: str = "scx_lavd"
-    # Swap screen (roadmap 4.2; consumed by 4.3): auto|zram|none, hibernate laptop-only
+    # Swap screen: auto|zram|none, hibernate laptop-only
     swap_mode: str = "auto"
     hibernate: bool = False
-    # Offline install (roadmap 3.6): clone the live system with rsync instead
+    # Offline install: clone the live system with rsync instead
     # of basestrap; kernel_id/init_id are then the live ones (linux, runit).
     offline: bool = False
 

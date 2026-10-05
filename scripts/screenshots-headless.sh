@@ -1,6 +1,6 @@
 #!/bin/bash
-# screenshots-headless.sh — real 1920x1080 catalog screenshots of the Glue
-# sessions, taken headless inside the build container (Faza 5.6, part 1).
+# screenshots-headless.sh - real 1920x1080 catalog screenshots of the Glue
+# sessions, taken headless inside the build container.
 #
 #   sh scripts/screenshots-headless.sh [glueqs|noctalia|nvwm|all]
 #
@@ -108,7 +108,7 @@ host_main() {
 # ------------------------------------------------------------- container ----
 # Install a locally built package (packages/NAME/*.pkg.tar.zst, or the build
 # container's /home/builder/pkgs), building it with makepkg as `builder` when
-# no package file exists — the same recipe as make-iso.sh.
+# no package file exists - the same recipe as make-iso.sh.
 install_local() {
     local name=$1 pkg
     pacman -Q "$name" >/dev/null 2>&1 && { log "$name already installed"; return; }
@@ -256,7 +256,7 @@ EOF
 }
 
 # ------------------------------------------------- session (under dbus) ----
-poll() { # poll SECONDS "description" cmd args... — polls at 0.2 s like the wrappers
+poll() { # poll SECONDS "description" cmd args... - polls at 0.2 s like the wrappers
     local secs=$1 what=$2; shift 2
     local tries=0 max=$((secs * 5))
     while [ "$tries" -lt "$max" ]; do

@@ -1,5 +1,5 @@
 #!/bin/sh
-# rename-from-<old-name>.sh — complete old-name -> glue rename of this repo.
+# rename-from-<old-name>.sh - complete old-name -> glue rename of this repo.
 #
 # Renames every git-tracked path containing the old product name (the
 # packages/*-installer, *-branding, st-* dirs, the iso-profile dir, the

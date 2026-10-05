@@ -1,9 +1,9 @@
-"""Offline install = clone of the live system (roadmap 3.6, ADR-022).
+"""Offline install = clone of the live system.
 
 Pure module: no subprocess, no filesystem access. Compiles the executor Steps
 that copy the running live ISO to the target disk with rsync, strip the
 live-only pieces, apply the Glue configuration (executor.config_steps) and
-boot it with Limine through `glue-boot-update --deploy` — the same mechanism
+boot it with Limine through `glue-boot-update --deploy` - the same mechanism
 the online install and the pacman hooks use. No basestrap, no pacman -S, no
 grub, no network: everything the clone needs is already on the live medium.
 """
@@ -19,13 +19,13 @@ from glue_installer.limine import BootSpec, bootloader_steps
 from glue_installer.plan import InstallPlan
 
 # The live medium runs the stock Artix kernel under runit (profile.yaml);
-# the clone inherits both — a different kernel would need basestrap (online).
+# the clone inherits both - a different kernel would need basestrap (online).
 CLONE_KERNEL = "linux"
 CLONE_INIT = "runit"
 LIVE_USER = "glue"
 
 # Packages that only make sense on the live medium; removed from the clone
-# when (and only when) pacman knows them — nothing is downloaded.
+# when (and only when) pacman knows them - nothing is downloaded.
 LIVE_ONLY_PACKAGES: Tuple[str, ...] = (
     "glue-installer", "rsync", "os-prober", "grub",
     "artix-live-dinit", "artix-live-openrc", "artix-live-runit", "artix-live-s6",
@@ -96,7 +96,7 @@ def cleanup_script() -> str:
     packages, give the clone its own machine-id, prepare /etc/glue/boot.d."""
     lines = [
         "set -e",
-        # live user: autologin + passwordless sudo — the installed system gets
+        # live user: autologin + passwordless sudo - the installed system gets
         # its own account from identity_steps. /home/glue was never copied, so
         # -r may complain about the missing home; the account must be gone.
         f"if id {LIVE_USER} >/dev/null 2>&1; then userdel -r {LIVE_USER} 2>/dev/null || true; fi",

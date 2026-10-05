@@ -1,4 +1,4 @@
-"""bootstrap_steps extraction (10.3): compile_steps output is unchanged."""
+"""bootstrap_steps extraction: compile_steps output is unchanged."""
 
 import sys
 import unittest

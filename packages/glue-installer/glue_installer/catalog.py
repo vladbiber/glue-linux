@@ -103,7 +103,7 @@ class SupportToggle:
 
 @dataclass
 class SchedulerOption:
-    """One CPU scheduler choice on the Gaming screen (roadmap 1.4)."""
+    """One CPU scheduler choice on the Gaming screen."""
     id: str
     name: str
     description: str
@@ -438,7 +438,7 @@ def _validate_cross(catalog: Catalog) -> None:
 
     # All ids across kernels/inits/sessions/shells must be globally unique
     all_ids = kernel_ids | init_ids | session_ids | shell_ids
-    # (no cross-section dupe check required by contract, but check within each section — done above)
+    # (no cross-section dupe check required by contract, but check within each section - done above)
 
     # Exactly one primary kernel
     primaries = [k for k in catalog.kernels if k.primary]

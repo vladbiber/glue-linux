@@ -42,7 +42,7 @@ _SHELL_CATALOG = _dc.replace(
     _CATALOG,
     sessions=[_dc.replace(_CATALOG.sessions[0], shell_choices=["glueqs", "noctalia"])]
     + list(_CATALOG.sessions[1:]) + [_MOCK_SESSION],
-    # keep the real shells too — gluewc references glueqs/noctalia
+    # keep the real shells too - gluewc references glueqs/noctalia
     shells=_MOCK_SHELLS + list(_CATALOG.shells),
 )
 
@@ -219,7 +219,7 @@ class TestSessionsScreen(unittest.TestCase):
     def test_notice_mentions_multiple_and_login_screen(self):
         _, screen = self._sessions_screen()
         self.assertIsNotNone(screen.notice)
-        # 5.1b: explicit multi-select + greeter wording
+        #: explicit multi-select + greeter wording
         self.assertIn("several at once", screen.notice)
         self.assertIn("login screen (greeter)", screen.notice)
 
@@ -507,7 +507,7 @@ class TestSummaryAndSelection(unittest.TestCase):
 
     def test_summary_items_reflect_choices(self):
         w = _drive_happy_path()
-        # to_selection() is only valid while finished — capture it before back()
+        # to_selection() is only valid while finished - capture it before back()
         selected_ids = w.to_selection().session_ids
         w.back()  # back onto summary
         w.next()  # forward: still summary until finishing next()
@@ -516,7 +516,7 @@ class TestSummaryAndSelection(unittest.TestCase):
         labels = "\n".join(i.label for i in summary.items)
         self.assertIn("CachyOS", labels)
         self.assertIn("dinit", labels)
-        # 5.1b: the summary lists EVERY selected session (by display name)
+        #: the summary lists EVERY selected session (by display name)
         names = {s.id: s.name for s in _CATALOG.sessions}
         for sid in selected_ids:
             self.assertIn(f"Session: {names[sid]}", labels)
@@ -737,7 +737,7 @@ class TestTimezonePrefill(unittest.TestCase):
 
 
 class TestSchedulerScreen(unittest.TestCase):
-    """1.4: CPU scheduler radio, only on gaming installs."""
+    """CPU scheduler radio, only on gaming installs."""
 
     def _to_gaming(self) -> Wizard:
         w = _new_wizard()
@@ -929,7 +929,7 @@ if __name__ == "__main__":
 
 
 class TestOfflineMode(unittest.TestCase):
-    """allow_offline() (3.6): clone of the live system, no network required."""
+    """allow_offline(): clone of the live system, no network required."""
 
     def _at_network(self, status="OFFLINE", catalog=_CATALOG, **kw):
         w = Wizard(catalog, **kw)

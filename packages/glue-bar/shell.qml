@@ -1,4 +1,4 @@
-// Glue Bar — minimal amber Quickshell bar for Glue Linux.
+// Glue Bar - minimal amber Quickshell bar for Glue Linux.
 // One bar per monitor: name on the left, clock centered, volume + battery on
 // the right. Launch with:  qs -c glue-bar
 import Quickshell

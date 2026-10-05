@@ -1,4 +1,4 @@
-"""Live ISO profile: shells and bar runtime present, one kernel (Faza 5.7)."""
+"""Live ISO profile: shells and bar runtime present, one kernel."""
 
 import re
 import sys
@@ -20,10 +20,10 @@ _REQUIRED = (
     "power-profiles-daemon", "xdg-desktop-portal", "xdg-desktop-portal-wlr",
     "xdg-desktop-portal-gtk", "grim", "glue-installer", "glue-apps",
     "glue-welcome", "fastfetch", "chafa", "libnotify", "nautilus",
-    # offline clone (3.6): rsync copies the live root; glue-boot (+limine,
+    # offline clone: rsync copies the live root; glue-boot (+limine,
     # efibootmgr) is what `glue-boot-update --deploy` needs on the target
     "rsync", "glue-boot", "limine", "efibootmgr",
-    # graphical installer (10.2)
+    # graphical installer
     "calamares", "kpmcore", "ckbcomp", "os-prober", "polkit", "glue-calamares-config",
 )
 _FORBIDDEN = (

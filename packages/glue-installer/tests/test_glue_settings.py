@@ -1,9 +1,9 @@
 """
-Tests for the glue-settings integration (Faza 1.1).
+Tests for the glue-settings integration.
 
 Covers: plan inclusion rules for the glue-settings package and its
 glue-tuning oneshot, sysctl key non-duplication between the package's
-70-glue.conf and any planned sysctl file, the exact ROADMAP 1.1 sysctl
+70-glue.conf and any planned sysctl file, the exact sysctl
 values, PKGBUILD source completeness, and the no-systemd guarantee.
 """
 
@@ -24,7 +24,7 @@ _SETTINGS_DIR = _REPO_ROOT / "packages" / "glue-settings"
 
 _INITS = ("dinit", "runit", "openrc")
 
-# ROADMAP 1.1 — the exact sysctl contract of 70-glue.conf
+# - the exact sysctl contract of 70-glue.conf
 _EXPECTED_SYSCTL = {
     "vm.swappiness": "100",
     "vm.vfs_cache_pressure": "50",
@@ -82,7 +82,7 @@ class TestPlanInclusion(unittest.TestCase):
             self.assertNotIn("glue-tuning", plan.services, init_id)
 
     def test_no_init_suffixed_glue_settings_package(self):
-        # arch=any ships all three init scripts itself — no glue-settings-<init>
+        # arch=any ships all three init scripts itself - no glue-settings-<init>
         for init_id in _INITS:
             plan = resolve_plan(self.catalog, _sel(["wm-bare"], True, init_id))
             self.assertNotIn(f"glue-settings-{init_id}", plan.packages)
@@ -130,7 +130,7 @@ class TestSysctlNoDuplication(unittest.TestCase):
 
 class TestPackageContent(unittest.TestCase):
 
-    def test_70_glue_conf_matches_roadmap_exactly(self):
+    def test_70_glue_conf_exact_contract(self):
         parsed = _parse_sysctl((_SETTINGS_DIR / "70-glue.conf").read_text())
         self.assertEqual(parsed, _EXPECTED_SYSCTL)
 

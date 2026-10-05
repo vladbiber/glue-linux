@@ -368,7 +368,7 @@ if __name__ == "__main__":
 
 
 class TestOtherOS(unittest.TestCase):
-    """Roadmap 3.4: injected os-prober/lsblk -> boot.d PlannedFile + summary."""
+    """Injected os-prober/lsblk -> boot.d PlannedFile + summary."""
     _PROBE = "/dev/sdb1@/EFI/Microsoft/Boot/bootmgfw.efi:Windows Boot Manager:Windows:efi\n"
     _LSBLK = ('{"blockdevices":[{"path":"/dev/sdb","type":"disk","rm":false,"hotplug":false,'
               '"pkname":null,"uuid":null,"partuuid":null,"pttype":"gpt","ptuuid":"1-1","partn":null,'
@@ -555,7 +555,7 @@ class TestAutodetectSpecTimezone(unittest.TestCase):
 
 
 class TestOfflineDryRun(unittest.TestCase):
-    """--offline (3.6): clone of the live system, no basestrap/keyring."""
+    """--offline: clone of the live system, no basestrap/keyring."""
 
     def _steps(self, *extra):
         from unittest import mock

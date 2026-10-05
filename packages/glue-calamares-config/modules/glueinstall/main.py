@@ -1,4 +1,4 @@
-"""Calamares job `glueinstall` (Glue Linux, roadmap 10.3, ADR-023).
+"""Calamares job `glueinstall` (Glue Linux).
 
 Reads rootMountPoint + the Glue selection, compiles the Glue steps with
 glue_installer.calamares_adapter and runs them on the host (the steps chroot

@@ -1,4 +1,4 @@
-# Glue amber palette — single source of truth
+# Glue amber palette - single source of truth
 GLUE_BG="#F4F6F8"
 GLUE_LINES="#B5484D"
 GLUE_TEXT="#172033"

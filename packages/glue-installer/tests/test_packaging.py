@@ -36,7 +36,7 @@ class TestPkgbuildContents(unittest.TestCase):
 
     def test_python_in_depends(self):
         text = _pkgbuild_text()
-        # depends=('python' ...) — python must appear in the depends array
+        # depends=('python' ...) - python must appear in the depends array
         self.assertIn("'python'", text)
 
     def test_installs_to_usr_lib_glue_installer(self):
@@ -65,7 +65,7 @@ class TestPkgbuildContents(unittest.TestCase):
         self.fail("pkgrel= not found in PKGBUILD")
 
     def test_no_bash_dep_required_by_installer(self):
-        # The new installer is pure Python — bash is not needed as an explicit dep
+        # The new installer is pure Python - bash is not needed as an explicit dep
         text = _pkgbuild_text()
         # 'bash' may appear in comments; must not appear in depends array line
         depends_line = next(
@@ -222,7 +222,7 @@ if __name__ == "__main__":
 
 
 # ---------------------------------------------------------------------------
-# gluewc PKGBUILD guards (Faza 5.5)
+# gluewc PKGBUILD guards
 # ---------------------------------------------------------------------------
 
 class TestGluewcPkgbuildGuards(unittest.TestCase):
@@ -240,7 +240,7 @@ class TestGluewcPkgbuildGuards(unittest.TestCase):
     def test_source_unchanged(self):
         self.assertIn('source=("git+https://github.com/vladbiber/gluewc.git")', self.text)
 
-    # 5.9: the bar's hardware keys are guarded the same way
+    #: the bar's hardware keys are guarded the same way
     def test_xf86_keybinding_guard(self):
         self.assertIn("XF86MonBrightnessUp = spawn:gluewc-backlight up", self.text)
         self.assertIn("XF86AudioRaiseVolume = spawn:.*wpctl set-volume", self.text)
@@ -257,7 +257,7 @@ class TestGluewcPkgbuildGuards(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# nvwm PKGBUILD keeps alacritty as the default terminal (Faza 8.2)
+# nvwm PKGBUILD keeps alacritty as the default terminal
 # ---------------------------------------------------------------------------
 
 class TestNvwmPkgbuildTerminal(unittest.TestCase):

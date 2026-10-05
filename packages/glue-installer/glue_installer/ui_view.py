@@ -1,7 +1,7 @@
 """
 View-layer dataclasses, events, and user-facing notice texts for the wizard.
 
-Split out of ui_model.py (ADR-7 keeps files under 500 lines). Pure data —
+Split out of ui_model.py. Pure data -
 NO curses, NO I/O, no wizard logic. ui_model re-exports everything here, so
 existing imports from ui_model keep working.
 """
@@ -298,7 +298,7 @@ def scheduler_items(options, chosen) -> List[Item]:
 def summary_items(w) -> List[Item]:
     """Items of the wizard's summary screen, built from a Wizard's state
     (kept here so ui_model.py stays small; it reads the wizard's private
-    fields on purpose — it is the view of exactly that state)."""
+    fields on purpose - it is the view of exactly that state)."""
     kernel_map = {k.id: k for k in w._catalog.kernels}
     init_map = {i.id: i for i in w._catalog.inits}
     items: List[Item] = []

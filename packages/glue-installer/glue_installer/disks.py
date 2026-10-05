@@ -1,11 +1,11 @@
 """
 Disk layer for Glue Linux installer (bootloader steps live in limine.py).
 
-ADR-6: pure `parse_lsblk(json)` -> devices + pure `plan_disk(device, firmware)`
+Pure `parse_lsblk(json)` -> devices + pure `plan_disk(device, firmware)`
 -> DiskPlan + pure step compilation (`disk_steps`) into the executor's Step
 types. The ONLY subprocess call is the thin `discover()` wrapper (never at import).
 UEFI vs BIOS is decided by the caller (/sys/firmware/efi presence) and passed
-in as a value — never probed inside pure code.
+in as a value - never probed inside pure code.
 """
 
 from __future__ import annotations
@@ -334,14 +334,14 @@ def disk_steps(disk_plan: DiskPlan, *, target: str = "/mnt") -> List[Step]:
     """Compile disk-preparation Steps: zap, partition, mkfs, mount.
 
     Runs BEFORE basestrap. Root is mounted at target first, then the ESP
-    (uefi only) at target/boot — Limine keeps kernels on the ESP.
+    (uefi only) at target/boot - Limine keeps kernels on the ESP.
     """
     t = target.rstrip("/")
     disk = disk_plan.device_path
     steps: List[Step] = []
 
     # 'existing' mode never touches the partition table and never reformats
-    # the ESP — it only formats the chosen root partition.
+    # the ESP - it only formats the chosen root partition.
     if disk_plan.mode == "erase":
         steps.append(RunCommand(
             argv=["sgdisk", "--zap-all", disk],

@@ -1,5 +1,5 @@
 """
-Runtime packages of a window-manager session's bar (roadmap 5.9).
+Runtime packages of a window-manager session's bar.
 
 A WM (gluewc, nvwm) ships no desktop environment, so the battery, brightness,
 media, clipboard and portal plumbing its bar relies on must come from the

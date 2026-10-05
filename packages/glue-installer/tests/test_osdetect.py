@@ -1,4 +1,4 @@
-"""Unit tests for osdetect.py (roadmap 3.4): os-prober -> /etc/glue/boot.d."""
+"""Unit tests for osdetect.py: os-prober -> /etc/glue/boot.d."""
 
 import sys
 import unittest

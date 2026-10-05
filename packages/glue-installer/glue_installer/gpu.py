@@ -3,7 +3,7 @@ GPU detection for the gaming toggle (catalog gaming.gpu_autodetect).
 
 Steam depends on the virtual `vulkan-driver`/`lib32-vulkan-driver` packages;
 without an explicit provider in the basestrap set, pacman auto-picks the first
-provider alphabetically — nvidia userspace on every machine, including AMD and
+provider alphabetically - nvidia userspace on every machine, including AMD and
 Intel ones. Detection reads sysfs directly (no lspci/pciutils needed on the
 live ISO) and the plan pins the right provider explicitly.
 
@@ -29,7 +29,7 @@ _DISPLAY_CLASS_PREFIX = "0x03"
 
 # Explicit Vulkan userspace per vendor (verified in Artix world / lib32).
 # nvidia-open-dkms builds the kernel module against the installed headers
-# (the catalog kernels all ship their -headers package) — without it the
+# (the catalog kernels all ship their -headers package) - without it the
 # nvidia userspace has no module to pair with and nothing renders.
 _GPU_PACKAGES = {
     # libva-nvidia-driver: VA-API video decode on NVIDIA (browsers, mpv)
@@ -50,7 +50,7 @@ _SESSION_GPU_PACKAGES = {
     "intel": ["vulkan-intel", "intel-media-driver"],
 }
 
-# Nothing detected (VM, exotic GPU): install both Mesa Vulkan drivers — they
+# Nothing detected (VM, exotic GPU): install both Mesa Vulkan drivers - they
 # are small, coexist fine, and cover the machines nvidia userspace would break.
 _FALLBACK_PACKAGES = [
     "vulkan-radeon", "lib32-vulkan-radeon",
@@ -61,7 +61,7 @@ _FALLBACK_PACKAGES = [
 def detect_gpu_vendors(sys_pci: str = "/sys/bus/pci/devices") -> FrozenSet[str]:
     """Return the set of GPU vendors present ({'nvidia','amd','intel'} ⊆).
 
-    Reads PCI class/vendor from sysfs; never raises — a machine where sysfs is
+    Reads PCI class/vendor from sysfs; never raises - a machine where sysfs is
     unreadable simply reports no vendors (the caller falls back to Mesa).
     """
     vendors = set()

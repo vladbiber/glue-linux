@@ -1,5 +1,5 @@
 #!/bin/bash
-# greeter-headless.sh — capture the real Glue ReGreet screen in a headless
+# greeter-headless.sh - capture the real Glue ReGreet screen in a headless
 # Cage session. The host entry point uses a disposable privileged build
 # container; --inside and --session are implementation details.
 set -eu

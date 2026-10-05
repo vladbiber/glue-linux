@@ -1,9 +1,9 @@
 """
 Identity layer for Glue Linux installer.
 
-ADR-7: pure IdentitySpec dataclass + pure identity_steps() function.
+Pure IdentitySpec dataclass + pure identity_steps() function.
 No subprocess, curses, or filesystem access at import time or inside identity_steps.
-Passwords flow ONLY via RunCommand.stdin — never in argv.
+Passwords flow ONLY via RunCommand.stdin - never in argv.
 """
 
 from __future__ import annotations
@@ -164,7 +164,7 @@ def identity_steps(spec: IdentitySpec, *, target: str = "/mnt") -> List[Step]:
         description="Write /etc/locale.conf",
     ))
 
-    # 8. Create user — same supplementary groups as the proven shell installer
+    # 8. Create user - same supplementary groups as the proven shell installer
     # (audio/video/input/storage matter for startx sessions and removable media)
     steps.append(RunCommand(
         argv=[
@@ -190,7 +190,7 @@ def identity_steps(spec: IdentitySpec, *, target: str = "/mnt") -> List[Step]:
         description="Set root password",
     ))
 
-    # 11. Wheel sudoers drop-in (mode 0o440 — required by sudo)
+    # 11. Wheel sudoers drop-in (mode 0o440 - required by sudo)
     steps.append(WriteTargetFile(
         path=f"{t}/etc/sudoers.d/10-wheel",
         content="%wheel ALL=(ALL:ALL) ALL\n",

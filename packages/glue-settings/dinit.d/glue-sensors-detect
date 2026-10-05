@@ -1,3 +1,3 @@
-# glue-sensors-detect — one-shot sensor detection at first boot
+# glue-sensors-detect - one-shot sensor detection at first boot
 type = scripted
 command = /usr/bin/glue-sensors-detect

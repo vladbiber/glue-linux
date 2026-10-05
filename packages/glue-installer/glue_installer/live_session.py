@@ -1,4 +1,4 @@
-"""Live ISO first-console choice (roadmap 10.1): desktop or text installer.
+"""Live ISO first-console choice: desktop or text installer.
 
 Pure module. The shell script `glue-live-session` (root-overlay of the ISO)
 applies exactly the same rules; tests/test_live_session.py runs both on the

@@ -1,4 +1,4 @@
-"""Calamares sequence + Glue selection pages (roadmap 10.3 lot 2, ADR-023).
+"""Calamares sequence + Glue selection pages.
 
 Pure module: no libcalamares, no filesystem access except main(). Everything
 under packages/glue-calamares-config that depends on the catalog is GENERATED
@@ -65,7 +65,7 @@ FORBIDDEN_MODULES = frozenset({
     "displaymanager", "plymouthcfg",
 })
 _EXEC_COMMENTS = {
-    "glueinstall": "basestrap + Glue config + Limine over the mounted root (10.3)",
+    "glueinstall": "basestrap + Glue config + Limine over the mounted root",
     "fstab": "after basestrap: the filesystem package ships /etc/fstab",
     "gluefstab": "appends the Glue swapfile line recorded by glueinstall",
     "locale": "locale/keyboard/users after glueinstall: glibc, kbd, shells, groups",

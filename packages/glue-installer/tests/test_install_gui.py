@@ -1,4 +1,4 @@
-"""glue-install-gui launcher (roadmap 10.1/10.2): exit codes, command, live-only."""
+"""glue-install-gui launcher: exit codes, command, live-only."""
 
 import itertools
 import os

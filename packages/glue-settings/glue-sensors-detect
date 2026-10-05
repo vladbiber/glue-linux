@@ -1,5 +1,5 @@
 #!/bin/sh
-# glue-sensors-detect — auto-detect hardware sensors at first boot (oneshot).
+# glue-sensors-detect - auto-detect hardware sensors at first boot (oneshot).
 # Runs sensors-detect once; the marker file prevents re-runs on later boots.
 MARKER=/var/lib/glue/sensors-detected
 [ -f "$MARKER" ] && exit 0

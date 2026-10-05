@@ -1,5 +1,5 @@
 # Maintainer: Glue Linux
-# Arch multilib lib32-glew 2.3.1, needed only as a dependency of lib32-mangohud.
+# Arch multilib lib32-glew 2.needed only as a dependency of lib32-mangohud.
 _pkgbasename=glew
 pkgname=lib32-$_pkgbasename
 pkgver=2.3.1

@@ -1,5 +1,5 @@
 """
-Tests for roadmap 1.7 (cpu x86-64-v3 detection + [cachyos-v3] repo),
+Tests for (cpu x86-64-v3 detection + [cachyos-v3] repo),
 1.8 (cmdline nowatchdog+zswap.enabled=0), and
 1.9 (Mesa + GL shader cache size in glue-gaming.sh).
 """
@@ -60,7 +60,7 @@ def _make_catalog() -> Catalog:
 
 
 # ---------------------------------------------------------------------------
-# 1.7 — cpu_supports_v3 pure function
+# 1.7 - cpu_supports_v3 pure function
 # ---------------------------------------------------------------------------
 
 class TestCpuSupportsV3(unittest.TestCase):
@@ -95,7 +95,7 @@ class TestCpuSupportsV3(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# 1.7 — [cachyos-v3] in pacman.conf and packages
+# 1.7 - [cachyos-v3] in pacman.conf and packages
 # ---------------------------------------------------------------------------
 
 class TestV3PacmanConf(unittest.TestCase):
@@ -160,7 +160,7 @@ class TestV3PacmanConf(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# 1.8 — cmdline contains nowatchdog + zswap.enabled=0
+# 1.8 - cmdline contains nowatchdog + zswap.enabled=0
 # ---------------------------------------------------------------------------
 
 class TestCmdline(unittest.TestCase):
@@ -184,7 +184,7 @@ class TestCmdline(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# 1.9 — MESA and GL shader cache sizes in glue-gaming.sh
+# 1.9 - MESA and GL shader cache sizes in glue-gaming.sh
 # ---------------------------------------------------------------------------
 
 class TestGamingShaderCache(unittest.TestCase):

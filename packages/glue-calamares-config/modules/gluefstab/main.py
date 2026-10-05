@@ -1,4 +1,4 @@
-"""Calamares job `gluefstab` (Glue Linux, roadmap 10.3 lot 2, ADR-023).
+"""Calamares job `gluefstab` (Glue Linux).
 
 Adds the Glue swapfile line (globalstorage `glue_swapfile_fstab_line`, set by
 glueinstall) to <rootMountPoint>/etc/fstab once Calamares' fstab module has

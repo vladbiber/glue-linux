@@ -1,10 +1,10 @@
 """
-Pure form-field state for the Glue Linux installer wizard (ADR-8).
+Pure form-field state for the Glue Linux installer wizard.
 
 Text-entry screens (hostname, username, password + confirm, locale, timezone)
 are modelled here as FormField objects with typed events: feed_char(),
 backspace(), submit(). Validation errors are surfaced as plain strings.
-Masking is a render concern — the model always stores the real value and
+Masking is a render concern - the model always stores the real value and
 render.py displays '*' per character for secret fields.
 
 This module MUST NOT import curses, subprocess, or os, and performs no I/O.
@@ -186,7 +186,7 @@ def build_identity_fields(
 def build_identity_spec(forms):
     """IdentitySpec from completed identity forms; None when forms is None.
 
-    Raises ValueError when a value is rejected — the wizard converts it to
+    Raises ValueError when a value is rejected - the wizard converts it to
     a ValidationError, same contract as build_identity_fields.
     """
     if forms is None:
@@ -208,7 +208,7 @@ def build_identity_spec(forms):
 
 def prefill_timezone_field(forms, tz) -> bool:
     """Inject the GeoIP-detected timezone into an identity form, but only
-    while the field still holds the 'UTC' placeholder — never clobbers what
+    while the field still holds the 'UTC' placeholder - never clobbers what
     the user typed, and invalid values are rejected. Returns True on apply."""
     if not forms or not tz or not isinstance(tz, str):
         return False

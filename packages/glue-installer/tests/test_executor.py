@@ -242,7 +242,7 @@ class TestCompileInitServices(unittest.TestCase):
 
     def test_openntpd_service_renamed_per_init(self):
         # Artix ships openntpd's scripts as /etc/dinit.d/ntpd and
-        # /etc/init.d/ntpd, but /etc/runit/sv/openntpd — the canonical
+        # /etc/init.d/ntpd, but /etc/runit/sv/openntpd - the canonical
         # plan name "openntpd" must map onto the real script per init.
         plan = _plan_with_service("openntpd")
         for init_id, path in (
@@ -454,7 +454,7 @@ if __name__ == "__main__":
 
 
 # ---------------------------------------------------------------------------
-# config_steps extraction (3.6): parity with the pre-refactor compile_steps
+# config_steps extraction: parity with the pre-refactor compile_steps
 # ---------------------------------------------------------------------------
 
 from glue_installer.executor import config_steps  # noqa: E402

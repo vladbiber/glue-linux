@@ -1,4 +1,4 @@
-"""Tests for glue_installer.swap (roadmap 4.1)."""
+"""Tests for glue_installer.swap."""
 
 import sys
 import unittest

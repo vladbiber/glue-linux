@@ -1,5 +1,5 @@
 #!/bin/sh
-# audio-pm-ctl — switch sound codec power saving with the power source.
+# audio-pm-ctl - switch sound codec power saving with the power source.
 # Called from 20-audio-pm.rules: "ac" on mains, "bat" on battery.
 case "${1:-}" in
     ac)  save=0;  ctl=0 ;;

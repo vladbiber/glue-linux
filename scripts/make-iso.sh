@@ -1,5 +1,5 @@
 #!/bin/bash
-# make-iso.sh — runs INSIDE the Artix build container (see Dockerfile/build.sh).
+# make-iso.sh - runs INSIDE the Artix build container (see Dockerfile/build.sh).
 # 1) builds the custom [glue] package repo from packages/
 # 2) assembles the artools iso profile
 # 3) runs buildiso to produce the ISO into /out
@@ -56,12 +56,12 @@ repo-add "$REPO/glue.db.tar.gz" "$REPO"/*.pkg.tar.* 2>/dev/null || \
 install -Dm644 "$ROOT/repo/pacman.conf" /etc/pacman.conf
 sed -i "s|file:///usr/share/glue/repo|file://$REPO|" /etc/pacman.conf
 # build-host only: keep pacman's scriptlet sandbox off (this is the container's
-# config, not the target's — the installed system keeps the stock sandbox).
+# config, not the target's - the installed system keeps the stock sandbox).
 grep -q '^DisableSandbox' /etc/pacman.conf || sed -i '/^\[options\]/a DisableSandbox' /etc/pacman.conf
 pacman -Sy --noconfirm || true
 
 # buildiso installs the live rootfs with ITS OWN pacman config
-# (/usr/share/artools/pacman.conf.d/iso-*-x86_64.conf), not /etc/pacman.conf —
+# (/usr/share/artools/pacman.conf.d/iso-*-x86_64.conf), not /etc/pacman.conf -
 # so our custom [glue] repo and [cachyos] must be added there too, or the
 # rootfs install fails with "target not found". SigLevel is relaxed for the
 # build only; the installed target keeps proper signature checking.

@@ -57,7 +57,7 @@ package() {
     -exec install -Dm755 -t "$pkgdir/usr/bin/" {} +
 
   # Exclusion: the scx_loader daemon (D-Bus activated, systemd-oriented) has
-  # no place on Artix inits — the plain `scx` service below replaces it.
+  # no place on Artix inits - the plain `scx` service below replaces it.
   rm -f "$pkgdir/usr/bin/scx_loader"
 
   # Shared config + the `scx` service for all three Artix inits

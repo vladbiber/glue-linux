@@ -1,7 +1,7 @@
 # Glue Linux build environment.
 # An Artix container with artools + CachyOS repo, used to build the custom
 # package repo and then the ISO. Must be run with --privileged (loop devices,
-# overlayfs, squashfs) — see build.sh.
+# overlayfs, squashfs) - see build.sh.
 FROM artixlinux/artixlinux:latest
 # mirror1 first: several mirrors in the default list are dead or lagging (404 on current packages)
 RUN sed -i '1i Server = https://mirror1.artixlinux.org/repos/$repo/os/$arch' /etc/pacman.d/mirrorlist
@@ -26,7 +26,7 @@ RUN pacman -Syu --noconfirm --needed \
 
 # CachyOS repo (for linux-cachyos). We configure the repo + trust its key and
 # pull ONLY the noarch keyring/mirrorlist onto the host. We deliberately do NOT
-# run cachyos-repo.sh — it force-installs CachyOS's own `pacman` build, whose
+# run cachyos-repo.sh - it force-installs CachyOS's own `pacman` build, whose
 # libgpgme/libassuan ABI doesn't match the Artix base image and bricks pacman
 # (partial upgrade). The kernel is installed into the TARGET by basestrap, where
 # the whole transaction is coherent. Fail loudly if the kernel isn't resolvable.

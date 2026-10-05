@@ -90,7 +90,7 @@ class TestPositive(unittest.TestCase):
         raw = _CATALOG_PATH.read_text(encoding="utf-8").lower()
         # ids assembled at runtime (join defeats constant folding) so the
         # repo-wide grep for the removed session names stays clean, even in
-        # the compiled bytecode cache (acceptance check for 5.1)
+        # the compiled bytecode cache (acceptance check for)
         for parts in (("apeture", "wm"), ("atom", "wm"),
                       ("ni", "ri"), ("sw", "ay")):
             self.assertNotIn("".join(parts), raw)
@@ -145,7 +145,7 @@ class TestPositive(unittest.TestCase):
         kde = next(s for s in self.catalog.sessions if s.id == "kde-plasma")
         self.assertIn("Best for beginners", kde.description)
 
-    def test_session_screenshot_names_match_roadmap(self):
+    def test_session_screenshot_names(self):
         expected = {"gluewc": "screenshots/gluewc-glueqs-bar.png",
                     "gluewc-noctalia": "screenshots/gluewc-noctalia-bar.png",
                     "nvwm": "screenshots/nvwm.png",
@@ -164,8 +164,8 @@ class TestPositive(unittest.TestCase):
 
     def test_noctalia_shell_entry_without_upstream_wm_reference(self):
         noctalia = self.catalog.shells[1]
-        self.assertEqual(noctalia.packages, ["noctalia-shell", "noctalia-qs"])  # ADR-020
-        # name assembled at runtime — see test_removed_sessions_gone_from_raw_json
+        self.assertEqual(noctalia.packages, ["noctalia-shell", "noctalia-qs"])  #
+        # name assembled at runtime - see test_removed_sessions_gone_from_raw_json
         self.assertNotIn("".join(("Ni", "ri")), noctalia.description)
 
     def test_all_sessions_ease_lightness_in_range(self):
@@ -337,7 +337,7 @@ class TestNegative(unittest.TestCase):
         data = _load_raw()
         dupe = copy.deepcopy(data["kernels"][0])
         data["kernels"].append(dupe)
-        # Two primaries AND duplicate id — both violations; check it raises
+        # Two primaries AND duplicate id - both violations; check it raises
         self._assert_catalog_error(data)
 
     def test_ease_wrong_type(self):
@@ -355,7 +355,7 @@ class TestNegative(unittest.TestCase):
 
     def test_missing_shell_required_field(self):
         data = _load_raw()
-        # the real catalog ships no shells anymore — inject a broken one
+        # the real catalog ships no shells anymore - inject a broken one
         data["shells"] = [{
             "id": "broken-shell", "name": "Broken", "description": "x",
             "ease": 3, "lightness": 3, "keybindings": [], "screenshot": None,
@@ -375,7 +375,7 @@ class TestNegative(unittest.TestCase):
 
 
 class TestSchedulers(unittest.TestCase):
-    """1.4: gaming.schedulers block."""
+    """gaming.schedulers block."""
 
     def _assert_catalog_error(self, data, needle):
         path = _write_tmp(data)
@@ -419,7 +419,7 @@ class TestSchedulers(unittest.TestCase):
 
 
 class ShellProviderTest(unittest.TestCase):
-    """ADR-020: one shell per gluewc session, each naming its quickshell."""
+    """one shell per gluewc session, each naming its quickshell."""
 
     def setUp(self):
         self.shells = {s.id: s for s in load_catalog(_CATALOG_PATH).shells}
@@ -441,11 +441,11 @@ class ShellProviderTest(unittest.TestCase):
 
 
 class ScreenshotFilesTest(unittest.TestCase):
-    """5.6: every catalog `screenshot` is a real 1920x1080 PNG with content.
+    """every catalog `screenshot` is a real 1920x1080 PNG with content.
     The runtime loader deliberately skips this (installer works without pictures)."""
 
     SCREENSHOTS_DIR = _PKG_ROOT / "catalog" / "screenshots"
-    # the only names allowed (5.6/5.6b): headless captures + 4 DEs
+    # the only names allowed (5.6/): headless captures + 4 DEs
     ALLOWED = {"gluewc-glueqs-bar.png", "gluewc-glueqs-overview.png",
                "gluewc-noctalia-bar.png", "gluewc-noctalia-overview.png",
                "nvwm.png", "kde-plasma.png", "xfce.png", "gnome.png", "cinnamon.png"}

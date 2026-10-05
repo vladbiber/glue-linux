@@ -1,4 +1,4 @@
-"""Laptop-specific hardware detection for the Glue Linux installer (Faza 1.11)."""
+"""Laptop-specific hardware detection for the Glue Linux installer."""
 from __future__ import annotations
 
 import glob

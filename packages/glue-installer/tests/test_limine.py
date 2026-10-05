@@ -1,4 +1,4 @@
-"""Unit tests for limine.py (roadmap 3.1 + 3.2 + 3.3): limine.conf, boot.conf, steps.
+"""Unit tests for limine.py: limine.conf, boot.conf, steps.
 
 Option names are checked against the set taken from
 https://raw.githubusercontent.com/limine-bootloader/limine/v12.9.0/CONFIG.md

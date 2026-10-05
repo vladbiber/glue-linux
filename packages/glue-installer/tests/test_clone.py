@@ -1,4 +1,4 @@
-"""Unit tests for glue_installer.clone (offline install = rsync clone, 3.6)."""
+"""Unit tests for glue_installer.clone (offline install = rsync clone)."""
 
 import sys
 import unittest

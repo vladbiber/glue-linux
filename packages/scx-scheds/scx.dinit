@@ -1,4 +1,4 @@
-# scx — sched_ext userspace CPU scheduler (long-running process service).
+# scx - sched_ext userspace CPU scheduler (long-running process service).
 # The scheduler binary and its flags come from /etc/default/scx; the sh -c
 # wrapper reads it; $$ is a literal $ for dinit, which would otherwise expand
 # the variables itself, empty, when it loads the file.

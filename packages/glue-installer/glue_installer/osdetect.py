@@ -1,4 +1,4 @@
-"""Other operating systems in the Limine menu (roadmap 3.4, ADR-022/023).
+"""Other operating systems in the Limine menu.
 
 Pure module: no subprocess, no filesystem access. The live side runs
 `os-prober` + `lsblk --json` (the argv lists are here; __main__ runs them,
@@ -13,7 +13,7 @@ Entry syntax verified in Limine v12.9.0 CONFIG.md:
         guid() resource accepts a GPT partition GUID or a filesystem UUID)
   BIOS: `protocol: bios` + `partition: <1-based number>` + `mbr_id: <hex>`
         (DOS table, lsblk PTUUID) or `gpt_uuid: <disk GUID>` (GPT, PTUUID of
-        the DISK; a partition GUID makes Limine panic — chainload.c)
+        the DISK; a partition GUID makes Limine panic - chainload.c)
 Same shape as CachyOS Calamares (bootloader/main.py, efi_chainload +
 guid(partuuid)); their BIOS path uses diskseq as `drive`, which depends on
 enumeration order, so Glue identifies the disk by its table id instead.
@@ -26,7 +26,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 
-# lsblk columns verified with `lsblk --list-columns` (util-linux 2.41).
+# lsblk columns verified with `lsblk --list-columns` (util-linux).
 LSBLK_ARGV: Tuple[str, ...] = (
     "lsblk", "--json", "-o",
     "PATH,TYPE,RM,HOTPLUG,PKNAME,UUID,PARTUUID,PTTYPE,PTUUID,PARTN",

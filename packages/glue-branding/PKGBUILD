@@ -79,7 +79,7 @@ package() {
     #       the .install scriptlet copies it to /etc/issue (owned by filesystem) -----
     install -Dm644 "$srcdir/issue" "$pkgdir/usr/share/glue/issue"
 
-    # ----- GRUB theme (amber Glue) — the installer points the target's
+    # ----- GRUB theme (amber Glue) - the installer points the target's
     #       /etc/default/grub at this via GRUB_THEME. The icon name matches
     #       the menu-entry class grub-mkconfig derives from
     #       GRUB_DISTRIBUTOR="Glue Linux" (first word, lowercased). -----

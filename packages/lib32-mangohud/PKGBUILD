@@ -1,5 +1,5 @@
 # Maintainer: Glue Linux
-# Arch multilib lib32-mangohud 0.8.4: the 32-bit overlay libraries that the
+# Arch multilib lib32-mangohud 0.the 32-bit overlay libraries that the
 # base distribution does not ship, matching world's mangohud 0.8.4.
 _pkgname=MangoHud
 pkgname=lib32-mangohud

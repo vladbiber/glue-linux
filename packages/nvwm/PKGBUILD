@@ -7,7 +7,7 @@ arch=('x86_64')
 url="https://github.com/Vifuddyxg/nvwm"
 license=('custom')
 # libpulse/playerctl/brightnessctl: the volume/media/brightness keybinds are
-# shipped ENABLED (pactl/playerctl/brightnessctl spawns) — hard deps, not opt
+# shipped ENABLED (pactl/playerctl/brightnessctl spawns) - hard deps, not opt
 depends=('libx11' 'libxinerama' 'libxrandr' 'libxcomposite' 'libxrender'
          'xorg-xinit' 'dbus' 'libpulse' 'playerctl' 'brightnessctl' 'alacritty')
 optdepends=('rofi: application launcher' 'st-glue: terminal'
@@ -25,11 +25,11 @@ pkgver() {
 
 prepare() {
     cd "$srcdir/$pkgname"
-    # default terminal stays alacritty (Faza 8.2); st-glue is the fallback
+    # default terminal stays alacritty; st-glue is the fallback
     grep -q '^terminal       = alacritty' config.conf || {
         echo 'ERROR: upstream nvwm config no longer defaults to alacritty' >&2; exit 1; }
     # the volume / media / brightness keys must be ACTIVE however upstream
-    # ships them — commented ("# bind_insert"), or enabled behind leading
+    # ships them - commented ("# bind_insert"), or enabled behind leading
     # whitespace (" bind_insert", current HEAD). pactl/playerctl/brightnessctl
     # are hard deps of this package so the spawns always work.
     sed -i -E 's/^[[:space:]#]*(bind_insert = XF86)/\1/' config.conf
@@ -62,7 +62,7 @@ package() {
     # the apeturewm/atomwm wrappers)
     install -Dm755 /dev/stdin "$pkgdir/usr/bin/nvwm-session" <<'EOF'
 #!/bin/sh
-# nvwm-session — login session wrapper for greeters / display managers.
+# nvwm-session - login session wrapper for greeters / display managers.
 # Starts X if launched from a TUI greeter (greetd/tuigreet) with no display,
 # then audio (pipewire) + session bus, then the WM.
 if [ -z "${DISPLAY:-}" ] && [ -z "${WAYLAND_DISPLAY:-}" ] && [ -z "${NVWM_XSTARTED:-}" ]; then

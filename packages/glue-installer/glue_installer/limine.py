@@ -1,11 +1,11 @@
-"""Limine bootloader for the installed system (roadmap 3.1 + 3.2 + 3.3 + 3.5).
+"""Limine bootloader for the installed system.
 
 Pure module: no subprocess, no filesystem access. Produces the text of
 /boot/limine.conf, the text of /etc/glue/boot.conf and the executor Steps
 that hand both to the target. The ESP is mounted at /boot, so kernel +
 initramfs live next to limine.conf and `boot():/` resolves to that partition.
 
-ADR-022: the installer does not copy Limine files or run efibootmgr from the
+The installer does not copy Limine files or run efibootmgr from the
 live side. It writes /etc/glue/boot.conf in the chroot and runs the target's
 `glue-boot-update --deploy` (packages/glue-boot), the same script the pacman
 hooks run on every kernel/limine update. limine_conf() here is the reference
@@ -13,7 +13,7 @@ text; glue-boot-update must reproduce it byte for byte (tests/test_boot_update.p
 
 Option names come from Limine v12.9.0 CONFIG.md
 (https://raw.githubusercontent.com/limine-bootloader/limine/v12.9.0/CONFIG.md);
-_CONFIG_KEYS lists every key this module may emit — nothing else is used.
+_CONFIG_KEYS lists every key this module may emit - nothing else is used.
 """
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ _CONFIG_KEYS = frozenset({
     "term_background", "term_foreground", "term_palette",
     "term_palette_bright", "comment", "protocol", "kernel_path",
     "module_path", "cmdline",
-    # chainload (3.4, osdetect.py): EFI `path`/`image_path`; BIOS `partition`,
+    # chainload: EFI `path`/`image_path`; BIOS `partition`,
     # `mbr_id`, `gpt_uuid` (all in CONFIG.md v12.9.0 "Chainload protocol")
     "image_path", "partition", "mbr_id", "gpt_uuid",
 })
@@ -245,7 +245,7 @@ def swap_partition(disk_plan: Optional[DiskPlan]) -> Optional[PartitionSpec]:
 
 def resume_wanted(disk_plan: Optional[DiskPlan], hibernate: bool) -> bool:
     """resume= only for a NEW swap partition (erase mode). A swapfile would
-    need resume_offset — not supported here."""
+    need resume_offset - not supported here."""
     return bool(hibernate and disk_plan is not None
                 and disk_plan.mode == "erase"
                 and swap_partition(disk_plan) is not None)
@@ -257,7 +257,7 @@ def resume_wanted(disk_plan: Optional[DiskPlan], hibernate: bool) -> bool:
 
 def bootloader_packages(disk_plan: DiskPlan) -> List[str]:
     """Packages the bootloader needs in the basestrap set, sorted.
-    glue-boot brings glue-boot-update + the pacman hooks (ADR-022)."""
+    glue-boot brings glue-boot-update + the pacman hooks."""
     packages = ["glue-boot", "limine"]
     if disk_plan.firmware == "uefi":
         packages.append("efibootmgr")
@@ -303,7 +303,7 @@ def bootloader_steps(disk_plan: DiskPlan, spec: BootSpec, *,
                      target: str = "/mnt") -> List[Step]:
     """Compile the bootloader Step(s). Runs LAST, after service enabling.
 
-    Everything happens inside the chroot (ADR-022): one `artix-chroot sh -c`
+    Everything happens inside the chroot: one `artix-chroot sh -c`
     resolves the root (and swap) UUID, writes /etc/glue/boot.conf and runs
     `glue-boot-update --deploy`, which writes /boot/limine.conf, copies
     BOOTX64.EFI to EFI/BOOT + EFI/limine and registers 'Glue Linux' with

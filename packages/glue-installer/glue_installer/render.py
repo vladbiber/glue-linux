@@ -1,5 +1,5 @@
 """
-Pure line renderer for the Glue Linux installer TUI (ADR-5).
+Pure line renderer for the Glue Linux installer TUI.
 
 Turns a ui_model.Screen snapshot + cursor position + terminal size into a
 flat list of (text, style_tag) lines. The thin curses driver (tui.py) only
@@ -104,7 +104,7 @@ def _item_rows(screen: Screen, cursor: int, width: int) -> Tuple[List[StyledLine
 
 def _form_rows(form, width: int) -> List[StyledLine]:
     """Input row for a form screen. Secret values are ALWAYS masked with '*'
-    per character — the plaintext never appears in any rendered line."""
+    per character - the plaintext never appears in any rendered line."""
     return [(_fit(f"> {form.label}: {masked(form)}_", width), "item_cursor")]
 
 

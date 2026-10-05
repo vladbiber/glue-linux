@@ -127,7 +127,7 @@ class TestUefiDiskPlan(unittest.TestCase):
         self.assertIn(["mkdir", "-p", "/mnt/boot"], argvs)
 
     def test_limine_steps_are_last_after_services(self):
-        # LAST step (ADR-022): one chrooted script writes /etc/glue/boot.conf
+        # LAST step: one chrooted script writes /etc/glue/boot.conf
         # with the real UUIDs and runs glue-boot-update --deploy on the target
         last = self.steps[-1]
         self.assertEqual(last.argv[:4], ["artix-chroot", "/mnt", "sh", "-c"])
@@ -216,7 +216,7 @@ class TestBiosDiskPlan(unittest.TestCase):
 
     def test_limine_bios_install_with_disk(self):
         argvs = _argvs(self.steps)
-        # bios-install runs on the target via glue-boot-update --deploy (ADR-022)
+        # bios-install runs on the target via glue-boot-update --deploy
         self.assertEqual(self.steps[-1].argv[:4], ["artix-chroot", "/mnt", "sh", "-c"])
         self.assertIn("GLUE_BOOT_FIRMWARE=bios", self.steps[-1].argv[4])
         self.assertIn("glue-boot-update --deploy", self.steps[-1].argv[4])

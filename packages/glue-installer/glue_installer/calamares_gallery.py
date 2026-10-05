@@ -1,4 +1,4 @@
-"""Desktop and network pages for Calamares (ADR-023).
+"""Desktop and network pages for Calamares.
 
 Pure module. The QML pages (gluedesktop.qml, gluenetwork.qml) are static and
 hand-written; only DesktopData.js and the notesqml instance configs are

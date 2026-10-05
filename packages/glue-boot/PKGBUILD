@@ -15,7 +15,7 @@ source=('glue-boot-update'
 sha256sums=('SKIP' 'SKIP' 'SKIP')
 
 package() {
-    # drop-in Limine entries for other operating systems (installer, 3.4)
+    # drop-in Limine entries for other operating systems (installer)
     install -d "$pkgdir/etc/glue/boot.d"
     install -Dm755 "$srcdir/glue-boot-update" "$pkgdir/usr/bin/glue-boot-update"
     # 95-: after mkinitcpio's 90-mkinitcpio-install, so the new initramfs exists

@@ -1,4 +1,4 @@
-"""calamares_adapter (10.3 lot 1) + the glueinstall Calamares module."""
+"""calamares_adapter + the glueinstall Calamares module."""
 
 import importlib.util
 import itertools

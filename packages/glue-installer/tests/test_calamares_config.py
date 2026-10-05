@@ -1,4 +1,4 @@
-"""calamares_config (10.3 lot 2): sequence, generated pages, gluefstab job."""
+"""calamares_config: sequence, generated pages, gluefstab job."""
 
 import importlib.util
 import json

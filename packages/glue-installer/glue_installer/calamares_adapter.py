@@ -1,4 +1,4 @@
-"""Calamares adaptor (roadmap 10.3, ADR-023): Glue steps over a mounted root.
+"""Calamares adaptor: Glue steps over a mounted root.
 
 Pure module: no subprocess, no filesystem access, no libcalamares import.
 Calamares owns partitioning, mkfs, mounting, fstab, users, locale and the
@@ -275,7 +275,7 @@ def compile_adapter(
     0 = unknown → no swapfile. boot_spec: overrides the kernel/cmdline
     derived from the catalog + plan. other_os: osdetect result from the
     live side (main.py runs os-prober); None = no foreign entries.
-    Raises AdapterError (also for PlanError) — messages carry no secrets.
+    Raises AdapterError (also for PlanError) - messages carry no secrets.
     """
     t = check_root_mount(root_mount, is_mount)
     if firmware not in FIRMWARES:

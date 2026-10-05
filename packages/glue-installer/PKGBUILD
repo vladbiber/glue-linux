@@ -10,7 +10,7 @@ depends=('python' 'artools-base' 'gptfdisk' 'dosfstools' 'e2fsprogs'
          'grub' 'efibootmgr' 'util-linux')
 optdepends=('chafa: previews session screenshots in the TUI (P key)')
 # glue-install launcher and pacman.conf are staged next to this PKGBUILD
-# by scripts/make-iso.sh — makepkg won't resolve ../../ relative source paths.
+# by scripts/make-iso.sh - makepkg won't resolve ../../ relative source paths.
 source=('glue-install'
         'pacman.conf')
 sha256sums=('SKIP' 'SKIP')
@@ -33,7 +33,7 @@ package() {
     install -Dm644 "$startdir/catalog/catalog.json" \
         "$pkgdir/usr/share/glue-installer/catalog/catalog.json"
 
-    # Screenshots (may be empty directory — tolerate gracefully)
+    # Screenshots (may be empty directory - tolerate gracefully)
     if [ -d "$startdir/catalog/screenshots" ]; then
         find "$startdir/catalog/screenshots" -type f | while read -r f; do
             rel="${f#$startdir/catalog/screenshots/}"

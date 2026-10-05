@@ -1,7 +1,7 @@
 """
 Executor layer for Glue Linux installer.
 
-ADR-4: pure step compiler (compile_steps) + thin runner (execute).
+Pure step compiler (compile_steps) + thin runner (execute).
 No subprocess or filesystem access at import time or inside compile_steps.
 """
 
@@ -66,7 +66,7 @@ def keyring_steps() -> List[Step]:
     """Host-side pacman keyring preparation; must run BEFORE basestrap.
 
     The live ISO ships the cachyos-keyring PACKAGE, but installing it only
-    drops the keys under /usr/share/pacman/keyrings — nothing imports them
+    drops the keys under /usr/share/pacman/keyrings - nothing imports them
     into /etc/pacman.d/gnupg. basestrap verifies the [cachyos] database
     signature with the HOST keyring, so without this populate step every
     online install fails with:
@@ -93,8 +93,7 @@ def bootstrap_steps(
     """The Glue "pacstrap": ONE basestrap of plan.packages into target (pure).
 
     No disk steps, no fstabgen: compile_steps wraps this between the disk
-    preparation and the fstab step; the Calamares adaptor (10.3,
-    calamares_adapter.py) calls it on the root Calamares already mounted.
+    preparation and the fstab step; the Calamares adaptor calls it on the root Calamares already mounted.
     pacman_conf: staged live pacman.conf for `basestrap -C` (None: default).
     extra_packages: merged (sorted, deduplicated) into the set, e.g. the
     bootloader packages; None keeps plan.packages exactly as given.
@@ -176,11 +175,11 @@ def compile_steps(
 
     steps.extend(config_steps(plan, target=target, init_id=init_id))
 
-    # 5b. Early CPU microcode needs the `microcode` hook (roadmap 10.8 b)
+    # 5b. Early CPU microcode needs the `microcode` hook
     from glue_installer.hw_compat import microcode_hook_steps
     steps.extend(microcode_hook_steps(plan.packages, t, plan.files))
 
-    # 6. Bootloader (only when a DiskPlan is provided) — always last
+    # 6. Bootloader (only when a DiskPlan is provided) - always last
     if disk_plan is not None:
         steps.extend(bootloader_steps(disk_plan, boot, target=target))
 
@@ -203,8 +202,8 @@ def config_steps(
     In order: WriteTargetFile for every plan.files entry, one enable step per
     plan.services entry (symlink per init), then the ModemManager D-Bus
     activation guard. compile_steps appends exactly these after fstab;
-    clone.clone_steps reuses them on the rsync'd live system (roadmap 3.6)
-    and the Calamares adaptor (10.3) will call them on its own target.
+    clone.clone_steps reuses them on the rsync'd live system
+    and the Calamares adaptor will call them on its own target.
 
     only_if_present=True (clone): the service script may be missing on the
     target (nothing was basestrap'ed), so each enable becomes a guarded
@@ -228,7 +227,7 @@ def config_steps(
             description=f"Write {pf.path}",
         ))
 
-    # 4. Enable services — argv depends on init_id
+    # 4. Enable services - argv depends on init_id
     src_dir, dst_dir = _SERVICE_LINKS[init_id]
     for svc in plan.services:
         isvc = _INIT_SERVICE_NAMES[init_id].get(svc, svc)
@@ -283,15 +282,15 @@ def execute(
 ) -> None:
     """Execute steps in order.
 
-    dry_run=True  — logs 'DRY-RUN: <description>' per step; zero subprocess
+    dry_run=True  - logs 'DRY-RUN: <description>' per step; zero subprocess
                     calls and zero filesystem writes.
-    dry_run=False — runs each step; raises ExecutorError on first failure,
+    dry_run=False - runs each step; raises ExecutorError on first failure,
                     chaining the original exception and embedding the step
                     description in the message.
-    progress      — optional callback(step_index, total, description), invoked
+    progress      - optional callback(step_index, total, description), invoked
                     before each step (real runs only). Lets the UI draw a
                     progress bar instead of raw subprocess output.
-    output_path   — optional log file path; when set, each RunCommand's
+    output_path   - optional log file path; when set, each RunCommand's
                     stdout/stderr is appended there instead of inheriting the
                     console (so a progress bar isn't painted over).
     """
@@ -329,7 +328,7 @@ def _run_step(step: Step, out_fh) -> None:
         try:
             result = subprocess.run(step.argv, **kwargs)
         except OSError as exc:
-            # e.g. FileNotFoundError for a missing binary — fail with the
+            # e.g. FileNotFoundError for a missing binary - fail with the
             # step description instead of an unhandled traceback
             raise ExecutorError(
                 f"Command could not start ({exc}): {step.description}"

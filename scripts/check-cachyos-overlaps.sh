@@ -1,12 +1,12 @@
 #!/bin/bash
-# check-cachyos-overlaps.sh — Audit [cachyos] vs Artix repo package overlaps.
+# check-cachyos-overlaps.sh - Audit [cachyos] vs Artix repo package overlaps.
 #
 # Downloads real pacman DB files, finds packages whose NAME appears in both
 # [cachyos] and at least one Artix repo (system/world/galaxy/lib32), then for
 # each overlap checks whether the [cachyos] variant lists a systemd* package
 # in its %DEPENDS% section.
 #
-# Output: one line per overlap — name, versions, CLEAN or SYSTEMD marker.
+# Output: one line per overlap - name, versions, CLEAN or SYSTEMD marker.
 # Exit 0: no SYSTEMD overlaps.
 # Exit 1: at least one SYSTEMD overlap found (use as a guardian in CI).
 #
@@ -22,7 +22,7 @@ TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 
 # ---------------------------------------------------------------------------
-# fetch_db <url> <destdir>  — download and extract a pacman .db tarball
+# fetch_db <url> <destdir>  - download and extract a pacman .db tarball
 # Downloads to a temp file first to avoid SIGPIPE from tar closing early.
 # ---------------------------------------------------------------------------
 fetch_db() {
@@ -36,7 +36,7 @@ fetch_db() {
 }
 
 # ---------------------------------------------------------------------------
-# get_field <desc_file> <FIELDNAME>  — print all lines under %FIELDNAME%
+# get_field <desc_file> <FIELDNAME>  - print all lines under %FIELDNAME%
 # Stops at the next %SECTION% or blank line (pacman DB format).
 # ---------------------------------------------------------------------------
 get_field() {

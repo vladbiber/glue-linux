@@ -24,7 +24,7 @@ _TZ_ENDPOINTS = (
 
 def report_no_disks(hw, stream=None, wait=None) -> str:
     """Print the storage hint where the disk screen would have been skipped
-    silently (roadmap 10.8 c) and wait for Enter on a terminal. `wait` is
+    silently and wait for Enter on a terminal. `wait` is
     injectable; returns the printed text."""
     from glue_installer.hw_compat import storage_hint
     stream = stream or sys.stderr
@@ -42,7 +42,7 @@ def report_no_disks(hw, stream=None, wait=None) -> str:
 
 def detect_timezone(fetch=None) -> "str | None":
     """Best-effort GeoIP timezone ("Europe/Bucharest") for the identity
-    default — the wizard still shows and lets the user change it. Returns
+    default - the wizard still shows and lets the user change it. Returns
     None offline/on bad data; never raises. `fetch` is injectable for tests."""
     from glue_installer.identity import _RE_TIMEZONE
 
@@ -83,7 +83,7 @@ def autodetect_spec_timezone(spec, detect=None):
 
 
 # The live ISO has no NTP daemon, so its clock is whatever the RTC said at
-# boot — on machines whose RTC holds LOCAL time (BIOS default, Windows dual
+# boot - on machines whose RTC holds LOCAL time (BIOS default, Windows dual
 # boot) that is hours off. identity_steps later runs `hwclock --systohc`,
 # which would write the wrong time back to the RTC and hand the installed
 # system a wrong clock on every boot. Threshold below which we leave the

@@ -1,5 +1,5 @@
 #!/usr/bin/openrc-run
-# scx — sched_ext userspace CPU scheduler, supervised by supervise-daemon.
+# scx - sched_ext userspace CPU scheduler, supervised by supervise-daemon.
 # Config is shared across the inits in /etc/default/scx (not /etc/conf.d).
 description="sched_ext userspace CPU scheduler"
 

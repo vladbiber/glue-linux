@@ -1,6 +1,6 @@
 #!/bin/bash
-# bar-runtime-check.sh — probe, headless in the build container, that the
-# gluewc bar's runtime really answers (roadmap 5.9), for glueqs and Noctalia.
+# bar-runtime-check.sh - probe, headless in the build container, that the
+# gluewc bar's runtime really answers, for glueqs and Noctalia.
 #
 #   sh scripts/bar-runtime-check.sh [glueqs|noctalia|all]
 #
@@ -26,7 +26,7 @@
 #   gluewc-msg       `gluewc-msg status` answers while the shell runs
 #   shell-alive      shell process alive after the start-up window
 #   notifications    the shell owns org.freedesktop.Notifications on the
-#                    session bus (both shells ship a server, ADR-020)
+#                    session bus (both shells ship a server)
 #   portal-ping      org.freedesktop.portal.Desktop is D-Bus activated
 set -u
 
@@ -143,7 +143,7 @@ record() { # record NAME PASS|FAIL "detail"
 "
     [ "$2" != FAIL ] || FAILED=$((FAILED + 1))
 }
-probe() { # probe NAME cmd... — PASS when the command exits 0
+probe() { # probe NAME cmd... - PASS when the command exits 0
     local name=$1 out rc; shift
     out=$("$@" 2>&1); rc=$?
     if [ $rc -eq 0 ]; then record "$name" PASS "$(echo "$out" | head -n1 | cut -c1-60)"
@@ -170,7 +170,7 @@ wayland_socket_ready() {
     done
     return 1
 }
-name_owned() { # name_owned NAME — true when NAME has an owner on the session bus
+name_owned() { # name_owned NAME - true when NAME has an owner on the session bus
     dbus-send --session --print-reply --dest=org.freedesktop.DBus /org/freedesktop/DBus \
         org.freedesktop.DBus.GetNameOwner string:"$1" >/dev/null 2>&1
 }

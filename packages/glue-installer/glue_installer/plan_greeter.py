@@ -242,7 +242,7 @@ fi
 """
 
 # Software rendering is a LAST resort: unconditionally allowing it let wlroots
-# fall back to llvmpipe on machines whose GPU merely mis-probed once — the
+# fall back to llvmpipe on machines whose GPU merely mis-probed once - the
 # session "worked" but every client (quickshell most visibly) burned half a
 # core repainting on the CPU. Only allow the fallback when the machine truly
 # has no DRM render node (VM without virgl, exotic GPU).
@@ -309,7 +309,7 @@ def _portal_file(session: Session) -> Optional[PlannedFile]:
 
 
 # XWayland note (learned the hard way): NEVER export DISPLAY before the
-# compositor starts — wlroots compositors and mutter auto-detect a set
+# compositor starts - wlroots compositors and mutter auto-detect a set
 # DISPLAY as "run nested inside X11" and die with "Failed to open xcb
 # connection / couldn't create backend" on a real VT. X11 apps work through
 # each compositor's OWN integration instead: built-in XWayland (gluewc,

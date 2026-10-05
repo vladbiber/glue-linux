@@ -2,7 +2,7 @@
 # `filesystem` package, so we can't ship them as package files (pacman file
 # conflict). Instead we carry the content under /usr/share/glue and copy it
 # into place from a scriptlet, which runs in-chroot during both the ISO build's
-# basestrap and the installer's basestrap — no ownership conflict.
+# basestrap and the installer's basestrap - no ownership conflict.
 
 _apply() {
     install -Dm644 /usr/share/glue/os-release /usr/lib/os-release

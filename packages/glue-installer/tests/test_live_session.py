@@ -1,4 +1,4 @@
-"""Live tty1 choice (roadmap 10.1): decide() table, script parity, profile wiring."""
+"""Live tty1 choice: decide() table, script parity, profile wiring."""
 
 import os
 import re

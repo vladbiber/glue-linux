@@ -7,7 +7,7 @@ screen-by-screen wizard producing a plan.Selection. Screen sequence:
   support -> gaming -> [scheduler] -> [diskmode, disk/partition, swap,
   [hibernate]] -> [form:*] -> summary
 Minimal mode skips sessions/shell/gaming; offline mode (allow_offline on the
-network screen, roadmap 3.6) skips mode/kernel/init/sessions/gaming/scheduler
+network screen) skips mode/kernel/init/sessions/gaming/scheduler
 and clones the live system (stock kernel, runit, default session).
 """
 
@@ -106,7 +106,7 @@ class Wizard:
         self._network_status = str(status)
 
     def prefill_timezone(self, tz) -> bool:
-        # GeoIP tz from the driver — see ui_forms.prefill_timezone_field
+        # GeoIP tz from the driver - see ui_forms.prefill_timezone_field
         return prefill_timezone_field(self._forms, tz)
 
     def set_partitions(self, partitions) -> None:
@@ -195,7 +195,7 @@ class Wizard:
                 raise ValidationError(error)
 
     def allow_offline(self) -> None:
-        """Offline install (3.6): clone the live system instead of basestrap.
+        """Offline install: clone the live system instead of basestrap.
         Only on the network screen. Fixes the live kernel/init and the default
         session (its first shell preselected); gaming/other desktops need the
         online path. The network check no longer blocks afterwards."""
@@ -317,7 +317,7 @@ class Wizard:
         elif screen.key == "support":
             self._support_ids.symmetric_difference_update({item_id})
 
-    # -- form text input (ADR-8) ---------------------------------------------
+    # -- form text input ---------------------------------------------
 
     def _current_form(self) -> FormField:
         key = self._current_key

@@ -1,6 +1,6 @@
 # Maintainer: Glue Linux
 # matugen is AUR-only upstream; the imperative-qs bar uses it for Material
-# color theming. Upstream publishes a prebuilt x86_64 binary — repack it.
+# color theming. Upstream publishes a prebuilt x86_64 binary - repack it.
 pkgname=matugen
 pkgver=4.1.0
 pkgrel=1

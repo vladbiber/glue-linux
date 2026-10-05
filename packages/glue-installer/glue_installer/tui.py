@@ -1,5 +1,5 @@
 """
-Thin curses driver for the Glue Linux installer (ADR-5).
+Thin curses driver for the Glue Linux installer.
 
 The ONLY module that imports curses. It contains no business logic and no
 knowledge of catalog contents: it maps key presses to ui_model events,
@@ -223,7 +223,7 @@ def _loop(stdscr, wizard: Wizard, hooks: dict) -> Optional[WizardResult]:
             if _confirm_quit(stdscr):
                 return None
         elif screen.key == "network" and key in (ord("o"), ord("O")):
-            try:  # offline clone of the live system (3.6); straight on
+            try:  # offline clone of the live system; straight on
                 wizard.allow_offline()
                 wizard.next()
                 cursor = 0
@@ -235,7 +235,7 @@ def _loop(stdscr, wizard: Wizard, hooks: dict) -> Optional[WizardResult]:
                 if hooks.get("net_check"):
                     _set_net_status(hooks["net_check"]())
         elif screen.kind == "form":
-            # Printable characters are text input here — including b/q/space.
+            # Printable characters are text input here - including b/q/space.
             if key in (curses.KEY_BACKSPACE, 127, 8):
                 wizard.backspace()
             elif key == curses.KEY_LEFT:

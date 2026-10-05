@@ -387,7 +387,7 @@ class TestPlanExistingPartition(unittest.TestCase):
         esp = next(p for p in plan.partitions if p.mountpoint == "/boot")
         root = next(p for p in plan.partitions if p.mountpoint == "/")
         self.assertEqual(esp.path, "/dev/sda1")
-        self.assertEqual(esp.filesystem, "")   # reuse — never reformatted
+        self.assertEqual(esp.filesystem, "")   # reuse - never reformatted
         self.assertEqual(root.path, "/dev/sda3")
         self.assertEqual(root.filesystem, "ext4")
 

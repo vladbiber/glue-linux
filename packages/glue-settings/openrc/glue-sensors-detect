@@ -1,5 +1,5 @@
 #!/usr/bin/openrc-run
-# glue-sensors-detect — one-shot sensor detection at first boot
+# glue-sensors-detect - one-shot sensor detection at first boot
 description="Glue Linux sensor detection (oneshot)"
 
 depend() {

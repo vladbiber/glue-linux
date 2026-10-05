@@ -1,5 +1,5 @@
 #!/bin/sh
-# game-performance — run a command under the 'performance' power profile
+# game-performance - run a command under the 'performance' power profile
 # (CachyOS port; a shell trap replaces the upstream inhibitor). Restores
 # the previous profile on exit, whatever way the command ends.
 if [ "$#" -eq 0 ]; then

@@ -10,8 +10,8 @@
 # writes is the one limine_conf() in the installer produces, byte for byte.
 #
 # Other operating systems: every /etc/glue/boot.d/*.conf (written by the
-# installer from os-prober, roadmap 3.4) is a ready limine.conf fragment —
-# one entry per file, a `# ...` comment line then `/Title` — appended after
+# installer from os-prober) is a ready limine.conf fragment -
+# one entry per file, a `# ...` comment line then `/Title` - appended after
 # all kernel entries in LC_ALL=C order, each preceded by one blank line.
 # Empty files and files whose first non-blank line is not '#' or '/' are
 # skipped with a warning. Drop a file there (or delete one) and re-run.

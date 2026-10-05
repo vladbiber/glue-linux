@@ -1,4 +1,4 @@
-"""Tests for the Glue alacritty config and the termfont script (Faza 8.1)."""
+"""Tests for the Glue alacritty config and the termfont script."""
 
 import os
 import re
@@ -14,7 +14,6 @@ _PKG_ROOT = Path(__file__).parent.parent
 _BRANDING = _PKG_ROOT.parent / "glue-branding"
 _TOML = _BRANDING / "alacritty.toml"
 _TERMFONT = _BRANDING / "termfont"
-_ORCH_TOML = _PKG_ROOT.parent.parent / ".orchestrator" / "ALACRITTY.toml"
 sys.path.insert(0, str(_PKG_ROOT))
 
 
@@ -41,11 +40,6 @@ class TestAlacrittyToml(unittest.TestCase):
             self.assertEqual(x["command"]["program"], "termfont")
         self.assertEqual([x["command"]["args"] for x in b],
                          [["alacritty", "+1"], ["alacritty", "-1"], ["alacritty", "reset"]])
-
-    def test_identical_to_orchestrator_copy(self):
-        if not _ORCH_TOML.exists():
-            self.skipTest(".orchestrator not on disk")
-        self.assertEqual(_code_lines(_TOML), _code_lines(_ORCH_TOML))
 
     def test_comments_are_english(self):
         self.assertIsNone(re.search(r"[ăâîșț]", _TOML.read_text()))
@@ -141,7 +135,7 @@ class TestFastfetchInBranding(unittest.TestCase):
 
 
 class TestTerminalCheckScript(unittest.TestCase):
-    """scripts/terminal-check.sh (Faza 8.3) exists and is well-formed."""
+    """scripts/terminal-check.sh exists and is well-formed."""
     _SCRIPT = _PKG_ROOT.parent.parent / "scripts" / "terminal-check.sh"
 
     def test_exists_executable_small(self):

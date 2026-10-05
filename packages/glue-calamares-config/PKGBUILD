@@ -1,5 +1,5 @@
 # Maintainer: Glue Linux
-# Calamares configuration for Glue Linux (roadmap 10.3, ADR-023): sequence,
+# Calamares configuration for Glue Linux: sequence,
 # generated selection pages, glueinstall/gluefstab job modules and branding.
 pkgname=glue-calamares-config
 pkgver=0.2.0
@@ -36,7 +36,7 @@ package() {
     for f in "$startdir"/modules/gluechoice/*; do
         install -Dm644 "$f" "$cfg/branding/glue/$(basename "$f")"
     done
-    # Launcher (live-only, ADR-023): elevates Calamares with pkexec
+    # Launcher (live-only): elevates Calamares with pkexec
     install -Dm755 "$startdir/glue-install-gui" "$pkgdir/usr/bin/glue-install-gui"
     install -Dm644 "$startdir/glue-install-gui.desktop" \
         "$pkgdir/usr/share/applications/glue-install-gui.desktop"

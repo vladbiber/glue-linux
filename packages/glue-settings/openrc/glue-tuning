@@ -1,5 +1,5 @@
 #!/usr/bin/openrc-run
-# glue-tuning — one-shot THP tuning at boot
+# glue-tuning - one-shot THP tuning at boot
 description="Glue Linux THP tuning (oneshot)"
 
 depend() {

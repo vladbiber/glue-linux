@@ -1,4 +1,4 @@
-"""Automatic swap sizing (roadmap Phase 4): pure rules, no I/O.
+"""Automatic swap sizing: pure rules, no I/O.
 
 zramen env keys (verified against upstream
 https://raw.githubusercontent.com/atweiden/zramen/master/zramen):

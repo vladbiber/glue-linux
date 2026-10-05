@@ -243,7 +243,7 @@ class TestSummaryScreen(unittest.TestCase):
         text = _joined(render_screen(w.current_screen(), 0, 120, 60))
         self.assertIn("Kernel: CachyOS Kernel", text)
         self.assertIn("Init: dinit", text)
-        # EVERY selected session shows up in the summary (5.1b)
+        # EVERY selected session shows up in the summary
         self.assertIn("Session: gluewc + glueqs (shell: glueqs)", text)
         self.assertIn("Session: nvwm", text)
         self.assertIn("Gaming Mode: on", text)

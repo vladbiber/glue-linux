@@ -1,6 +1,6 @@
 #!/bin/bash
-# terminal-check.sh — probe, headless in the build container, that opening
-# alacritty runs fastfetch with the Glue logo, fast enough (roadmap 8.3).
+# terminal-check.sh - probe, headless in the build container, that opening
+# alacritty runs fastfetch with the Glue logo, fast enough.
 #
 #   sh scripts/terminal-check.sh
 #
@@ -52,7 +52,7 @@ host_main() {
 }
 
 # ------------------------------------------------------------- container ----
-build_local() { # build_local NAME — makepkg as builder, then pacman -U (same recipe as bar-runtime-check.sh)
+build_local() { # build_local NAME - makepkg as builder, then pacman -U (same recipe as bar-runtime-check.sh)
     local name=$1 pkg
     log "building $name with makepkg"
     rm -r -f "/tmp/build-$name"
@@ -65,7 +65,7 @@ build_local() { # build_local NAME — makepkg as builder, then pacman -U (same 
     pacman -U --noconfirm --needed "$pkg" >/dev/null
 }
 
-plan_content() { # plan_content _BASHRC_CONTENT — the REAL string from plan.py
+plan_content() { # plan_content _BASHRC_CONTENT - the REAL string from plan.py
     PYTHONPATH=/glue/packages/glue-installer python3 -c \
         "import sys; from glue_installer import plan; sys.stdout.write(plan.$1)"
 }
@@ -211,7 +211,7 @@ clients() { # toplevel clients over all tags: field 4 of `gluewc-msg status` is 
 
 client_added() { [ "$(clients)" -gt "$1" ]; }
 
-run_alacritty_log() { # run_alacritty_log LOGFILE — start alacritty -vv briefly, kill it
+run_alacritty_log() { # run_alacritty_log LOGFILE - start alacritty -vv briefly, kill it
     local pid
     alacritty -vv -e sleep 8 >"$1" 2>&1 &
     pid=$!
@@ -231,7 +231,7 @@ probe_alacritty_config() {
     else record alacritty-xdg-config FAIL "$detail"; fi
 }
 
-check_png() { # check_png FILE — rc 0 when 1920x1080, >300 colors, both amber tones
+check_png() { # check_png FILE - rc 0 when 1920x1080, >300 colors, both amber tones
     python3 - "$1" <<'PY'
 import sys
 from PIL import Image

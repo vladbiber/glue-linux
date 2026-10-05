@@ -5,7 +5,7 @@ Pure logic layer: no I/O, no subprocess, no filesystem access.
 Turns a Catalog + Selection into a deterministic InstallPlan.
 
 Warning order (documented, fixed):
-  1. "Multiple sessions installed — pick your session at the login screen"
+  1. "Multiple sessions installed - pick your session at the login screen"
      (only when >= 2 sessions selected)
   2. "GPU driver auto-detection will run on the target system during install"
      (only when gaming=True and catalog.gaming.gpu_autodetect is True)
@@ -40,7 +40,7 @@ esac
 """
 
 _ZSHRC_CONTENT = """\
-# ~/.zshrc — Glue Linux
+# ~/.zshrc - Glue Linux
 # Oh My Zsh is preinstalled for graphical sessions; minimal installs still work.
 [[ -r /usr/share/glue/zshrc ]] && source /usr/share/glue/zshrc
 # Run fastfetch on interactive shell start
@@ -73,7 +73,7 @@ _ALWAYS_PACKAGES = frozenset({
     "wpa_supplicant", "openresolv",
     # os-prober is NOT installed on the target: it runs on the live side only
     # (iso-profile) and its results become /etc/glue/boot.d/*.conf
-    # (glue_installer.osdetect, roadmap 3.4) that glue-boot-update keeps.
+    # (glue_installer.osdetect) that glue-boot-update keeps.
     # NTP client: the live clock is synced before install (run_ui.sync_clock);
     # openntpd keeps the INSTALLED system's clock right from first boot on.
     "openntpd",
@@ -89,7 +89,7 @@ _ALWAYS_PACKAGES = frozenset({
 _DESKTOP_PACKAGES = frozenset({
     "xorg-server", "xorg-xinit", "xorg-xrandr", "xorg-xsetroot",
     "xorg-xwayland",
-    # explicit GL/EGL userspace — Wayland compositors hard-require it
+    # explicit GL/EGL userspace - Wayland compositors hard-require it
     "mesa",
     # Qt apps (quickshell shells, KDE bits) must run natively on Wayland;
     # without the platform plugin they fall back to XCB or software paths
@@ -98,7 +98,7 @@ _DESKTOP_PACKAGES = frozenset({
     # works without systemd) and silences the mod.rt warning spam on the VT
     "rtkit",
     # universal terminal: several WM default configs (gluewc notably) bind
-    # alacritty out of the box — every session gets a working terminal keybind
+    # alacritty out of the box - every session gets a working terminal keybind
     "alacritty", "glue-zsh", "ttf-liberation",   # liberation = the font of the shipped alacritty.toml
     "pipewire", "wireplumber", "pipewire-pulse", "pipewire-alsa",
     "noto-fonts", "noto-fonts-emoji", "ttf-dejavu", "ttf-jetbrains-mono",
@@ -138,7 +138,7 @@ _SERVICE_PKG_BASE = {
 # Per-init zramen config paths live in swap.py (single definition).
 _ZRAMEN_CONF = ZRAMEN_CONF
 
-# Rule 15 (roadmap 1.4): sched_ext CPU scheduler on gaming installs.
+# Rule 15: sched_ext CPU scheduler on gaming installs.
 # scx-scheds is a vendored [glue] package that ships its own dinit/runit/
 # openrc `scx` service scripts (like glue-settings), so it deliberately has
 # NO _SERVICE_PKG_BASE entry. The package default (/etc/default/scx) is
@@ -196,7 +196,7 @@ def resolve_plan(
         raise PlanError(f"Unknown init_id: '{selection.init_id}'")
     packages.update(init_map[selection.init_id].packages)
 
-    # Rule 3: minimal constraints — sessions, shell_choice, and gaming must be absent
+    # Rule 3: minimal constraints - sessions, shell_choice, and gaming must be absent
     if selection.minimal:
         if selection.session_ids:
             raise PlanError("minimal install cannot include sessions")
@@ -292,7 +292,7 @@ def resolve_plan(
                 f"GPU detected: {detected} — installing {', '.join(gpu_pkgs)}"
             )
 
-    # Rule 15: sched_ext scheduler (roadmap 1.4) — gaming installs only
+    # Rule 15: sched_ext scheduler - gaming installs only
     if selection.gaming:
         allowed = ({o.id for o in catalog.gaming.schedulers}
                    if catalog.gaming.schedulers else _SCX_KNOWN_SCHEDULERS)
@@ -302,7 +302,7 @@ def resolve_plan(
             packages.add("scx-scheds")
             services.add("scx")
 
-    # Rule 17 (roadmap 1.11): thermal management and laptop power tuning.
+    # Rule 17: thermal management and laptop power tuning.
     # thermald: Intel-only thermal daemon (AMD has its own firmware path).
     # power-profiles-daemon + lm_sensors + glue-sensors-detect: on any laptop
     # (BAT* present), even without sessions or gaming (Rule 10 handles init pkgs).
@@ -324,7 +324,7 @@ def resolve_plan(
         packages.add("glue-settings")
         services.add("glue-tuning")
 
-    # Rule 14: zram via zramen on every install (roadmap 1.2).
+    # Rule 14: zram via zramen on every install.
     # zramen-{init_id} is pulled in automatically by Rule 10 below.
     packages.add("zramen")
     services.add("zramen")
@@ -344,20 +344,20 @@ def resolve_plan(
     services.update({"dbus", "elogind", "openntpd"})
     if selection.session_ids:
         packages.update(_DESKTOP_PACKAGES)
-        # performance modes need the daemon RUNNING, not just installed —
+        # performance modes need the daemon RUNNING, not just installed -
         # D-Bus activation alone is unreliable without systemd
         services.add("power-profiles-daemon")
-        # bar runtime of WM sessions (roadmap 5.9): upower, brightnessctl,
+        # bar runtime of WM sessions: upower, brightnessctl,
         # playerctl, libnotify; wl-clipboard + wlr/gtk portals on Wayland
         packages.update(session_runtime_packages(
             session_map[sid] for sid in selection.session_ids))
         # Per-vendor GPU driver stack (mesa always; NVIDIA module+userspace
-        # when detected) — sessions need working EGL, not just the gaming mode
+        # when detected) - sessions need working EGL, not just the gaming mode
         if gpu_vendors is not None:
             from glue_installer.gpu import session_gpu_packages
             packages.update(session_gpu_packages(gpu_vendors))
 
-    # Rule 18 (roadmap 10.8): hardware compatibility packages and warnings
+    # Rule 18: hardware compatibility packages and warnings
     if hw is not None:
         from glue_installer.hw_compat import apply_hw
         warnings.extend(apply_hw(
@@ -370,7 +370,7 @@ def resolve_plan(
         if base is not None:
             packages.add(f"{base}-{selection.init_id}")
 
-    # Rule 16 (roadmap 1.7): [cachyos-v3] repo when CPU supports x86-64-v3
+    # Rule 16: [cachyos-v3] repo when CPU supports x86-64-v3
     # and the CachyOS kernel is selected (the v3 packages are built for it).
     v3_active = cpu_v3 and selection.kernel_id == "linux-cachyos"
     if v3_active:
@@ -382,7 +382,7 @@ def resolve_plan(
                     content=_build_target_pacman_conf(v3_active), mode=0o644),
     ] + list(_BASELINE_FILES)
     if not tuned:
-        # server-like install has no glue-settings — keep the quiet console
+        # server-like install has no glue-settings - keep the quiet console
         # sysctl as a standalone fallback file
         files.append(PlannedFile(
             path="/etc/sysctl.d/20-glue-quiet.conf",

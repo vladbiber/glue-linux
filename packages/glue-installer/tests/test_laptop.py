@@ -1,5 +1,5 @@
 """
-Tests for Faza 1.11: laptop thermal management, CPU vendor detection,
+Tests for: laptop thermal management, CPU vendor detection,
 amd_pstate, sensors-detect oneshot, and game-performance restore contract.
 """
 

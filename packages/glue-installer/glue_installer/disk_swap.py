@@ -1,4 +1,4 @@
-"""Swap on the target disk (roadmap 4.3): layout, mkswap/swapon steps, RAM.
+"""Swap on the target disk: layout, mkswap/swapon steps, RAM.
 
 Pure except read_ram_bytes (reads /proc/meminfo) and staged_pacman_conf
 (writes a temp file). Disk layout reuses disks.plan_disk for validation.

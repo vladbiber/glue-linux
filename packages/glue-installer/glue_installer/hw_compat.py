@@ -1,11 +1,11 @@
 """
 Hardware compatibility: NVIDIA driver branch by GPU generation, Broadcom `wl`,
-audio firmware, firmware updates and CPU microcode (roadmap 10.8 a/d/e/f).
+audio firmware, firmware updates and CPU microcode.
 
 Package names verified 2026-10-04 against the real repo DBs (system, world,
 galaxy, lib32, cachyos):
-  world   nvidia-open-dkms/nvidia-utils 615.71, nvidia-580xx-dkms and
-          nvidia-580xx-utils 580.178.04, broadcom-wl-dkms, sof-firmware,
+  world   nvidia-open-dkms/nvidia-utils, nvidia-580xx-dkms and
+          nvidia-580xx-utils 580.broadcom-wl-dkms, sof-firmware,
           alsa-ucm-conf, intel-ucode, fwupd, egl-wayland
   lib32   lib32-nvidia-utils, lib32-nvidia-580xx-utils
   galaxy  libva-nvidia-driver
@@ -28,7 +28,7 @@ Microcode is installed on every install, servers included: CPU security fixes
 matter everywhere (the default mkinitcpio.conf has the `microcode` hook).
 fwupd is activated on demand, so no service is enabled.
 
-Intel VMD (10.8 b/c): the PCI ids below are the ones in the kernel's
+Intel VMD: the PCI ids below are the ones in the kernel's
 drivers/pci/controller/vmd.c vmd_ids[] (read from torvalds/linux master,
 2026-10-04). With VMD on, NVMe disks sit behind the controller and only show
 up once the `vmd` module is loaded, so the initramfs gets it via a
