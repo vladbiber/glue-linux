@@ -41,6 +41,9 @@ CheckSpace
 ParallelDownloads = 5
 SigLevel    = Required DatabaseOptional
 LocalFileSigLevel = Optional
+# [cachyos] heroic-games-launcher replaces heroic-games-launcher-bin but
+# needs electron43, which none of these repos has: it stopped every update
+IgnorePkg   = heroic-games-launcher
 
 [system]
 Include = /etc/pacman.d/mirrorlist
