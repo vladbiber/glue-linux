@@ -161,3 +161,18 @@ class TestPortalConfig(unittest.TestCase):
         with self.assertRaises(ValueError):
             _portal_file(wm)
         self.assertIsNone(_portal_file(self.sessions["kde-plasma"]))
+
+
+class TestWmDefaultApps(unittest.TestCase):
+    def test_wm_sessions_get_desktop_specific_mimeapps(self):
+        from pathlib import Path as _P
+        from glue_installer.catalog import load_catalog as _load
+        from glue_installer.plan_greeter import _mimeapps_file
+        cat = _load(_P(__file__).parent.parent / "catalog" / "catalog.json")
+        by_id = {s.id: s for s in cat.sessions}
+        glue = _mimeapps_file(by_id["gluewc"])
+        self.assertEqual(glue.path, "/etc/xdg/gluewc-mimeapps.list")
+        self.assertIn("inode/directory=org.gnome.Nautilus.desktop", glue.content)
+        self.assertIn("video/mp4=io.github.celluloid_player.Celluloid.desktop", glue.content)
+        self.assertEqual(_mimeapps_file(by_id["nvwm"]).path, "/etc/xdg/nvwm-mimeapps.list")
+        self.assertIsNone(_mimeapps_file(by_id["kde-plasma"]))

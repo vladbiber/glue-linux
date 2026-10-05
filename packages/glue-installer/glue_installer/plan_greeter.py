@@ -267,6 +267,31 @@ org.freedesktop.impl.portal.Screenshot=wlr
 """
 
 
+# Default apps for the bare WM sessions, read only when XDG_CURRENT_DESKTOP
+# is that desktop: KDE, GNOME and Cinnamon installed next to them otherwise
+# decide (Nemo for folders, feh for pictures, nothing for videos).
+_MIME_DEFAULTS = (
+    ("org.gnome.Nautilus.desktop", ("inode/directory",)),
+    ("org.gnome.Loupe.desktop", tuple(f"image/{t}" for t in (
+        "png", "jpeg", "gif", "webp", "bmp", "tiff", "svg+xml", "avif", "heic"))),
+    ("io.github.celluloid_player.Celluloid.desktop", tuple(f"video/{t}" for t in (
+        "mp4", "x-matroska", "webm", "quicktime", "x-msvideo", "mpeg", "ogg"))),
+    ("org.gnome.Papers.desktop", ("application/pdf",)),
+    ("firefox.desktop", ("text/html", "x-scheme-handler/http", "x-scheme-handler/https")),
+)
+
+
+def _mimeapps_file(session: Session) -> Optional[PlannedFile]:
+    if session.kind != "wm":
+        return None
+    desktop = (session.desktop or session.id).lower()
+    lines = ["# Glue Linux default apps for this session", "[Default Applications]"]
+    for app, types in _MIME_DEFAULTS:
+        lines += [f"{t}={app}" for t in types]
+    return PlannedFile(path=f"/etc/xdg/{desktop}-mimeapps.list",
+                       content="\n".join(lines) + "\n", mode=0o644)
+
+
 def _portal_file(session: Session) -> Optional[PlannedFile]:
     """Portal backend selection for a Wayland WM session, None otherwise.
     The file name uses the exact XDG_CURRENT_DESKTOP of the wrapper."""
@@ -408,6 +433,9 @@ def _greeter_files(
             ),
             mode=0o644,
         ))
+        mimeapps = _mimeapps_file(session)
+        if mimeapps is not None and all(f.path != mimeapps.path for f in files):
+            files.append(mimeapps)
         portal = _portal_file(session)
         # gluewc and gluewc-noctalia share one desktop name and one file
         if portal is not None and all(f.path != portal.path for f in files):

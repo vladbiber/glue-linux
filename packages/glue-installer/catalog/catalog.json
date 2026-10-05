@@ -117,7 +117,10 @@
         "gluewc",
         "rofi",
         "polkit-gnome",
-        "nautilus"
+        "nautilus",
+        "loupe",
+        "celluloid",
+        "papers"
       ],
       "services": [],
       "shell_choices": [
@@ -192,7 +195,10 @@
         "gluewc",
         "rofi",
         "polkit-gnome",
-        "nautilus"
+        "nautilus",
+        "loupe",
+        "celluloid",
+        "papers"
       ],
       "services": [],
       "shell_choices": [
@@ -253,7 +259,10 @@
         "rofi",
         "feh",
         "polkit-gnome",
-        "nautilus"
+        "nautilus",
+        "loupe",
+        "celluloid",
+        "papers"
       ],
       "services": [],
       "shell_choices": [],
