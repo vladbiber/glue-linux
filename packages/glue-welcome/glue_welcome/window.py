@@ -19,7 +19,7 @@ from glue_apps import i18n  # noqa: E402
 from glue_apps.config import AppsConfig  # noqa: E402
 from glue_apps.i18n import _, set_language  # noqa: E402
 from glue_apps.pages import panel, panel_row, settings_page  # noqa: E402
-from glue_apps.shell import ShellWindow  # noqa: E402
+from glue_apps.shell import use_adwaita_icons, ShellWindow  # noqa: E402
 from glue_apps.widgets import clickable, grid, label  # noqa: E402
 
 from . import live
@@ -264,6 +264,10 @@ class WelcomeApplication(Adw.Application):
         super().__init__(application_id="org.glue.Welcome",
                          flags=Gio.ApplicationFlags.DEFAULT_FLAGS)
         self.args = (config, config_path, data_root)
+
+    def do_startup(self) -> None:
+        Adw.Application.do_startup(self)
+        use_adwaita_icons()
 
     def do_activate(self) -> None:
         window = self.props.active_window or WelcomeWindow(self, *self.args)

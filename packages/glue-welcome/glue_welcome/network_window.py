@@ -318,6 +318,13 @@ class NetworkApplication(Adw.Application):
         self.installer = installer
         self.close_when_online = close_when_online
 
+    def do_startup(self) -> None:
+        Adw.Application.do_startup(self)
+        # our symbolic icons are Adwaita's (a KDE install sets breeze for GTK)
+        settings = Gtk.Settings.get_default()
+        if settings is not None:
+            settings.props.gtk_icon_theme_name = "Adwaita"
+
     def do_activate(self) -> None:
         window = self.props.active_window or NetworkWindow(self)
         window.present()

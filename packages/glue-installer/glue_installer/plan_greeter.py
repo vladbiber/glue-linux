@@ -178,6 +178,7 @@ _SHELL_AUTOSTART_TEMPLATE = """\
             for s in "${{XDG_RUNTIME_DIR:-/run/user/$(id -u)}}"/wayland-*; do
                 if [ -S "$s" ] && ! flock -n "$s.lock" true 2>/dev/null; then
                     WAYLAND_DISPLAY="${{s##*/}}"; export WAYLAND_DISPLAY
+                    find_display
                     # a shell that dies within 10 s is started again (5 times)
                     sleep 1
                     fails=0
@@ -198,12 +199,27 @@ _SHELL_AUTOSTART_TEMPLATE = """\
 """
 
 _WAIT_WAYLAND_FUNC = """\
+# The compositor's Xwayland display, from the X lock file holding its pid:
+# apps started from the bar or Welcome need it to open X11 windows.
+find_display() {
+    for l in /tmp/.X*-lock; do
+        [ -f "$l" ] || continue
+        p=$(tr -cd 0-9 < "$l")
+        [ "$(cat "/proc/$p/comm" 2>/dev/null)" = gluewc ] && [ -O "/proc/$p" ] || continue
+        n=${l#/tmp/.X}
+        DISPLAY=":${n%-lock}"; export DISPLAY
+        return 0
+    done
+    return 1
+}
+
 wait_wayland() {
     tries=0
     while [ "$tries" -lt 150 ]; do
         for s in "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"/wayland-*; do
             if [ -S "$s" ] && ! flock -n "$s.lock" true 2>/dev/null; then
                 WAYLAND_DISPLAY="${s##*/}"; export WAYLAND_DISPLAY
+                find_display
                 return 0
             fi
         done
