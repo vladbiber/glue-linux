@@ -1,15 +1,17 @@
 # Maintainer: Glue Linux
 # Built from upstream without systemd (ENABLE_SYSTEMD=OFF); Arch extra's
 # ananicy-cpp links libsystemd. Rules come from cachyos-ananicy-rules.
+# Process events come from the netlink proc connector: the BPF listener
+# fails to attach on linux-cachyos 7.2 and the daemon then segfaults.
 pkgname=ananicy-cpp
 pkgver=1.2.0
-pkgrel=1
+pkgrel=2
 pkgdesc="Auto nice daemon with community rules (C++ rewrite), with dinit/runit/openrc services"
 arch=('x86_64')
 url="https://gitlab.com/ananicy-cpp/ananicy-cpp"
 license=('GPL-3.0-or-later')
-depends=('gcc-libs' 'glibc' 'libbpf' 'libelf' 'fmt' 'spdlog' 'pcre2' 'zlib')
-makedepends=('bpf' 'clang' 'cmake' 'git' 'ninja' 'nlohmann-json')
+depends=('gcc-libs' 'glibc' 'fmt' 'spdlog' 'pcre2' 'zlib')
+makedepends=('cmake' 'git' 'ninja' 'nlohmann-json')
 optdepends=('cachyos-ananicy-rules: the rule set the daemon applies')
 source=("git+https://gitlab.com/ananicy-cpp/ananicy-cpp.git#tag=v${pkgver}"
         'ananicy-cpp.dinit'
@@ -31,7 +33,7 @@ build() {
         -DUSE_EXTERNAL_JSON=ON \
         -DUSE_EXTERNAL_FMTLIB=ON \
         -DENABLE_SYSTEMD=OFF \
-        -DUSE_BPF_PROC_IMPL=ON \
+        -DUSE_BPF_PROC_IMPL=OFF \
         -DBPF_BUILD_LIBBPF=OFF \
         -DENABLE_REGEX_SUPPORT=ON \
         -DVERSION="$pkgver"

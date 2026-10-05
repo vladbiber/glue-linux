@@ -44,7 +44,7 @@ class TestSessionWrapperPolkit(unittest.TestCase):
         content = self._wrapper("gluewc", "glueqs")
         polkit = content.index(_POLKIT)
         welcome = content.index("glue-welcome --autostart")
-        shell = content.index("exec glueqs")
+        shell = content.index("                        glueqs\n")
         self.assertLess(polkit, welcome)
         self.assertLess(welcome, shell)
         self.assertLess(polkit, content.index("exec gluewc-session"))
@@ -87,6 +87,14 @@ class TestSessionWrapperPolkit(unittest.TestCase):
         self.assertIn("(wait_wayland && [ -x /usr/bin/glue-wallpaper-init ]", content)
         self.assertNotIn("wait_wayland", self._wrapper("nvwm", None))
 
+    def test_wrapper_exports_glue_session_id(self):
+        for sid in self.sessions:
+            with self.subTest(session=sid):
+                self.assertIn(f"\nexport GLUE_SESSION={sid}\n", self._wrapper(sid))
+        twin = self._wrapper("gluewc-noctalia", "qs -c noctalia-shell")
+        self.assertIn("export XDG_CURRENT_DESKTOP=gluewc\n", twin)
+        self.assertIn("exec gluewc-session", twin)
+
     def test_plan_includes_polkit_gnome_only_for_wm_sessions(self):
         self.assertIn(
             "polkit-gnome", self._plan(["gluewc"], {"gluewc": "glueqs"}).packages)
@@ -128,6 +136,14 @@ class TestPortalConfig(unittest.TestCase):
         self.assertIn("org.freedesktop.impl.portal.Screenshot=wlr\n", conf.content)
         self.assertIn("xdg-desktop-portal-wlr", plan.packages)
         self.assertIn("xdg-desktop-portal-gtk", plan.packages)
+
+    def test_gluewc_twins_share_one_portals_conf(self):
+        plan = self._plan(["gluewc", "gluewc-noctalia"],
+                          {"gluewc": "glueqs", "gluewc-noctalia": "noctalia"})
+        files = self._portal_files(plan)
+        self.assertEqual([f.path for f in files], [f"{self._DIR}/gluewc-portals.conf"])
+        paths = [f.path for f in plan.files]
+        self.assertEqual(len(paths), len(set(paths)))
 
     def test_no_portals_conf_for_desktop_environments_or_x11(self):
         for sid in ("kde-plasma", "xfce", "gnome", "cinnamon", "nvwm"):

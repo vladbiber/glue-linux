@@ -485,7 +485,7 @@ def _expected_pre_refactor(init_id):
     """The exact step list compile_steps produced before config_steps existed."""
     src, dst, names = _LINKS[init_id]
     steps = [
-        RunCommand(argv=["basestrap", "/mnt", "pkg-a", "pkg-b"],
+        RunCommand(argv=["basestrap", "/mnt", "pkg-a", "pkg-b", "--overwrite", "boot/*"],
                    description="Install 2 packages with basestrap"),
         RunCommand(argv=["sh", "-c", "fstabgen -U /mnt >> /mnt/etc/fstab"],
                    description="Generate fstab → /mnt/etc/fstab"),

@@ -1,6 +1,6 @@
 #!/bin/sh
 # glue-live-session: tty1 of the live ISO. Starts the gluewc desktop (glueqs
-# bar + the graphical installer, then Glue Welcome) when the machine has KMS,
+# bar + Glue Welcome with the Install button) when the machine has KMS,
 # otherwise exits 10 and /etc/profile.d/glue-live.sh explains why. The rules are
 # the same as glue_installer/live_session.py (tests compare both).
 #
@@ -41,6 +41,51 @@ decide() {
     fi
 }
 
+# Early boot shows the firmware framebuffer (simpledrm); i915/amdgpu/nouveau
+# replace it a few seconds later and a compositor started on it loses its
+# screen. Wait for a PCI GPU driver to own a card (at most ~20 s).
+wait_gpu() {
+    command -v udevadm >/dev/null 2>&1 && udevadm settle --timeout=20 2>/dev/null
+    tries=0
+    while [ "$tries" -lt 40 ]; do
+        for card in /sys/class/drm/card[0-9] /sys/class/drm/card[0-9][0-9]; do
+            [ -e "$card/device/boot_vga" ] && [ -e "$card/device/driver" ] && return 0
+        done
+        grep -qw nomodeset "$CMDLINE_FILE" 2>/dev/null && return 0
+        sleep 0.5
+        tries=$((tries + 1))
+    done
+    return 0
+}
+
+# hybrid laptops: drive the screen only from the GPU the firmware booted on
+# (usually the integrated one); nouveau on the second GPU can take wlroots down
+gpu_env() {
+    unset WLR_DRM_DEVICES
+    for card in /sys/class/drm/card[0-9] /sys/class/drm/card[0-9][0-9]; do
+        if [ "$(cat "$card/device/boot_vga" 2>/dev/null)" = 1 ]; then
+            export WLR_DRM_DEVICES="/dev/dri/${card##*/}"
+            break
+        fi
+    done
+    if ! ls /dev/dri/renderD* >/dev/null 2>&1; then
+        export WLR_RENDERER_ALLOW_SOFTWARE=1
+    fi
+}
+
+# offline: show the Wi-Fi window before the installer (cable needs a moment)
+network_first() {
+    command -v nmcli >/dev/null 2>&1 || return 0
+    command -v glue-network >/dev/null 2>&1 || return 0
+    tries=0
+    while [ "$tries" -lt 8 ]; do
+        [ "$(nmcli networking connectivity check 2>/dev/null)" = full ] && return 0
+        sleep 1
+        tries=$((tries + 1))
+    done
+    glue-network --installer --close-when-online
+}
+
 # start a daemon only when this user does not already run one (the live
 # user-services may have started pipewire already)
 start_once() {
@@ -48,11 +93,17 @@ start_once() {
     pgrep -u "$(id -u)" -x "$1" >/dev/null 2>&1 || "$1" &
 }
 
+# each try of the desktop gets a number; launchers left over from a failed
+# try see a newer number and quit instead of starting a second bar/installer
+ATTEMPT_FILE="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/glue-live-attempt"
+current() { [ "$(cat "$ATTEMPT_FILE" 2>/dev/null)" = "${GLUE_ATTEMPT:-}" ]; }
+
 wait_wayland() {
     tries=0
     while [ "$tries" -lt 150 ]; do
         for s in "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"/wayland-*; do
-            if [ -S "$s" ]; then
+            if [ -S "$s" ] && ! flock -n "$s.lock" true 2>/dev/null; then
+                current || exit 0
                 WAYLAND_DISPLAY="${s##*/}"; export WAYLAND_DISPLAY
                 return 0
             fi
@@ -68,20 +119,31 @@ if [ "${1:-}" = "--inner" ]; then
     start_once wireplumber
     start_once pipewire-pulse
     [ -x "$POLKIT_AGENT" ] && "$POLKIT_AGENT" &
-    # Wayland clients need the compositor socket first
-    # the live desktop opens straight into the graphical installer; Glue
-    # Welcome follows when it is closed (and stays on Super+Shift+F1)
-    (wait_wayland && { command -v glue-install-gui >/dev/null 2>&1 && glue-install-gui
-        command -v glue-welcome >/dev/null 2>&1 && exec glue-welcome --autostart; }) &
+    # the live desktop opens Glue Welcome; its "Install Glue Linux" button
+    # starts the installer (Super+Shift+F1 brings Welcome back)
+    (wait_wayland && { network_first
+        if command -v glue-welcome >/dev/null 2>&1; then exec glue-welcome
+        else exec glue-install-gui; fi; }) &
     (wait_wayland && [ -x "$WALLPAPER_INIT" ] && exec "$WALLPAPER_INIT" gluewc glueqs) &
     if command -v glueqs >/dev/null 2>&1; then
     (
         tries=0
         while [ "$tries" -lt 150 ]; do
             for s in "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"/wayland-*; do
-                if [ -S "$s" ]; then
+                if [ -S "$s" ] && ! flock -n "$s.lock" true 2>/dev/null; then
+                    current || exit 0
                     WAYLAND_DISPLAY="${s##*/}"; export WAYLAND_DISPLAY
-                    exec glueqs
+                    # a shell that dies within 10 s is started again (5 times)
+                    sleep 1
+                    fails=0
+                    while [ "$fails" -lt 5 ]; do
+                        started=$(date +%s)
+                        glueqs
+                        if [ $(($(date +%s) - started)) -ge 10 ]; then fails=0
+                        else fails=$((fails + 1)); fi
+                        sleep 1
+                    done
+                    exit 0
                 fi
             done
             sleep 0.2
@@ -89,9 +151,19 @@ if [ "${1:-}" = "--inner" ]; then
         done
     ) &
     fi
-    exec gluewc-session
+    # -d: full wlroots log in ~/.local/state/gluewc.log for glue-debug
+    exec gluewc-session -d
 fi
 
+# fallback kiosk: cage with the CPU renderer runs on any KMS screen; it shows
+# the Wi-Fi window, the installer, then the debug report in a terminal
+if [ "${1:-}" = "--kiosk" ]; then
+    network_first
+    command -v glue-install-gui >/dev/null 2>&1 && glue-install-gui
+    exec alacritty -e glue-debug --explain
+fi
+
+[ "${1:-}" = "--decide" ] || wait_gpu
 decide
 if [ "${1:-}" = "--decide" ]; then
     echo "$CHOICE $REASON"
@@ -128,27 +200,40 @@ export XDG_SESSION_DESKTOP=gluewc
 export XDG_SESSION_TYPE=wayland
 export XCURSOR_THEME=Adwaita
 export XCURSOR_SIZE=24
-if ! ls /dev/dri/renderD* >/dev/null 2>&1; then
-    export WLR_RENDERER_ALLOW_SOFTWARE=1
-fi
-# hybrid laptops: drive the screen only from the GPU the firmware booted on
-# (usually the integrated one); nouveau on the second GPU can take wlroots down
-for card in /sys/class/drm/card[0-9] /sys/class/drm/card[0-9][0-9]; do
-    if [ "$(cat "$card/device/boot_vga" 2>/dev/null)" = 1 ]; then
-        export WLR_DRM_DEVICES="/dev/dri/${card##*/}"
-        break
-    fi
-done
 # plain sh, not a login shell: that would re-run /etc/profile.d/glue-live.sh
 export GLUE_LIVE_SESSION=1
-start=$(date +%s)
-dbus-run-session -- sh "$0" --inner
-# died within seconds: retry once with the software renderer
-if [ $(($(date +%s) - start)) -lt 20 ]; then
-    export WLR_RENDERER=pixman WLR_RENDERER_ALLOW_SOFTWARE=1
+mkdir -p "${XDG_STATE_HOME:-$HOME/.local/state}"
+TRIES_LOG="${XDG_STATE_HOME:-$HOME/.local/state}/glue-live-tries.log"
+
+# run one try; true when it lasted long enough to count as a working desktop
+try_session() {
+    GLUE_ATTEMPT=$1; export GLUE_ATTEMPT
+    echo "$1" > "$ATTEMPT_FILE"
+    shift
+    printf '%s try %s: %s WLR_DRM_DEVICES=%s\n' "$(date +%T)" "$GLUE_ATTEMPT" "$*" \
+        "${WLR_DRM_DEVICES:-}" >> "$TRIES_LOG"
     start=$(date +%s)
-    dbus-run-session -- sh "$0" --inner
-    # still no desktop: Xorg, then exit 11 so the caller shows the log
-    [ $(($(date +%s) - start)) -lt 20 ] && x11_fallback 11
+    dbus-run-session -- "$@"
+    rc=$?
+    took=$(($(date +%s) - start))
+    printf '%s try %s ended rc=%s after %ss\n' "$(date +%T)" "$GLUE_ATTEMPT" "$rc" "$took" >> "$TRIES_LOG"
+    echo done > "$ATTEMPT_FILE"
+    [ "$took" -ge 20 ]
+}
+
+gpu_env
+# SceneFX needs a working GPU (GLES): without a render node go straight to
+# the kiosk instead of a slow, flickering CPU-rendered desktop
+if ls /dev/dri/renderD* >/dev/null 2>&1; then
+    try_session gpu sh "$0" --inner && exit 0
 fi
-exit 0
+gpu_env
+if (
+    export WLR_RENDERER=pixman WLR_RENDERER_ALLOW_SOFTWARE=1 QT_QUICK_BACKEND=software \
+        GSK_RENDERER=cairo LIBGL_ALWAYS_SOFTWARE=1 GLUE_KIOSK=1
+    try_session kiosk cage -s -- sh "$0" --kiosk
+); then
+    exit 0
+fi
+# no Wayland at all: Xorg, then exit 11 so the caller shows the log
+x11_fallback 11

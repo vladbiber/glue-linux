@@ -69,7 +69,7 @@ class TestInstall(unittest.TestCase):
 
 class TestQuickActions(unittest.TestCase):
     def test_order_and_argv(self):
-        every = have("alacritty", "nautilus", "firefox", "nm-connection-editor")
+        every = have("alacritty", "nautilus", "firefox", "glue-network")
         actions = live.quick_actions(every)
         self.assertEqual([a.id for a in actions],
                          ["terminal", "files", "browser", "network", "system"])
@@ -77,7 +77,7 @@ class TestQuickActions(unittest.TestCase):
         self.assertIsNone(actions[-1].argv)
 
     def test_missing_binaries_omitted(self):
-        actions = live.quick_actions(have("nautilus", "nm-connection-editor"))
+        actions = live.quick_actions(have("nautilus", "glue-network"))
         self.assertEqual([a.id for a in actions], ["files", "network", "system"])
         self.assertEqual([a.id for a in live.quick_actions(have())], ["system"])
 

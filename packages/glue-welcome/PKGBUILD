@@ -1,25 +1,30 @@
 # Maintainer: Glue Linux
 pkgname=glue-welcome
 pkgver=0.3.0
-pkgrel=3
+pkgrel=5
 pkgdesc="Glue Linux welcome window: keyboard shortcuts, system information and settings"
 arch=('any')
 url="https://github.com/vladbiber/glue-linux"
 license=('GPL-3.0-only')
-depends=('glue-apps' 'python' 'polkit')
+depends=('glue-apps' 'python' 'python-gobject' 'gtk4' 'libadwaita' 'polkit'
+         'networkmanager' 'desktop-file-utils')
 conflicts=('glue-hub')
 optdepends=('glue-calamares-config: Install button on the live ISO'
+            'nm-connection-editor: Advanced button in Network'
             'lm_sensors: temperature on the System page'
             'power-profiles-daemon: power mode switch')
-source=('glue-welcome')
-sha256sums=('SKIP')
+source=('glue-welcome' 'glue-network')
+sha256sums=('SKIP' 'SKIP')
 
 package() {
     install -Dm755 "$srcdir/glue-welcome" "$pkgdir/usr/bin/glue-welcome"
+    install -Dm755 "$srcdir/glue-network" "$pkgdir/usr/bin/glue-network"
     install -dm755 "$pkgdir/usr/lib/glue-welcome/glue_welcome"
     install -m644 "$startdir"/glue_welcome/*.py "$pkgdir/usr/lib/glue-welcome/glue_welcome/"
     install -Dm644 "$startdir/data/applications/org.glue.Welcome.desktop" \
         "$pkgdir/usr/share/applications/org.glue.Welcome.desktop"
+    install -Dm644 "$startdir/data/applications/org.glue.Network.desktop" \
+        "$pkgdir/usr/share/applications/org.glue.Network.desktop"
     install -Dm644 "$startdir/data/autostart/org.glue.Welcome.desktop" \
         "$pkgdir/etc/xdg/autostart/org.glue.Welcome.desktop"
     install -Dm644 "$startdir/data/icons/org.glue.Welcome.svg" \

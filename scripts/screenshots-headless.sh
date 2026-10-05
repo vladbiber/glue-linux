@@ -18,11 +18,11 @@
 # wrappers do (plan_greeter.py): compositor -> poll the wayland socket ->
 # shell -> clients -> grim. nvwm is X11: Xvfb :9 + nvwm + `import -window root`.
 #
-# Content of every shot: alacritty running fastfetch (Glue logo + amber
-# palette from /etc/glue/fastfetch.jsonc, glue-branding) and a firefox window
+# Content of every shot: alacritty running fastfetch (Glue logo from
+# /etc/glue/fastfetch.jsonc, glue-branding) and a firefox window
 # on a local HTML page (no network), tiled side by side by the window manager.
 # The gluewc shells run on the packaged Stillwater wallpaper (set through the
-# shell's own IPC, like glue-wallpaper-init); nvwm keeps the palette background.
+# shell's own IPC, like glue-wallpaper-init); nvwm gets it through feh.
 #
 # gluewc targets produce TWO captures in one container run: `-bar` (desktop +
 # bar) and `-overview`. The compositor has no IPC for the overview (it is
@@ -112,7 +112,13 @@ host_main() {
 install_local() {
     local name=$1 pkg
     pacman -Q "$name" >/dev/null 2>&1 && { log "$name already installed"; return; }
-    pkg=$(ls -1 /glue/packages/"$name"/*.pkg.tar.* /home/builder/pkgs/"$name"-*.pkg.tar.* 2>/dev/null | head -n1 || true)
+    if [ -n "${GLUE_FROM_TREE:-}" ]; then
+        pkg=
+    else
+    # what the ISO ships wins: the [glue] repo of the last build
+    pkg=$(ls -1 /glue/.glue-repo/"$name"-[0-9r]*.pkg.tar.zst 2>/dev/null | tail -n1 || true)
+    [ -n "$pkg" ] || pkg=$(ls -1 /glue/packages/"$name"/*.pkg.tar.* /home/builder/pkgs/"$name"-*.pkg.tar.* 2>/dev/null | head -n1 || true)
+    fi
     if [ -z "$pkg" ]; then
         log "building $name with makepkg"
         rm -rf "/tmp/build-$name"
@@ -139,7 +145,8 @@ inside_main() {
     pacman -Sy --noconfirm
     pacman -S --noconfirm --needed alacritty fastfetch firefox imagemagick \
         dbus ttf-dejavu ttf-liberation
-    install_local glue-branding
+    # glue-branding from the tree (fastfetch config and wallpaper as committed)
+    GLUE_FROM_TREE=1 install_local glue-branding
     # on a real system /etc/os-release is a symlink to /usr/lib/os-release (the
     # file glue-branding rewrites); the image has a plain Artix copy, so fastfetch
     # would print the Artix name in the shot
@@ -164,7 +171,7 @@ inside_main() {
             ;;
         nvwm)
             install_local nvwm
-            pacman -S --noconfirm --needed xorg-server-xvfb xorg-xwininfo
+            pacman -S --noconfirm --needed xorg-server-xvfb xorg-xwininfo feh
             ;;
     esac
     export HOME=/root
@@ -235,15 +242,15 @@ EOF
 <!doctype html>
 <html><head><meta charset="utf-8"><title>Glue Linux</title>
 <style>
- body{margin:0;background:#100A02;color:#F1B00A;font-family:sans-serif;
+ body{margin:0;background:#F4F6F8;color:#172033;font-family:sans-serif;
       display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh}
  h1{font-size:64px;margin:0 0 16px}
- p{color:#FFD75F;font-size:24px;margin:4px}
- hr{width:40%;border:0;border-top:3px solid #A66900;margin:24px 0}
+ p{color:#5B6475;font-size:24px;margin:4px}
+ hr{width:40%;border:0;border-top:3px solid #B5484D;margin:24px 0}
 </style></head>
 <body><h1>Glue Linux</h1><hr>
-<p>Light. Fast. Amber.</p>
-<p>Welcome to the live desktop.</p>
+<p>Light. Fast. Yours.</p>
+<p>Welcome to your new desktop.</p>
 </body></html>
 EOF
 }
@@ -326,6 +333,7 @@ session_main() {
         log "nvwm pid $NVWM_PID"
         sleep 2
         kill -0 "$NVWM_PID" || die "nvwm exited: $(cat /tmp/nvwm.log)"
+        feh --no-fehbg --bg-fill "$WALLPAPER" || log "feh failed"
         launch_clients x11
         poll "$TIMEOUT" "alacritty + firefox under nvwm" x11_clients_ready
         sleep 8   # fastfetch + firefox paint
@@ -339,7 +347,7 @@ session_main() {
     # gluewc, headless wlroots backend, one 1920x1080 output
     mkdir -p /root/.config/gluewc
     cp /usr/share/gluewc/config.def.conf /root/.config/gluewc/config.conf
-    sed -i 's/^root_color *= *.*/root_color     = 100A02/' /root/.config/gluewc/config.conf
+    sed -i 's/^root_color *= *.*/root_color     = E9E9E7/' /root/.config/gluewc/config.conf
     printf '\noutput = HEADLESS-1 mode=%sx%s@60\n' "$WIDTH" "$HEIGHT" >> /root/.config/gluewc/config.conf
     export XDG_SESSION_TYPE=wayland XDG_CURRENT_DESKTOP=gluewc XDG_SESSION_DESKTOP=gluewc
     WLR_BACKENDS=headless WLR_HEADLESS_OUTPUTS=1 \

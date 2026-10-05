@@ -693,7 +693,7 @@ class TestGreeterProfile(unittest.TestCase):
 
     def test_real_catalog_sessions_have_exec_and_type(self):
         catalog = load_catalog(_CATALOG_PATH)
-        wayland = {"gluewc", "gnome"}
+        wayland = {"gluewc", "gluewc-noctalia", "gnome"}
         for session in catalog.sessions:
             self.assertIsNotNone(session.exec, session.id)
             expected = "wayland" if session.id in wayland else "x11"
@@ -948,11 +948,14 @@ class TestAnanicyAndGamingExtras(unittest.TestCase):
 
     def test_gaming_has_32bit_mangohud_and_launchers(self):
         plan = self._plan(True)
-        for pkg in ("lib32-mangohud", "mangohud", "lutris", "faugus-launcher",
+        for pkg in ("lib32-mangohud", "mangohud", "lutris",
                     "goverlay", "protontricks", "winetricks", "vulkan-tools",
                     "lib32-gtk3", "lib32-libva", "lib32-ocl-icd"):
             self.assertIn(pkg, plan.packages, pkg)
         self.assertNotIn("lib32-opencl-icd-loader", plan.packages)
+        # faugus-launcher needs icoextract, which no repo ships
+        self.assertNotIn("faugus-launcher", plan.packages)
+        self.assertNotIn("icoextract", plan.packages)
 
     def test_nvidia_gaming_adds_vaapi_driver(self):
         plan = self._plan(True, gpu_vendors=frozenset({"nvidia"}))
@@ -1112,7 +1115,8 @@ class TestSessionRuntime(unittest.TestCase):
     def test_gluewc_noctalia_names_its_quickshell_provider(self):
         for init_id in ("dinit", "runit", "openrc"):
             with self.subTest(init=init_id):
-                plan = self._plan(["gluewc"], {"gluewc": "noctalia"}, init_id)
+                plan = self._plan(["gluewc-noctalia"], {"gluewc-noctalia": "noctalia"},
+                                  init_id)
                 pkgs = set(plan.packages)
                 self.assertTrue(_BAR_WAYLAND <= pkgs, _BAR_WAYLAND - pkgs)
                 self.assertIn(f"power-profiles-daemon-{init_id}", pkgs)

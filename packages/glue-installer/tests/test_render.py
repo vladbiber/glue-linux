@@ -188,16 +188,17 @@ class TestNoticeAndDetail(unittest.TestCase):
         self.assertIn("Ease: 4/5", detail)
         self.assertIn("Lightness: 5/5", detail)
         self.assertIn("Keys: Super+Return — Open terminal", detail)
-        self.assertIn("Preview: screenshots/gluewc-glueqs-bar.png", detail)
-        self.assertIn("Wayland compositor", detail)
+        self.assertIn("Preview: 2 images (P to view)", detail)
+        self.assertIn("tiling desktop with the glueqs bar", detail)
 
     def test_detail_follows_the_cursor(self):
         screen = _wizard_at("sessions").current_screen()
         ids = [i.id for i in screen.items]
         nvwm = " ".join(t for t, s in render_screen(screen, ids.index("nvwm"), W, 60)
                         if s == "detail")
-        self.assertIn("Light and strong", nvwm)
-        self.assertNotIn("gluewc-glueqs-bar.png", nvwm)
+        self.assertIn("The lightest choice here", nvwm)
+        self.assertIn("Preview: screenshots/nvwm.png", nvwm)
+        self.assertNotIn("2 images", nvwm)
 
 
 class TestGeometry(unittest.TestCase):
@@ -243,7 +244,7 @@ class TestSummaryScreen(unittest.TestCase):
         self.assertIn("Kernel: CachyOS Kernel", text)
         self.assertIn("Init: dinit", text)
         # EVERY selected session shows up in the summary (5.1b)
-        self.assertIn("Session: gluewc (shell: glueqs)", text)
+        self.assertIn("Session: gluewc + glueqs (shell: glueqs)", text)
         self.assertIn("Session: nvwm", text)
         self.assertIn("Gaming Mode: on", text)
 

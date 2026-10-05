@@ -1,7 +1,7 @@
 # Maintainer: Glue Linux
 pkgname=glue-boot
 pkgver=1
-pkgrel=3
+pkgrel=4
 pkgdesc="Glue Linux boot menu maintenance: regenerates /boot/limine.conf from /etc/glue/boot.conf and redeploys Limine on kernel and bootloader updates"
 arch=('any')
 url="https://github.com/vladbiber/glue-linux"

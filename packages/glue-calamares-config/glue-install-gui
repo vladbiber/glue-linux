@@ -49,6 +49,12 @@ else
     exit 4
 fi
 
+# CPU rendering in the live fallback kiosk (glue-live-session)
+for var in QT_QUICK_BACKEND LIBGL_ALWAYS_SOFTWARE; do
+    eval "val=\${$var:-}"
+    [ -z "$val" ] || set -- "$@" "$var=$val"
+done
+
 if [ "${GLUE_INSTALL_DRYRUN:-}" = 1 ]; then
     echo "pkexec env $* calamares -c $config_dir"
     exit 0

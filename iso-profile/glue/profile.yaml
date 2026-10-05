@@ -70,6 +70,8 @@ rootfs:
     # --- keyring/mirrorlist the installer's basestrap -C resolves on the host ---
     - cachyos-keyring
     - cachyos-mirrorlist
+    # CPUs with x86-64-v3 get [cachyos-v3] staged by the installer (disk_swap.py)
+    - cachyos-v3-mirrorlist
     # --- networking (so the installer has connectivity: nmtui) ---
     - networkmanager
     - wpa_supplicant
@@ -115,6 +117,13 @@ rootfs:
     - xdg-desktop-portal-wlr
     - xdg-desktop-portal-gtk
     - grim
+    # eglinfo for glue-debug (graphics report of the live session)
+    - mesa-utils
+    # Mesa 26 runs OpenGL on newer NVIDIA (nouveau) through zink on NVK: without
+    # vulkan-nouveau EGL fails and gluewc cannot start (RTX 3050, MUX on dGPU)
+    - vulkan-nouveau
+    - vulkan-intel
+    - vulkan-radeon
     - alacritty
     - glue-zsh
     # file manager of gluewc/nvwm installs (GNOME Files)

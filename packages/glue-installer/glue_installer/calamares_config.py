@@ -7,11 +7,12 @@ files equal the output byte for byte. One owner per operation: Calamares owns
 partition/mount/fstab/locale/keyboard/users/umount, glueinstall owns packages,
 Glue configuration, services and Limine, gluefstab owns the swapfile line.
 
-Limit of packagechooser (method legacy): it writes ONE globalstorage key per
-page, `packagechooser_<instance>` = comma-separated item ids, and cannot make a
-page depend on another page's choice. The shell is therefore a separate page,
-and selection_from_globalstorage() translates the page keys into the dict read
-by calamares_adapter.parse_selection (no second catalog: ids come from it).
+Every Glue page is QML (notesqml instances) and writes one globalstorage key,
+`packagechooser_<page>` = comma-separated item ids (the shape the stock
+packagechooser used); the desktop page writes SESSIONS_KEY (multi-select), so
+selection_from_globalstorage() translates every key into the dict read by
+calamares_adapter.parse_selection (no second catalog: ids come from it).
+App store and Bluetooth are always installed (parse_selection defaults).
 """
 
 from __future__ import annotations
@@ -23,8 +24,7 @@ from pathlib import Path
 from typing import Dict, List, Mapping, Optional
 
 from glue_installer.calamares_gallery import (
-    build_gallery_entries, render_gallery_data_js, render_gallery_qml_conf)
-from glue_installer.ui_view import SESSIONS_NOTICE
+    build_desktop_entries, render_data_js, render_qml_conf)
 
 
 class ConfigError(ValueError):
@@ -34,17 +34,21 @@ class ConfigError(ValueError):
 GS_PREFIX = "packagechooser_"
 # Screenshots as installed by the glue-installer PKGBUILD (catalog paths are
 # relative to the catalog directory).
-SCREENSHOT_ROOT = "/usr/share/glue-installer/catalog"
-NO_SCREENSHOT = ":/images/no-selection.png"
-GAMING_ID_PREFIX = "gaming-"
-# QML-only pages run as an instance of the stock notesqml view module; the
-# QML file is looked up in the branding directory (qmlSearch: branding)
-GALLERY_STEP = "notesqml@gluegallery"
+GAMING_ON = "gaming"
+GAMING_OFF = "no-gaming"
+# QML pages run as instances of the stock notesqml view module; the QML file
+# is looked up in the branding directory (qmlSearch: branding)
+NETWORK_STEP = "notesqml@gluenetwork"
+DESKTOP_STEP = "notesqml@gluedesktop"
+QML_PAGES = (("gluenetwork", "gluenetwork", "Network"),
+             ("gluedesktop", "gluedesktop", "Desktop"))
+# written by gluedesktop.qml: comma-separated session ids
+SESSIONS_KEY = GS_PREFIX + "gluesessions"
 
-# Calamares pages in the order the user sees them (instances of packagechooser).
-PAGE_IDS = ("gluesessions", "glueshell", "gluekernel", "glueinit", "gluegaming",
-            "glueextras")
-SHOW_BEFORE = ("welcome", "locale", "keyboard", "partition", "users")
+# one-choice QML pages (ChoicePage.qml) in the order the user sees them
+PAGE_IDS = ("gluekernel", "glueinit", "gluegaming")
+SHOW_BEFORE = ("welcome", NETWORK_STEP, "locale", "keyboard", "partition", "users",
+               DESKTOP_STEP)
 SHOW_AFTER = ("summary",)
 # Standard fstab is kept (it knows UUIDs, options, crypttab, btrfs subvolumes
 # and runs after basestrap so the `filesystem` package cannot conflict with an
@@ -82,8 +86,8 @@ class Item:
     id: str
     name: str
     description: str
-    screenshot: str = NO_SCREENSHOT
-    gallery: List[str] = field(default_factory=list)  # all images, absolute
+    badge: str = ""
+    points: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -93,6 +97,8 @@ class Page:
     mode: str                      # optional|required|optionalmultiple
     items: List[Item] = field(default_factory=list)
     default: Optional[str] = None  # pre-selected item id
+    title: str = ""
+    subtitle: str = ""
 
     @property
     def gs_key(self) -> str:
@@ -106,66 +112,59 @@ class Page:
 # Pages from the catalog
 # ---------------------------------------------------------------------------
 
-def _shot(path: Optional[str]) -> str:
-    return f"{SCREENSHOT_ROOT}/{path}" if path else NO_SCREENSHOT
-
-
-def _item(entry, description: str) -> Item:
-    shots = [_shot(p) for p in (entry.screenshots or ([entry.screenshot]
-                                                      if entry.screenshot else []))]
-    return Item(entry.id, entry.name, description, shots[0] if shots else NO_SCREENSHOT,
-                shots)
+def default_session(catalog) -> str:
+    return "gluewc" if any(s.id == "gluewc" for s in catalog.sessions) \
+        else catalog.sessions[0].id
 
 
 def build_pages(catalog) -> List[Page]:
-    """The six Glue pages, ids and texts taken from the catalog only."""
-    sessions = Page("gluesessions", "Sessions", "optionalmultiple")
-    sessions.items.append(Item("", "Choose one or more sessions", SESSIONS_NOTICE))
-    for s in catalog.sessions:
-        sessions.items.append(_item(s, s.description))
-    sessions.default = "gluewc" if any(s.id == "gluewc" for s in catalog.sessions) \
-        else catalog.sessions[0].id
-
-    # Separate page: packagechooser cannot show it only when gluewc is ticked.
-    shell = Page("glueshell", "Desktop shell", "required")
-    for sh in catalog.shells:
-        shell.items.append(_item(sh, sh.description + " Used by the gluewc session."))
-    shell.default = "glueqs" if any(s.id == "glueqs" for s in catalog.shells) \
-        else catalog.shells[0].id
-
-    kernel = Page("gluekernel", "Kernel", "required")
+    """The one-choice pages, ids and texts taken from the catalog only."""
+    kernel = Page("gluekernel", "Kernel", "required",
+                  title="Choose the kernel",
+                  subtitle="The kernel is the core of the system. If you are not "
+                           "sure, keep the recommended one.")
     for k in catalog.kernels:
-        kernel.items.append(Item(k.id, k.name, k.description))
+        kernel.items.append(Item(k.id, k.name, k.description,
+                                 badge="Recommended" if k.primary else ""))
     kernel.default = next((k.id for k in catalog.kernels if k.primary),
                           catalog.kernels[0].id)
 
-    init = Page("glueinit", "Init system", "required")
+    init = Page("glueinit", "Init system", "required",
+                title="Choose the init system",
+                subtitle="The init system starts your computer's services. All "
+                         "three work the same for everyday use; keep the "
+                         "recommended one if you are not sure.")
     for i in catalog.inits:
-        init.items.append(Item(i.id, i.name, i.description))
+        init.items.append(Item(i.id, i.name, i.description,
+                               badge="Recommended" if i.recommended else ""))
     init.default = next((i.id for i in catalog.inits if i.recommended),
                         catalog.inits[0].id)
 
-    gaming = Page("gluegaming", "Gaming", "optional")
+    gaming = Page("gluegaming", "Gaming", "required",
+                  title="Do you play games on this computer?",
+                  subtitle="Gaming sets everything up in one go, so games work "
+                           "right after the first login.")
     gaming.items.append(Item(
-        "", "No gaming stack",
-        "Skip Steam, Proton, Wine and the gaming tweaks. You can add them later "
-        "from Glue Apps."))
-    for sched in catalog.gaming.schedulers:
-        gaming.items.append(Item(
-            GAMING_ID_PREFIX + sched.id, f"{catalog.gaming.name} ({sched.name})",
-            f"{catalog.gaming.description} CPU scheduler: {sched.description}"))
-
-    extras = Page("glueextras", "Extras", "optionalmultiple")
-    for sup in catalog.support:
-        extras.items.append(Item(sup.id, sup.name, sup.description))
-    extras.default = next((s.id for s in catalog.support if s.default), None)
-    pages = [sessions, shell, kernel, init, gaming, extras]
+        GAMING_ON, "Yes, set it up for gaming",
+        "Ready to play right after install, tuned like CachyOS.",
+        badge="Larger download",
+        points=["Steam with Proton, plus Heroic and Lutris for Epic, GOG and others",
+                "Wine for Windows programs",
+                "Graphics drivers for your card, installed automatically",
+                "MangoHud, GameMode and Gamescope for FPS and smoother play",
+                "A CPU scheduler and process priorities tuned for games"]))
+    gaming.items.append(Item(
+        GAMING_OFF, "No, keep it light",
+        "A smaller, lighter system. You can still install Steam or other "
+        "launchers later from Glue Apps."))
+    gaming.default = GAMING_OFF
+    pages = [kernel, init, gaming]
     assert tuple(p.id for p in pages) == PAGE_IDS
     return pages
 
 
 def page_keys(catalog) -> List[str]:
-    return [p.gs_key for p in build_pages(catalog)]
+    return [SESSIONS_KEY] + [p.gs_key for p in build_pages(catalog)]
 
 
 def has_page_values(gs: Mapping) -> bool:
@@ -190,29 +189,35 @@ def _picked(gs: Mapping, page: Page) -> Optional[List[str]]:
     return ids
 
 
+def _sessions(gs: Mapping, catalog) -> Optional[List[str]]:
+    raw = gs.get(SESSIONS_KEY)
+    if raw is None:
+        return None
+    if not isinstance(raw, str):
+        raise ConfigError(f"{SESSIONS_KEY} must be a string, got {type(raw).__name__}")
+    ids = [tok.strip() for tok in raw.split(",") if tok.strip()]
+    unknown = sorted(set(ids) - {s.id for s in catalog.sessions})
+    if unknown:
+        raise ConfigError(f"{SESSIONS_KEY}: unknown choice(s) {unknown}")
+    return list(dict.fromkeys(ids))
+
+
 def selection_from_globalstorage(gs: Mapping, catalog) -> Dict[str, object]:
-    """Translate the packagechooser keys into the parse_selection dict.
+    """Translate the page keys into the parse_selection dict.
     Pages whose key is absent are left to parse_selection's defaults.
     Raises ConfigError (a ValueError) for ids outside the catalog."""
     pages = {p.id: p for p in build_pages(catalog)}
     sel: Dict[str, object] = {}
-    sessions = _picked(gs, pages["gluesessions"])
+    sessions = _sessions(gs, catalog)
     if sessions is not None:
         sel["sessions"] = sessions
-    for page_id, key in (("glueshell", "shell"), ("gluekernel", "kernel"),
-                         ("glueinit", "init")):
+    for page_id, key in (("gluekernel", "kernel"), ("glueinit", "init")):
         ids = _picked(gs, pages[page_id])
         if ids:
             sel[key] = ids[0]
     gaming = _picked(gs, pages["gluegaming"])
-    if gaming is not None:
-        sel["gaming"] = bool(gaming)
-        if gaming:
-            sel["scheduler"] = gaming[0][len(GAMING_ID_PREFIX):]
-    extras = _picked(gs, pages["glueextras"])
-    if extras is not None:
-        for sup in catalog.support:
-            sel[sup.id.replace("-", "_")] = sup.id in extras
+    if gaming:
+        sel["gaming"] = gaming[0] == GAMING_ON
     return sel
 
 
@@ -222,16 +227,15 @@ def selection_from_globalstorage(gs: Mapping, catalog) -> Dict[str, object]:
 
 def build_settings(catalog) -> Dict[str, object]:
     pages = build_pages(catalog)
-    choosers = [f"packagechooser@{p.id}" for p in pages]
-    # Informational preview page right before the first chooser (5.6b lot 3).
-    choosers.insert(0, GALLERY_STEP)
+    choosers = [f"notesqml@{p.id}" for p in pages]
     show = list(SHOW_BEFORE) + choosers + list(SHOW_AFTER)
     settings: Dict[str, object] = {
         # `local` = /usr/lib/calamares/modules (system); the Glue job modules
         # (glueinstall, gluefstab) live under /etc/calamares/modules.
         "modules-search": ["local", "/etc/calamares/modules"],
-        "instances": [{"id": "gluegallery", "module": "notesqml", "config": "gluegallery.conf"}]
-                     + [{"id": p.id, "module": "packagechooser", "config": f"{p.id}.conf"}
+        "instances": [{"id": i, "module": "notesqml", "config": f"{i}.conf"}
+                      for i, _, _ in QML_PAGES]
+                     + [{"id": p.id, "module": "notesqml", "config": f"{p.id}.conf"}
                         for p in pages],
         "sequence": [{"show": show}, {"exec": list(EXEC)}, {"show": list(SHOW_FINISH)}],
     }
@@ -278,26 +282,14 @@ def render_settings_conf(settings: Mapping) -> str:
     return "\n".join(lines) + "\n"
 
 
-def render_page_conf(page: Page) -> str:
-    lines = [_HEADER.rstrip("\n"), "---", f"mode: {page.mode}",
-             "# legacy: only globalstorage packagechooser_<id>; glueinstall reads it.",
-             "method: legacy", "labels:", f"    step: {_scalar(page.step)}"]
-    if page.default is not None:
-        lines.append(f"default: {_scalar(page.default)}")
-    lines.append("items:")
-    for it in page.items:
-        lines.append(f"    - id: {_scalar(it.id)}")
-        lines.append(f"      name: {_scalar(it.name)}")
-        lines.append(f"      description: {_scalar(it.description)}")
-        lines.append(f"      screenshot: {_scalar(it.screenshot)}")
-    return "\n".join(lines) + "\n"
-
-
-def render_gallery(pages: List[Page]) -> str:
-    """JSON map item id -> every screenshot path, for the gallery page."""
-    gallery = {it.id: it.gallery for page in pages for it in page.items
-               if it.id and it.gallery}
-    return json.dumps(gallery, indent=2, ensure_ascii=False) + "\n"
+def render_choice_js(pages: List[Page]) -> str:
+    """ChoiceData.js for ChoicePage.qml: page id -> title, items, default."""
+    data = {p.id: {"title": p.title, "subtitle": p.subtitle, "default": p.default,
+                   "items": [{"id": it.id, "name": it.name, "description": it.description,
+                              "badge": it.badge, "points": it.points} for it in p.items]}
+            for p in pages}
+    body = json.dumps(data, indent=2, ensure_ascii=False)
+    return _HEADER.replace("#", "//") + ".pragma library\n\nvar pages = " + body + ";\n"
 
 
 def render_all(catalog) -> Dict[str, str]:
@@ -305,11 +297,12 @@ def render_all(catalog) -> Dict[str, str]:
     files = {"settings.conf": render_settings_conf(build_settings(catalog))}
     pages = build_pages(catalog)
     for page in pages:
-        files[f"modules/{page.id}.conf"] = render_page_conf(page)
-    files["gluegallery.json"] = render_gallery(pages)
-    files["modules/gluegallery.conf"] = render_gallery_qml_conf()
-    files["modules/gluegallery/GalleryData.js"] = render_gallery_data_js(
-        build_gallery_entries(pages))
+        files[f"modules/{page.id}.conf"] = render_qml_conf(page.id, page.step)
+    files["modules/gluechoice/ChoiceData.js"] = render_choice_js(pages)
+    for inst, qml, label in QML_PAGES:
+        files[f"modules/{inst}.conf"] = render_qml_conf(qml, label)
+    files["modules/gluedesktop/DesktopData.js"] = render_data_js(
+        build_desktop_entries(catalog, default_session(catalog)))
     return files
 
 

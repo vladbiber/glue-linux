@@ -113,7 +113,7 @@ class TestLogoTxt(unittest.TestCase):
 
 
 class TestFastfetchJsonc(unittest.TestCase):
-    """fastfetch.jsonc must point to logo.txt with type:file and 4-step amber colour map."""
+    """fastfetch.jsonc must point to logo.txt with type:file and 4-step colour map."""
 
     def setUp(self):
         path = _BRANDING_ROOT / "fastfetch.jsonc"
@@ -154,13 +154,13 @@ _PALETTE_JSON = _BRANDING_ROOT / "palette.json"
 _PALETTE_SH   = _BRANDING_ROOT / "palette.sh"
 
 _EXPECTED_PALETTE = {
-    "bg":     "#100A02",
-    "lines":  "#A66900",
-    "text":   "#F1B00A",
-    "amber1": "#F1B00A",
-    "amber2": "#A66900",
-    "amber3": "#FFD75F",
-    "amber4": "#7A4E00",
+    "bg": "#F4F6F8",
+    "lines": "#B5484D",
+    "text": "#172033",
+    "amber1": "#d71921",
+    "amber2": "#9a9a9a",
+    "amber3": "#ff7871",
+    "amber4": "#5a5a5a",
     "boot_bg": "#E9E9E7",
     "boot_message": "#2B2F33",
     "boot_text": "#3A3F44",
@@ -171,7 +171,7 @@ _HEX_RE = re.compile(r'^#[0-9A-F]{6}$')
 
 
 class TestPaletteJson(unittest.TestCase):
-    """palette.json must contain exactly the 7 canonical amber values."""
+    """palette.json must contain exactly the canonical palette values."""
 
     def setUp(self):
         self.assertTrue(_PALETTE_JSON.exists(), f"palette.json not found at {_PALETTE_JSON}")
@@ -275,7 +275,7 @@ class TestPaletteConsistencyFastfetch(unittest.TestCase):
 
 
 class TestPaletteConsistencyGrub(unittest.TestCase):
-    """grub-theme.txt colors must match bg/lines/text from palette.json."""
+    """grub-theme.txt colors must match the boot_* keys from palette.json."""
 
     _PROP_RE = re.compile(r'^\s*([\w-]+)\s*[=:]\s*"?(#[0-9A-Fa-f]{6})"?')
 
@@ -290,20 +290,27 @@ class TestPaletteConsistencyGrub(unittest.TestCase):
                 self._props[m.group(1)] = m.group(2).upper()
         self._palette = json.loads(_PALETTE_JSON.read_text())
 
-    def test_message_color_eq_text(self):
-        self.assertEqual(self._props.get("message-color"), self._palette["text"].upper())
+    def test_message_color_eq_boot_message(self):
+        self.assertEqual(self._props.get("message-color"),
+                         self._palette["boot_message"].upper())
 
-    def test_selected_item_color_eq_text(self):
-        self.assertEqual(self._props.get("selected_item_color"), self._palette["text"].upper())
+    def test_selected_item_color_eq_boot_accent(self):
+        self.assertEqual(self._props.get("selected_item_color"),
+                         self._palette["boot_accent"].upper())
 
-    def test_message_bg_color_eq_bg(self):
-        self.assertEqual(self._props.get("message-bg-color"), self._palette["bg"].upper())
+    def test_message_bg_color_eq_boot_bg(self):
+        self.assertEqual(self._props.get("message-bg-color"), self._palette["boot_bg"].upper())
 
-    def test_desktop_color_eq_bg(self):
-        self.assertEqual(self._props.get("desktop-color"), self._palette["bg"].upper())
+    def test_desktop_color_eq_boot_bg(self):
+        self.assertEqual(self._props.get("desktop-color"), self._palette["boot_bg"].upper())
 
-    def test_item_color_eq_lines(self):
-        self.assertEqual(self._props.get("item_color"), self._palette["lines"].upper())
+    def test_item_color_eq_boot_text(self):
+        self.assertEqual(self._props.get("item_color"), self._palette["boot_text"].upper())
+
+    def test_no_amber_left(self):
+        old = {"#100A02", "#A66900", "#F1B00A", "#FFD75F", "#7A4E00"}
+        values = {v.upper() for v in self._palette.values()} | set(self._props.values())
+        self.assertFalse(values & old, values & old)
 
 
 class TestPkgbuildIncludesPalette(unittest.TestCase):

@@ -50,11 +50,11 @@ def _compile(sel_dict, **kw):
 
 class TestParseSelection(unittest.TestCase):
     def test_defaults_and_mapping(self):
-        sel = parse_selection({"sessions": ["gluewc", "kde-plasma"], "shell": "noctalia-shell",
+        sel = parse_selection({"sessions": ["gluewc", "gluewc-noctalia", "kde-plasma"],
                                "gaming": True, "scheduler": "scx_bpfland",
                                "bluetooth": False, "swap_mode": "zram"}, _CATALOG)
         self.assertEqual((sel.kernel_id, sel.init_id), ("linux-cachyos", "dinit"))
-        self.assertEqual(sel.shell_choice, {"gluewc": "noctalia"})
+        self.assertEqual(sel.shell_choice, {"gluewc": "glueqs", "gluewc-noctalia": "noctalia"})
         self.assertEqual(sel.support_ids, ["app-store"])
         self.assertFalse(sel.minimal)
         self.assertEqual((sel.scheduler, sel.swap_mode, sel.hibernate),
@@ -63,7 +63,7 @@ class TestParseSelection(unittest.TestCase):
 
     def test_invalid_values_raise(self):
         bad = [{"init": "systemd"}, {"kernel": "linux-lts"}, {"sessions": ["sway"]},
-               {"sessions": ["gluewc"], "shell": "waybar"}, {"sessions": ["gluewc"]},
+               {"sessions": ["gluewc"], "shell": "waybar"},
                {"sessions": ["kde-plasma", "kde-plasma"]}, {"sessions": "gluewc"},
                {"scheduler": "scx_rusty"}, {"swap_mode": "file"}, {"gaming": "yes"},
                {"hibernate": 1}, {"app_store": None}, {"sessions": ["gluewc"], "shell": 3}]
@@ -223,7 +223,7 @@ class TestParityWithTui(unittest.TestCase):
                 mine = next(s for s in r.steps if s.argv[0] == "basestrap")
                 theirs = next(s for s in tui if s.argv[0] == "basestrap")
                 self.assertEqual(mine.argv, theirs.argv, (d, firmware))
-                self.assertEqual(sorted(r.packages), mine.argv[2:])
+                self.assertEqual(sorted(r.packages), mine.argv[2:-2])
                 self.assertTrue(set(plan.packages) <= set(mine.argv), (d, firmware))
                 # configuration part (files + chrooted service enables) identical
                 cfg = lambda steps: [s for s in steps if isinstance(s, WriteTargetFile)  # noqa: E731
@@ -276,7 +276,7 @@ class TestGlueinstallModule(unittest.TestCase):
         adapter.os.path.ismount = self._orig
         sys.modules.pop("libcalamares", None)
 
-    def _run(self, gs, config=None):
+    def _run(self, gs, config=None, online=True, fail=None):
         cala = _fake_calamares(gs, config)
         sys.modules["libcalamares"] = cala
         ran = []
@@ -285,7 +285,31 @@ class TestGlueinstallModule(unittest.TestCase):
             for i, s in enumerate(steps):
                 progress(i, len(steps), s.description)
                 ran.append(s)
-        return self.mod.run(execute_steps=fake_execute, facts=dict(self.FACTS)), ran, cala
+            if fail:
+                raise fail
+        return self.mod.run(execute_steps=fake_execute, facts=dict(self.FACTS),
+                            online=lambda: online), ran, cala
+
+    def test_offline_stops_before_any_step(self):
+        gs = {"rootMountPoint": "/tmp/calamares-root", "firmwareType": "efi",
+              "partitions": [{"device": "/dev/sda2", "mountPoint": "/", "fs": "ext4"}],
+              "glue_selection": _SEL_KDE}
+        result, ran, _ = self._run(gs, online=False)
+        self.assertEqual(ran, [])
+        self.assertEqual(result[0], "No internet connection")
+
+    def test_failure_shows_the_log_tail(self):
+        import tempfile
+        from glue_installer.executor import ExecutorError
+        with tempfile.NamedTemporaryFile("w", suffix=".log", delete=False) as fh:
+            fh.write("ok\nerror: target not found: foo\n")
+        gs = {"rootMountPoint": "/tmp/calamares-root", "firmwareType": "efi",
+              "partitions": [{"device": "/dev/sda2", "mountPoint": "/", "fs": "ext4"}],
+              "glue_selection": _SEL_KDE}
+        result, _, _ = self._run(gs, {"log_file": fh.name},
+                                 fail=ExecutorError("Command failed (exit 1): basestrap"))
+        self.assertEqual(result[0], "Glue Linux installation failed")
+        self.assertIn("target not found: foo", result[1])
 
     def test_runs_steps_in_order_and_hides_canary(self):
         gs = {"rootMountPoint": "/tmp/calamares-root", "firmwareType": "efi",
@@ -331,10 +355,9 @@ class TestGlueinstallModule(unittest.TestCase):
         gs = {"rootMountPoint": "/tmp/calamares-root", "firmwareType": "efi",
               "partitions": [{"device": "/dev/sda1", "mountPoint": "/boot", "fs": "fat32"},
                              {"device": "/dev/sda2", "mountPoint": "/", "fs": "ext4"}],
-              "packagechooser_gluesessions": "gluewc,kde-plasma",
-              "packagechooser_glueshell": "noctalia", "packagechooser_gluekernel": "linux-cachyos",
-              "packagechooser_glueinit": "openrc", "packagechooser_gluegaming": "gaming-scx_lavd",
-              "packagechooser_glueextras": "app-store,bluetooth"}
+              "packagechooser_gluesessions": "gluewc-noctalia,kde-plasma",
+              "packagechooser_gluekernel": "linux-cachyos",
+              "packagechooser_glueinit": "openrc", "packagechooser_gluegaming": "gaming"}
         result, ran, _ = self._run(gs, {"selection_file": "/nonexistent.json"})
         self.assertIsNone(result)
         basestrap = next(s for s in ran if s.argv[0] == "basestrap").argv

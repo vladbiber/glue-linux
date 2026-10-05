@@ -1,9 +1,9 @@
 message-font: "Unifont Regular 16"
-message-color: "#F1B00A"
-message-bg-color: "#100A02"
+message-color: "#2B2F33"
+message-bg-color: "#E9E9E7"
 terminal-font: "Unifont Regular 16"
 desktop-image: "background.png"
-desktop-color: "#100A02"
+desktop-color: "#E9E9E7"
 title-text: ""
 
 + boot_menu {
@@ -12,9 +12,9 @@ title-text: ""
     width = 75%
     height = 45%
     item_font = "Unifont Regular 16"
-    item_color = "#A66900"
+    item_color = "#3A3F44"
     selected_item_font = "Unifont Regular 16"
-    selected_item_color= "#F1B00A"
+    selected_item_color= "#B5484D"
     selected_item_pixmap_style= "highlight_*.png"
     icon_height = 28
     icon_width = 28

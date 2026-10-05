@@ -123,17 +123,19 @@ class TestWrapperParity(unittest.TestCase):
 
     def test_polling_autostart_block_identical(self):
         block = _SHELL_AUTOSTART_TEMPLATE.format(shell_cmd="glueqs")
-        self.assertIn(block, self.script)
+        # live only: a launcher from an older try quits instead of starting a second bar
+        live = self.script.replace("                    current || exit 0\n", "")
+        self.assertIn(block, live)
+        self.assertIn("current || exit 0\n                    WAYLAND_DISPLAY", self.script)
 
     def test_essential_lines(self):
         for tool in ("pipewire", "wireplumber", "pipewire-pulse"):
             self.assertIn(f"start_once {tool}", self.script)
             self.assertIn(f"{tool} &", self.wrapper)
         # live: the graphical installer first, Welcome after it closes
-        self.assertIn("(wait_wayland && { command -v glue-install-gui", self.script)
-        self.assertIn("exec glue-welcome --autostart; }) &", self.script)
-        self.assertLess(self.script.index("glue-install-gui"),
-                        self.script.index("exec glue-welcome --autostart"))
+        # live: Glue Welcome first, the installer from its Install button
+        self.assertIn("(wait_wayland && { network_first", self.script)
+        self.assertIn("then exec glue-welcome", self.script)
         self.assertIn("exec glue-welcome --autostart) &", self.wrapper)
         self.assertIn("(wait_wayland && command -v glue-welcome", self.wrapper)
         polkit = re.search(r"/usr/lib/polkit-gnome/\S+", self.wrapper).group(0)
@@ -141,7 +143,9 @@ class TestWrapperParity(unittest.TestCase):
         self.assertIn("exec gluewc-session", self.wrapper)
         self.assertIn("exec gluewc-session", self.script)
         # live: plain sh, a login shell would re-source profile.d/glue-live.sh and loop
-        self.assertIn('dbus-run-session -- sh "$0" --inner', self.script)
+        self.assertIn('try_session gpu sh "$0" --inner', self.script)
+        self.assertIn('dbus-run-session -- "$@"', self.script)
+        self.assertIn('try_session kiosk cage -s -- sh "$0" --kiosk', self.script)
         self.assertNotIn("sh -l", self.script)
         self.assertIn("export GLUE_LIVE_SESSION=1", self.script)
         self.assertIn('dbus-run-session -- sh -l "$0" --inner', self.wrapper)

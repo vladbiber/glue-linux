@@ -5,6 +5,11 @@ supervisor=supervise-daemon
 command="/usr/bin/ananicy-cpp"
 command_args="start"
 
+start_pre() {
+    # a crash leaves the singleton lock behind
+    rm -f /dev/shm/AnanicyCppMutex
+}
+
 depend() {
     after localmount
 }

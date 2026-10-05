@@ -51,6 +51,9 @@ def detect_session(session_ids: Iterable[str], env: Mapping[str, str],
                    processes: set[str]) -> str | None:
     """The session environment wins; otherwise look for a running WM process."""
     ids = list(session_ids)
+    # set by the login wrapper: tells gluewc and gluewc-noctalia apart
+    if env.get("GLUE_SESSION") in ids:
+        return env["GLUE_SESSION"]
     for key in ("XDG_CURRENT_DESKTOP", "XDG_SESSION_DESKTOP", "DESKTOP_SESSION"):
         words = {word.casefold() for word in env.get(key, "").replace(":", " ").split()}
         for session in ids:
@@ -74,8 +77,10 @@ def order_rows(rows: list[tuple[str, str]]) -> list[tuple[str, str]]:
 def binding_rows(data: dict, desktop: str, choices: dict[str, str]) -> tuple[str, list[tuple[str, str]]]:
     sessions = data.get("sessions", [])
     session = next((item for item in sessions
-                    if str(item.get("id", "")).casefold() in desktop.casefold()),
-                   sessions[0] if sessions else {})
+                    if str(item.get("id", "")).casefold() == desktop.casefold()),
+                   None) or next((item for item in sessions
+                                  if str(item.get("id", "")).casefold() in desktop.casefold()),
+                                 sessions[0] if sessions else {})
     session_id = str(session.get("id", desktop.casefold()))
     bindings = list(session.get("keybindings", []))
     shell_id = choices.get(f"shell.{session_id}")

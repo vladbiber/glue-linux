@@ -1,2 +1,4 @@
 #!/bin/sh
+# a crash leaves the singleton lock behind; runit runs one instance
+rm -f /dev/shm/AnanicyCppMutex
 exec /usr/bin/ananicy-cpp start

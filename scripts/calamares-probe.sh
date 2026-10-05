@@ -13,12 +13,18 @@ CFG=$(mktemp -d)
 cp -r "$REPO/packages/glue-calamares-config/." "$CFG/"
 cp "$REPO/packages/glue-welcome/data/icons/org.glue.Welcome.svg" "$CFG/branding/glue/logo.svg"
 cp "$REPO/packages/glue-branding/wallpaper.png" "$CFG/branding/glue/welcome.png"
-# same layout as the PKGBUILD: the gallery QML lives in the branding dir
-cp "$REPO"/packages/glue-calamares-config/modules/gluegallery/gluegallery.qml \
-   "$REPO"/packages/glue-calamares-config/modules/gluegallery/Gallery*.js "$CFG/branding/glue/"
+# same layout as the PKGBUILD: the QML pages live in the branding dir
+cp "$REPO"/packages/glue-calamares-config/modules/gluedesktop/* \
+   "$REPO"/packages/glue-calamares-config/modules/gluenetwork/* \
+   "$REPO"/packages/glue-calamares-config/modules/gluechoice/* "$CFG/branding/glue/"
 ln -s /usr/share/calamares/qml "$CFG/qml"
+# GLUE_PROBE_FIRST=<step>: show that page first (no input reaches headless gluewc)
+if [ -n "${GLUE_PROBE_FIRST:-}" ]; then
+    sed -i "0,/^  - welcome$/s//  - $GLUE_PROBE_FIRST\n  - welcome/" "$CFG/settings.conf"
+fi
 docker run --rm --network host --device /dev/dri/renderD128 \
     -v "$CFG:/etc/calamares:ro" -v "$REPO/packages/glue-installer:/usr/lib/glue-installer:ro" \
+    -v "$REPO/packages/glue-installer/catalog:/usr/share/glue-installer/catalog:ro" \
     -v "$OUT:/out" "$IMAGE" sh -c '
 set -u
 export XDG_RUNTIME_DIR=/tmp/rt WLR_BACKENDS=headless WLR_RENDERER=pixman \
@@ -35,8 +41,8 @@ WAYLAND_DISPLAY=$sock QT_QPA_PLATFORM=wayland dbus-run-session calamares -d >/ou
 sleep 12
 WAYLAND_DISPLAY=$sock grim /out/welcome.png
 for m in welcome locale keyboard partition users summary finished \
-         packagechooser@gluesessions packagechooser@glueshell packagechooser@gluekernel \
-         packagechooser@glueinit packagechooser@gluegaming packagechooser@glueextras; do
+         notesqml@gluenetwork notesqml@gluedesktop notesqml@gluekernel \
+         notesqml@glueinit notesqml@gluegaming; do
     case $m in *@*) inst=$m ;; *) inst="$m@$m" ;; esac
     grep -q "ViewModule \"$inst\" loading complete" /out/calamares.log \
         && echo "module $m: loaded" || { echo "module $m: NOT loaded"; fail=1; }

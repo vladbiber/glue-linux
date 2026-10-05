@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Network
+Comment=Connect to Wi-Fi
+Exec=glue-network %u
+Icon=network-wireless
+Terminal=false
+Type=Application
+Categories=Settings;Network;
+Keywords=wifi;wi-fi;wireless;internet;network;
+MimeType=x-scheme-handler/gluenetwork;
+StartupNotify=true

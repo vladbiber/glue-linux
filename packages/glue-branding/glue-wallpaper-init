@@ -44,10 +44,10 @@ set_xfce() {
 
 ok=1
 case "$session:$shell" in
-    gluewc:glueqs)
+    gluewc*:glueqs)
         run_until_ok qs -c glueqs ipc call glueqs setwallpaper "$wallpaper" || ok=0
         ;;
-    gluewc:noctalia)
+    gluewc*:noctalia)
         run_until_ok qs -c noctalia-shell ipc call wallpaper set "$wallpaper" all || ok=0
         ;;
     nvwm:*)

@@ -71,7 +71,7 @@ _ACTIONS = (
     ("terminal", "Terminal", "Type commands.", "alacritty"),
     ("files", "Files", "Browse your files and drives.", "nautilus"),
     ("browser", "Web browser", "Go online.", "firefox"),
-    ("network", "Network", "Connect to Wi-Fi.", "nm-connection-editor"),
+    ("network", "Network", "Connect to Wi-Fi.", "glue-network"),
 )
 
 

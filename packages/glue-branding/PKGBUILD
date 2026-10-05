@@ -1,7 +1,7 @@
 # Maintainer: Glue Linux
 pkgname=glue-branding
 pkgver=1
-pkgrel=12
+pkgrel=14
 pkgdesc="Glue Linux branding, default wallpaper and boot theme"
 arch=('any')
 url="https://github.com/vladbiber/glue-linux"
@@ -62,6 +62,10 @@ package() {
     # the default once, so later wallpaper choices remain untouched.
     install -Dm644 /dev/null \
         "$pkgdir/etc/skel/.local/state/glue/wallpaper-pending"
+    # the wallpaper pickers (glueqs, Noctalia) list ~/Pictures/Wallpapers
+    install -dm755 "$pkgdir/etc/skel/Pictures/Wallpapers"
+    ln -s /usr/share/backgrounds/glue/wallpaper.png \
+        "$pkgdir/etc/skel/Pictures/Wallpapers/glue-stillwater.png"
 
     # ----- os-release (staged; the .install scriptlet copies it to
     #       /usr/lib/os-release, which is owned by the filesystem package) -----

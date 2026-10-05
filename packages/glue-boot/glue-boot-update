@@ -169,8 +169,32 @@ emit_conf() {
     foreign_entries
 }
 
+# Shared ESP: a limine.conf written by another system (CachyOS, Arch, ...) is
+# never replaced. Glue keeps its entries in a marked block at the end and
+# leaves everything else, including the other system's loader, untouched.
+MARK_BEGIN="# >>> Glue Linux entries (glue-boot-update; do not edit inside)"
+MARK_END="# <<< Glue Linux entries"
+SHARED=0
+if [ -f "$OUT" ] && ! head -n 1 "$OUT" | grep -q '^# Glue Linux boot menu'; then
+    SHARED=1
+fi
+
+emit_shared() {
+    # the other system's config without an older Glue block
+    awk -v b="$MARK_BEGIN" -v e="$MARK_END" '
+        $0 == b { skip = 1; next }
+        $0 == e { skip = 0; next }
+        !skip' "$OUT" | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}'
+    printf '\n%s\n' "$MARK_BEGIN"
+    kernel_entries "$PRIMARY" "Glue Linux" "Glue Linux (fallback initramfs)"
+    for k in $OTHERS; do
+        kernel_entries "$k" "Glue Linux ($k)" "Glue Linux ($k, fallback initramfs)"
+    done
+    printf '%s\n' "$MARK_END"
+}
+
 if [ "$PRINT" -eq 1 ]; then
-    emit_conf
+    if [ "$SHARED" -eq 1 ]; then emit_shared; else emit_conf; fi
     exit 0
 fi
 
@@ -179,16 +203,25 @@ fi
 # fragments are read, once) survives for the log line below.
 trap 'rm -f "$OUT.new"' EXIT
 exec 3>&1 >"$OUT.new"
-emit_conf
+if [ "$SHARED" -eq 1 ]; then
+    [ -f "$OUT.glue-backup" ] || cp -p "$OUT" "$OUT.glue-backup"
+    emit_shared
+else
+    emit_conf
+fi
 exec >&3 3>&-
 mv -f "$OUT.new" "$OUT"
 trap - EXIT
-log "wrote $OUT ($PRIMARY${OTHERS:+ +$OTHERS}; $FOREIGN other OS entries)"
+if [ "$SHARED" -eq 1 ]; then
+    log "added Glue entries to the existing $OUT ($PRIMARY${OTHERS:+ +$OTHERS}); the rest is unchanged, original saved as $OUT.glue-backup"
+else
+    log "wrote $OUT ($PRIMARY${OTHERS:+ +$OTHERS}; $FOREIGN other OS entries)"
+fi
 
 # the menu wallpaper lives next to limine.conf on the boot partition
 WALL_SRC="$ROOT/usr/share/backgrounds/glue/wallpaper.png"
 WALL_DST="$(dirname "$OUT")/glue-wallpaper.png"
-if [ -f "$WALL_SRC" ] && ! cmp -s "$WALL_SRC" "$WALL_DST"; then
+if [ "$SHARED" -eq 0 ] && [ -f "$WALL_SRC" ] && ! cmp -s "$WALL_SRC" "$WALL_DST"; then
     cp -f "$WALL_SRC" "$WALL_DST" || warn "could not copy the boot menu wallpaper"
 fi
 
@@ -203,6 +236,10 @@ part_of() {
 }
 
 deploy_uefi() {
+    if [ "$SHARED" -eq 1 ]; then
+        log "the boot partition belongs to another system's Limine; its loader and firmware entry are kept"
+        return 0
+    fi
     [ -f "$SHARE/BOOTX64.EFI" ] || die "$SHARE/BOOTX64.EFI is missing (is limine installed?)"
     mkdir -p "$BOOT/EFI/BOOT" "$BOOT/EFI/limine"
     cp -f "$SHARE/BOOTX64.EFI" "$BOOT/EFI/BOOT/BOOTX64.EFI"

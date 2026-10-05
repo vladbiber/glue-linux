@@ -96,7 +96,7 @@ def parse_selection(d: Mapping, catalog=None) -> Selection:
 
     Keys: kernel (catalog id, default linux-cachyos), init (dinit|runit|
     openrc), sessions (list of catalog session ids), shell (glueqs|
-    noctalia[-shell], for sessions with shell_choices), gaming (bool),
+    noctalia[-shell], only for sessions offering several shells), gaming (bool),
     scheduler (scx_lavd|scx_bpfland|none), app_store/bluetooth (bool support
     toggles), swap_mode (auto|zram|none), hibernate (bool). Unknown keys are
     ignored (never read). With a catalog, kernel/sessions/shell are checked
@@ -132,7 +132,12 @@ def parse_selection(d: Mapping, catalog=None) -> Selection:
         for sid in sessions:
             if sid not in session_map:
                 raise AdapterError(f"selection.sessions: unknown session {sid!r}")
-        needs_shell = [sid for sid in sessions if session_map[sid].shell_choices]
+        for sid in sessions:
+            # a session with one shell needs no choice
+            if len(session_map[sid].shell_choices) == 1:
+                shell_choice[sid] = session_map[sid].shell_choices[0]
+        needs_shell = [sid for sid in sessions
+                       if len(session_map[sid].shell_choices) > 1]
         if needs_shell and shell is None:
             raise AdapterError(
                 f"selection.shell is required for {needs_shell}")

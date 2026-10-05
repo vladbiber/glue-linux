@@ -7,8 +7,20 @@ if [ "${1:-}" = "--inner" ]; then
     xsetroot -solid '#E9E9E7' 2>/dev/null
     [ -x /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 ] &&
         /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 &
+    if command -v nmcli >/dev/null 2>&1 && command -v glue-network >/dev/null 2>&1; then
+        tries=0
+        while [ "$tries" -lt 8 ] && [ "$(nmcli networking connectivity check 2>/dev/null)" != full ]; do
+            sleep 1
+            tries=$((tries + 1))
+        done
+        [ "$tries" -lt 8 ] || glue-network --installer --close-when-online
+    fi
     command -v glue-install-gui >/dev/null 2>&1 && glue-install-gui
-    exec alacritty
+    log="${XDG_STATE_HOME:-$HOME/.local/state}/gluewc.log"
+    [ -f "$log" ] || exec alacritty
+    exec alacritty -e sh -c "echo 'The Wayland desktop (gluewc) could not start on this graphics, so this is the basic Xorg mode.'
+echo 'Please take a photo of the lines below and send them to the Glue Linux developers.'
+echo; tail -n 30 '$log.old' '$log' 2>/dev/null; echo; exec bash"
 fi
 
 export GLUE_LIVE_SESSION=1 XDG_SESSION_TYPE=x11 XCURSOR_THEME=Adwaita

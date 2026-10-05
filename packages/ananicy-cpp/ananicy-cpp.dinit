@@ -1,5 +1,7 @@
 # ananicy-cpp: applies nice/ionice/cgroup rules from /etc/ananicy.d to running processes.
+# A crash leaves /dev/shm/AnanicyCppMutex behind and the next start would
+# refuse with "already running"; dinit runs one instance, so clear it first.
 type = process
-command = /usr/bin/ananicy-cpp start
+command = /bin/sh -c "rm -f /dev/shm/AnanicyCppMutex; exec /usr/bin/ananicy-cpp start"
 restart = true
 smooth-recovery = true

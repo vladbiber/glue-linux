@@ -3,11 +3,11 @@
   "logo": {
     "source": "/usr/share/glue/logo.txt",
     "type": "file",
-    "color": { "1": "#F1B00A", "2": "#A66900", "3": "#FFD75F", "4": "#7A4E00" },
+    "color": { "1": "#d71921", "2": "#9a9a9a", "3": "#ff7871", "4": "#5a5a5a" },
     "padding": { "top": 1, "right": 2 }
   },
   "display": {
-    "color": "yellow",
+    "color": "red",
     "separator": " -> "
   },
   "modules": [

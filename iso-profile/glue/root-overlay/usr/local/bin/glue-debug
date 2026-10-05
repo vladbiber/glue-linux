@@ -1,0 +1,115 @@
+#!/bin/sh
+# glue-debug: graphics/session report of the live system.
+#   glue-debug            write the report and print its path
+#   glue-debug --upload   also upload it (0x0.st, then paste.rs) and print the link
+#   glue-debug --explain  used by the fallback kiosk: explain, ask, upload
+OUT="${HOME:-/tmp}/glue-debug.txt"
+STATE="${XDG_STATE_HOME:-$HOME/.local/state}"
+RUNDIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+
+as_root() {
+    if [ "$(id -u)" = 0 ]; then "$@"; else sudo -n "$@" 2>/dev/null || "$@"; fi
+}
+
+section() { printf '\n===== %s =====\n' "$1"; }
+
+report() {
+    section "system"
+    date; uname -a; cat /proc/cmdline
+    grep -m1 "model name" /proc/cpuinfo
+    grep MemTotal /proc/meminfo
+    [ -r /sys/class/dmi/id/product_name ] && echo "model: $(cat /sys/class/dmi/id/sys_vendor 2>/dev/null) $(cat /sys/class/dmi/id/product_name)"
+    [ -d /sys/firmware/efi ] && echo "firmware: UEFI" || echo "firmware: BIOS"
+
+    section "gpus"
+    if command -v lspci >/dev/null 2>&1; then
+        lspci -nnk | grep -A3 -E "VGA|3D|Display"
+    fi
+    for dev in /sys/bus/pci/devices/*; do
+        case "$(cat "$dev/class" 2>/dev/null)" in
+        0x03*) echo "${dev##*/} vendor=$(cat "$dev/vendor") device=$(cat "$dev/device") boot_vga=$(cat "$dev/boot_vga" 2>/dev/null) driver=$(basename "$(readlink "$dev/driver" 2>/dev/null)") power=$(cat "$dev/power_state" 2>/dev/null)" ;;
+        esac
+    done
+
+    section "drm"
+    for card in /sys/class/drm/card*; do
+        [ -e "$card" ] || continue
+        name=${card##*/}
+        case "$name" in
+        *-*) echo "$name status=$(cat "$card/status" 2>/dev/null) enabled=$(cat "$card/enabled" 2>/dev/null)" ;;
+        *) echo "$name driver=$(basename "$(readlink "$card/device/driver" 2>/dev/null)") boot_vga=$(cat "$card/device/boot_vga" 2>/dev/null)" ;;
+        esac
+    done
+    ls -l /dev/dri 2>&1
+    grep -E "^(i915|xe|nouveau|amdgpu|radeon|nvidia|simpledrm|bochs|virtio_gpu) " /proc/modules
+
+    section "egl (gpu)"
+    command -v eglinfo >/dev/null 2>&1 && eglinfo -B 2>&1 | head -60
+    section "groups / seat"
+    id; command -v loginctl >/dev/null 2>&1 && loginctl list-sessions 2>&1 && \
+        loginctl show-session "$(loginctl list-sessions --no-legend 2>/dev/null | awk 'NR==1{print $1}')" 2>&1 | head -20
+
+    section "live session tries"
+    cat "$STATE/glue-live-tries.log" 2>&1
+
+    for f in gluewc.log.old gluewc.log; do
+        section "$f (errors)"
+        grep -n -i -E "error|fail|couldn|cannot|unable|denied|abort|segv|crash|EGL|GLES|renderer|drm|backend|seat|gpu" "$STATE/$f" 2>/dev/null | head -150
+        section "$f (last 80 lines)"
+        tail -n 80 "$STATE/$f" 2>/dev/null
+    done
+
+    section "quickshell"
+    ps -eo pid,etime,args | grep -E "[q]s |[q]uickshell"
+    find "$RUNDIR/quickshell" -name "*.log" 2>/dev/null | head -3 | while read -r f; do
+        echo "-- $f"; tail -n 40 "$f"
+    done
+
+    section "kernel log (graphics)"
+    as_root dmesg 2>/dev/null | grep -i -E "drm|i915|xe |nouveau|amdgpu|radeon|nvidia|simpledrm|fbcon|gsp|firmware|vga" | tail -n 120
+
+    section "environment"
+    env | grep -E "^(WLR_|XDG_|WAYLAND|DISPLAY|QT_|GSK_|LIBGL|GLUE_)" | sort
+}
+
+upload() {
+    for svc in https://0x0.st https://paste.rs; do
+        case $svc in
+        *0x0.st) url=$(curl -fsS --max-time 30 -F "file=@$OUT" "$svc" 2>/dev/null) ;;
+        *) url=$(curl -fsS --max-time 30 --data-binary "@$OUT" "$svc" 2>/dev/null) ;;
+        esac
+        case "$url" in http*) echo "$url"; return 0 ;; esac
+    done
+    return 1
+}
+
+report > "$OUT" 2>&1
+
+case "${1:-}" in
+--upload)
+    echo "report: $OUT"
+    url=$(upload) && printf '\nlink: %s\n' "$url" || echo "upload failed (no internet?)"
+    ;;
+--explain)
+    clear 2>/dev/null
+    echo "The full Glue desktop could not use this graphics card, so the installer"
+    echo "ran in the simple mode. A report about the graphics was saved to:"
+    echo "  $OUT"
+    echo
+    printf "Upload it so the Glue developers can fix this? It contains hardware and log details only. [y/N] "
+    read -r answer
+    case "$answer" in
+    y|Y|yes)
+        if url=$(upload); then
+            echo; echo "Send this link to the developers:"; echo; echo "    $url"; echo
+        else
+            echo "Upload failed (no internet?). The file stays at $OUT"
+        fi
+        ;;
+    esac
+    exec "${SHELL:-/bin/sh}"
+    ;;
+*)
+    echo "$OUT"
+    ;;
+esac

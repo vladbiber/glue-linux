@@ -63,7 +63,10 @@ def _build_target_pacman_conf(v3: bool) -> str:
     """Return the target /etc/pacman.conf, inserting [cachyos-v3] when v3 is active."""
     if not v3:
         return _TARGET_PACMAN_CONF
+    # [cachyos-v3] packages are built for arch x86_64_v3
     return _TARGET_PACMAN_CONF.replace(
+        "Architecture = auto\n", "Architecture = x86_64 x86_64_v3\n",
+    ).replace(
         "[cachyos]\n",
         "[cachyos-v3]\nInclude = /etc/pacman.d/cachyos-v3-mirrorlist\n\n[cachyos]\n",
     )

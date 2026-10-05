@@ -58,7 +58,7 @@ class TestNoDiskPlanRegression(unittest.TestCase):
         steps = compile_steps(_plan(), target="/mnt", init_id="dinit")
         expected = [
             RunCommand(
-                argv=["basestrap", "/mnt", "base", "linux-cachyos"],
+                argv=["basestrap", "/mnt", "base", "linux-cachyos", "--overwrite", "boot/*"],
                 description="Install 2 packages with basestrap",
             ),
             RunCommand(
@@ -166,7 +166,7 @@ class TestUefiDiskPlan(unittest.TestCase):
 
     def test_limine_and_efibootmgr_in_basestrap_sorted(self):
         basestrap = self.steps[_index_of(self.steps, "basestrap")]
-        packages = basestrap.argv[2:]
+        packages = basestrap.argv[2:-2]
         self.assertIn("limine", packages)
         self.assertIn("efibootmgr", packages)
         self.assertNotIn("grub", packages)
@@ -228,7 +228,7 @@ class TestBiosDiskPlan(unittest.TestCase):
 
     def test_limine_but_no_efibootmgr_in_basestrap(self):
         basestrap = self.steps[_index_of(self.steps, "basestrap")]
-        packages = basestrap.argv[2:]
+        packages = basestrap.argv[2:-2]
         self.assertIn("limine", packages)
         self.assertNotIn("grub", packages)
         self.assertNotIn("efibootmgr", packages)

@@ -248,3 +248,34 @@ class TestFilesAndErrors(BootUpdateCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestSharedEsp(BootUpdateCase):
+    """An EFI partition already used by another system's Limine is kept."""
+
+    FOREIGN = ("timeout: 5\ndefault_entry: 2\n\n/+CachyOS\n  //linux-cachyos\n"
+               "  protocol: linux\n  kernel_path: boot():/abc/linux-cachyos/vmlinuz\n")
+
+    def test_foreign_config_kept_and_glue_block_appended_once(self):
+        self.conf(_PLAIN)
+        out = self.root / "boot" / "limine.conf"
+        out.write_text(self.FOREIGN)
+        for _ in range(2):
+            r = _run(self.root)
+            self.assertEqual(r.returncode, 0, r.stderr)
+        text = out.read_text()
+        self.assertTrue(text.startswith(self.FOREIGN))
+        self.assertEqual(text.count("# >>> Glue Linux entries"), 1)
+        self.assertIn("/Glue Linux\nprotocol: linux\nkernel_path: boot():/vmlinuz-linux-cachyos",
+                      text)
+        self.assertEqual((self.root / "boot" / "limine.conf.glue-backup").read_text(),
+                         self.FOREIGN)
+        self.assertFalse((self.root / "boot" / "glue-wallpaper.png").exists())
+
+    def test_glue_own_config_still_rewritten(self):
+        self.conf(_PLAIN)
+        r = _run(self.root)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        r = _run(self.root)
+        self.assertEqual((self.root / "boot" / "limine.conf").read_text(),
+                         limine_conf(_PLAIN, _ROOT_UUID))

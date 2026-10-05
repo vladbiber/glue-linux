@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import dataclasses
 import os
+import re
 import tempfile
 from pathlib import Path
 from typing import List, Mapping, Optional
@@ -131,16 +132,25 @@ def swapfile_fstab_steps(disk_plan: DiskPlan, *, target: str = "/mnt") -> List[S
     )]
 
 
-def staged_pacman_conf(path: Optional[str], cpu_v3: bool,
-                       kernel_id: str) -> Optional[str]:
-    """Path of a pacman.conf with [cachyos-v3] added when it applies."""
+V3_MIRRORLIST = "/etc/pacman.d/cachyos-v3-mirrorlist"
+
+
+def staged_pacman_conf(path: Optional[str], cpu_v3: bool, kernel_id: str,
+                       mirrorlist: str = V3_MIRRORLIST) -> Optional[str]:
+    """Path of a pacman.conf with [cachyos-v3] added when it applies.
+    Without the v3 mirrorlist on the host the plain conf is kept: pacman
+    refuses a config whose Include is missing."""
     if not (cpu_v3 and kernel_id == "linux-cachyos" and path):
+        return path
+    if not Path(mirrorlist).is_file():
         return path
     try:
         orig = Path(path).read_text(encoding="utf-8")
-        patched = orig.replace(
+        # [cachyos-v3] packages are built for arch x86_64_v3
+        patched = re.sub(r"(?m)^Architecture\s*=.*$", "Architecture = x86_64 x86_64_v3",
+                         orig).replace(
             "[cachyos]\n",
-            "[cachyos-v3]\nInclude = /etc/pacman.d/cachyos-v3-mirrorlist\n\n[cachyos]\n",
+            f"[cachyos-v3]\nInclude = {mirrorlist}\n\n[cachyos]\n",
         )
         with tempfile.NamedTemporaryFile(
             suffix=".conf", delete=False, mode="w", encoding="utf-8"

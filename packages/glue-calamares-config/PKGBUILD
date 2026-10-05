@@ -3,7 +3,7 @@
 # generated selection pages, glueinstall/gluefstab job modules and branding.
 pkgname=glue-calamares-config
 pkgver=0.2.0
-pkgrel=6
+pkgrel=7
 pkgdesc="Glue Linux installer configuration for Calamares (sequence, pages, Glue job modules, branding)"
 arch=('any')
 url="https://github.com/vladbiber/glue-linux"
@@ -16,13 +16,11 @@ sha256sums=()
 package() {
     local cfg="$pkgdir/etc/calamares"
     install -Dm644 "$startdir/settings.conf" "$cfg/settings.conf"
-    # Standard module configs + the generated packagechooser pages (glue*.conf)
+    # Standard module configs + the generated notesqml instances (glue*.conf)
     local f
     for f in "$startdir"/modules/*.conf; do
         install -Dm644 "$f" "$cfg/modules/$(basename "$f")"
     done
-    # Full screenshot gallery map (item id -> image paths) for the gallery page
-    install -Dm644 "$startdir/gluegallery.json" "$cfg/gluegallery.json"
     # Glue job modules (python): module.desc + main.py; Calamares reads their
     # config from modules/<name>.conf (installed by the loop above)
     local mod
@@ -30,11 +28,13 @@ package() {
         install -Dm644 "$startdir/modules/$mod/module.desc" "$cfg/modules/$mod/module.desc"
         install -Dm644 "$startdir/modules/$mod/main.py" "$cfg/modules/$mod/main.py"
     done
-    # Screenshot gallery page (QML view module; GalleryData.js is generated)
-    local gal
-    # notesqml@gluegallery loads gluegallery.qml from the branding directory
-    for gal in gluegallery.qml GalleryNav.js GalleryData.js; do
-        install -Dm644 "$startdir/modules/gluegallery/$gal" "$cfg/branding/glue/$gal"
+    # QML pages (notesqml@gluedesktop/gluenetwork load them from the branding
+    # directory); DesktopData.js is generated from the catalog
+    install -Dm644 "$startdir/modules/gluedesktop/gluedesktop.qml" "$cfg/branding/glue/gluedesktop.qml"
+    install -Dm644 "$startdir/modules/gluedesktop/DesktopData.js" "$cfg/branding/glue/DesktopData.js"
+    install -Dm644 "$startdir/modules/gluenetwork/gluenetwork.qml" "$cfg/branding/glue/gluenetwork.qml"
+    for f in "$startdir"/modules/gluechoice/*; do
+        install -Dm644 "$f" "$cfg/branding/glue/$(basename "$f")"
     done
     # Launcher (live-only, ADR-023): elevates Calamares with pkexec
     install -Dm755 "$startdir/glue-install-gui" "$pkgdir/usr/bin/glue-install-gui"

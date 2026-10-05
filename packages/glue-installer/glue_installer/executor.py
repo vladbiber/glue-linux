@@ -107,7 +107,10 @@ def bootstrap_steps(
     basestrap_argv = ["basestrap"]
     if pacman_conf is not None:
         basestrap_argv += ["-C", pacman_conf]
-    basestrap_argv += [t] + packages
+    # a reused EFI partition keeps the old system's /boot files (microcode,
+    # kernels): pacman must replace them instead of aborting on a conflict;
+    # with -r (basestrap) the glob is matched without the leading slash
+    basestrap_argv += [t] + packages + ["--overwrite", "boot/*"]
     return [RunCommand(
         argv=basestrap_argv,
         description=f"Install {n} package{'s' if n != 1 else ''} with basestrap",

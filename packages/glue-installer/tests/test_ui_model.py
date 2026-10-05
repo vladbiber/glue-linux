@@ -17,9 +17,9 @@ from glue_installer.ui_model import (
 _CATALOG_PATH = _PKG_ROOT / "catalog" / "catalog.json"
 _CATALOG = load_catalog(_CATALOG_PATH)
 
-# The REAL catalog only gives gluewc a shell choice (glueqs/noctalia); cover
-# the generic shell machinery with a synthetic catalog too: one extra
-# shell-capable session + two fake bars.
+# The REAL catalog gives gluewc and gluewc-noctalia one shell each; cover the
+# multi-shell machinery with a synthetic catalog: gluewc offering both real
+# shells, one extra shell-capable session + two fake bars.
 import dataclasses as _dc
 
 from glue_installer.catalog import Session as _Session, Shell as _Shell
@@ -40,7 +40,8 @@ _MOCK_SESSION = _Session(
 )
 _SHELL_CATALOG = _dc.replace(
     _CATALOG,
-    sessions=list(_CATALOG.sessions) + [_MOCK_SESSION],
+    sessions=[_dc.replace(_CATALOG.sessions[0], shell_choices=["glueqs", "noctalia"])]
+    + list(_CATALOG.sessions[1:]) + [_MOCK_SESSION],
     # keep the real shells too — gluewc references glueqs/noctalia
     shells=_MOCK_SHELLS + list(_CATALOG.shells),
 )
@@ -268,7 +269,7 @@ class TestSessionsScreen(unittest.TestCase):
 
 
 class TestShellScreens(unittest.TestCase):
-    """Shell-choice machinery: real catalog (gluewc -> glueqs/noctalia) plus
+    """Shell-choice machinery: real catalog (one shell per gluewc session) plus
     the synthetic _SHELL_CATALOG for the generic multi-shell paths."""
 
     def _to_shell_screen(self):
@@ -281,21 +282,37 @@ class TestShellScreens(unittest.TestCase):
         w.next()
         return w
 
-    def test_real_catalog_gluewc_offers_glueqs_then_noctalia(self):
+    def test_real_catalog_gluewc_sessions_have_one_shell_each(self):
         w = _new_wizard()
         _advance_to(w, "kernel")
         w.apply(Choose("linux-cachyos")); w.next()
         w.apply(Choose("dinit")); w.next()
+        w.apply(Toggle("gluewc-noctalia"))
         w.next()  # gluewc preselected -> its shell screen
         screen = w.current_screen()
         self.assertEqual(screen.key, "shell:gluewc")
-        # exactly glueqs (recommended, preselected) + noctalia; no "none"
-        self.assertEqual([i.id for i in screen.items], ["glueqs", "noctalia"])
-        glueqs = screen.items[0]
-        self.assertTrue(glueqs.recommended)
-        self.assertTrue(glueqs.selected)
+        self.assertEqual([i.id for i in screen.items], ["glueqs"])
+        self.assertTrue(screen.items[0].recommended)
+        self.assertTrue(screen.items[0].selected)
         w.next()  # the preselected default is valid without a Choose
+        screen = w.current_screen()
+        self.assertEqual(screen.key, "shell:gluewc-noctalia")
+        self.assertEqual([(i.id, i.selected) for i in screen.items], [("noctalia", True)])
+        with self.assertRaises(ValidationError):
+            w.apply(Choose("glueqs"))
+        w.next()
         self.assertEqual(w.current_screen().key, "support")
+
+    def test_synthetic_gluewc_offers_glueqs_then_noctalia(self):
+        w = _new_wizard(_SHELL_CATALOG)
+        _advance_to(w, "kernel")
+        w.apply(Choose("linux-cachyos")); w.next()
+        w.apply(Choose("dinit")); w.next()
+        w.next()
+        screen = w.current_screen()
+        self.assertEqual(screen.key, "shell:gluewc")
+        self.assertEqual([i.id for i in screen.items], ["glueqs", "noctalia"])
+        self.assertEqual([i.id for i in screen.items if i.selected], ["glueqs"])
 
     def test_shell_items_carry_catalog_data(self):
         w = self._to_shell_screen()
@@ -503,7 +520,7 @@ class TestSummaryAndSelection(unittest.TestCase):
         names = {s.id: s.name for s in _CATALOG.sessions}
         for sid in selected_ids:
             self.assertIn(f"Session: {names[sid]}", labels)
-        self.assertIn("Session: gluewc (shell: glueqs)", labels)
+        self.assertIn("Session: gluewc + glueqs (shell: glueqs)", labels)
         self.assertIn("Session: nvwm", labels)
         self.assertIn("Bluetooth", labels)
         self.assertIn("Gaming Mode: on", labels)
@@ -914,8 +931,8 @@ if __name__ == "__main__":
 class TestOfflineMode(unittest.TestCase):
     """allow_offline() (3.6): clone of the live system, no network required."""
 
-    def _at_network(self, status="OFFLINE", **kw):
-        w = Wizard(_CATALOG, **kw)
+    def _at_network(self, status="OFFLINE", catalog=_CATALOG, **kw):
+        w = Wizard(catalog, **kw)
         w.set_network_status(status)
         w.next()  # welcome -> network
         return w
@@ -937,8 +954,9 @@ class TestOfflineMode(unittest.TestCase):
         self.assertEqual(keys, ["welcome", "network", "shell:gluewc", "support", "summary"])
 
     def test_shell_screen_only_when_default_session_has_shells(self):
-        cat = _dc.replace(_CATALOG, sessions=[_dc.replace(_CATALOG.sessions[1])]
-                          + list(_CATALOG.sessions[1:]))  # nvwm first: no shells
+        nvwm = next(s for s in _CATALOG.sessions if s.id == "nvwm")
+        cat = _dc.replace(_CATALOG, sessions=[nvwm] + [
+            s for s in _CATALOG.sessions if s.id != "nvwm"])  # nvwm first: no shells
         w = Wizard(cat)
         w.set_network_status("OFFLINE")
         w.next()
@@ -969,7 +987,7 @@ class TestOfflineMode(unittest.TestCase):
         resolve_plan(_CATALOG, sel)  # a valid plan for config_steps
 
     def test_shell_choice_changes_apply(self):
-        w = self._at_network()
+        w = self._at_network(catalog=_SHELL_CATALOG)
         w.allow_offline()
         w.next()
         w.apply(Choose("noctalia"))

@@ -166,6 +166,8 @@ _WRAPPER_DIR = "/usr/local/bin"
 _POLKIT_AGENT = "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1"
 _WALLPAPER_INIT = "/usr/bin/glue-wallpaper-init"
 
+# A socket counts only while a compositor holds its .lock: one left over by a
+# crashed session would get "Connection refused" and kill the client.
 # Poll for the compositor's Wayland socket, then start the chosen shell/bar
 # inside the same D-Bus session. Runs in the background of the wrapper's
 # inner (post-dbus) stage; gives up quietly after ~30s.
@@ -174,9 +176,19 @@ _SHELL_AUTOSTART_TEMPLATE = """\
         tries=0
         while [ "$tries" -lt 150 ]; do
             for s in "${{XDG_RUNTIME_DIR:-/run/user/$(id -u)}}"/wayland-*; do
-                if [ -S "$s" ]; then
+                if [ -S "$s" ] && ! flock -n "$s.lock" true 2>/dev/null; then
                     WAYLAND_DISPLAY="${{s##*/}}"; export WAYLAND_DISPLAY
-                    exec {shell_cmd}
+                    # a shell that dies within 10 s is started again (5 times)
+                    sleep 1
+                    fails=0
+                    while [ "$fails" -lt 5 ]; do
+                        started=$(date +%s)
+                        {shell_cmd}
+                        if [ $(($(date +%s) - started)) -ge 10 ]; then fails=0
+                        else fails=$((fails + 1)); fi
+                        sleep 1
+                    done
+                    exit 0
                 fi
             done
             sleep 0.2
@@ -190,7 +202,7 @@ wait_wayland() {
     tries=0
     while [ "$tries" -lt 150 ]; do
         for s in "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"/wayland-*; do
-            if [ -S "$s" ]; then
+            if [ -S "$s" ] && ! flock -n "$s.lock" true 2>/dev/null; then
                 WAYLAND_DISPLAY="${s##*/}"; export WAYLAND_DISPLAY
                 return 0
             fi
@@ -309,7 +321,8 @@ def _session_wrapper_content(
 {polkit_block}{welcome_block}{wallpaper_block}{shell_block}    exec {cmd}
 fi
 
-{x11_block}export XDG_CURRENT_DESKTOP={desktop}
+{x11_block}export GLUE_SESSION={session.id}
+export XDG_CURRENT_DESKTOP={desktop}
 export XDG_SESSION_DESKTOP={desktop}
 export XDG_SESSION_TYPE={session.session_type}
 export XCURSOR_THEME=Adwaita
@@ -378,6 +391,7 @@ def _greeter_files(
             mode=0o644,
         ))
         portal = _portal_file(session)
-        if portal is not None:
+        # gluewc and gluewc-noctalia share one desktop name and one file
+        if portal is not None and all(f.path != portal.path for f in files):
             files.append(portal)
     return files

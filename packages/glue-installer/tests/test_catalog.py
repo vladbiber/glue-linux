@@ -63,28 +63,25 @@ class TestPositive(unittest.TestCase):
         self.assertTrue(dinit.recommended)
 
     def test_expected_session_ids_in_exact_order(self):
-        """Faza 5.1: exactly 6 sessions, gluewc first (the default)."""
+        """Exactly 7 sessions, gluewc first (the default), its Noctalia twin next."""
         ids = [s.id for s in self.catalog.sessions]
-        self.assertEqual(ids, ["gluewc", "nvwm", "kde-plasma", "xfce",
-                               "gnome", "cinnamon"])
+        self.assertEqual(ids, ["gluewc", "gluewc-noctalia", "nvwm", "kde-plasma",
+                               "xfce", "gnome", "cinnamon"])
 
     def test_session_kinds(self):
         wms = {s.id for s in self.catalog.sessions if s.kind == "wm"}
         des = {s.id for s in self.catalog.sessions if s.kind == "de"}
-        self.assertEqual(wms, {"gluewc", "nvwm"})
+        self.assertEqual(wms, {"gluewc", "gluewc-noctalia", "nvwm"})
         self.assertEqual(des, {"kde-plasma", "xfce", "gnome", "cinnamon"})
 
     def test_two_shells_glueqs_first(self):
-        """5.1: glueqs (recommended for gluewc) + noctalia; gluewc offers
-        both, with NO 'none' option; every other session offers none."""
+        """glueqs + noctalia; each gluewc session has exactly one shell,
+        every other session offers none."""
         self.assertEqual([s.id for s in self.catalog.shells],
                          ["glueqs", "noctalia"])
-        gluewc = next(s for s in self.catalog.sessions if s.id == "gluewc")
-        self.assertEqual(gluewc.shell_choices, ["glueqs", "noctalia"])
-        self.assertNotIn("none", gluewc.shell_choices)
+        fixed = {"gluewc": ["glueqs"], "gluewc-noctalia": ["noctalia"]}
         for s in self.catalog.sessions:
-            if s.id != "gluewc":
-                self.assertEqual(s.shell_choices, [], s.id)
+            self.assertEqual(s.shell_choices, fixed.get(s.id, []), s.id)
             for pkg in s.packages:
                 self.assertNotIn("quickshell", pkg)
                 self.assertNotIn("glue-bar", pkg)
@@ -106,6 +103,21 @@ class TestPositive(unittest.TestCase):
         self.assertEqual(gluewc.exec, "gluewc-session")
         self.assertEqual(gluewc.packages, ["gluewc", "rofi", "polkit-gnome", "nautilus"])
         self.assertEqual(gluewc.screenshot, "screenshots/gluewc-glueqs-bar.png")
+
+    def test_gluewc_noctalia_entry_shares_gluewc_runtime(self):
+        gluewc, twin = self.catalog.sessions[:2]
+        self.assertEqual(twin.id, "gluewc-noctalia")
+        self.assertEqual((twin.kind, twin.session_type, twin.exec, twin.desktop),
+                         ("wm", "wayland", "gluewc-session", "gluewc"))
+        self.assertEqual(twin.packages, gluewc.packages)
+        self.assertEqual(twin.screenshots, ["screenshots/gluewc-noctalia-bar.png",
+                                            "screenshots/gluewc-noctalia-overview.png"])
+        self.assertEqual(gluewc.screenshots, ["screenshots/gluewc-glueqs-bar.png",
+                                              "screenshots/gluewc-glueqs-overview.png"])
+
+    def test_every_session_states_idle_ram(self):
+        for s in self.catalog.sessions:
+            self.assertRegex(s.idle_ram or "", r"^about \d", s.id)
 
     def test_cinnamon_entry_exact_packages(self):
         cinnamon = next(s for s in self.catalog.sessions
@@ -130,10 +142,11 @@ class TestPositive(unittest.TestCase):
 
     def test_kde_description_recommends_it_for_beginners(self):
         kde = next(s for s in self.catalog.sessions if s.id == "kde-plasma")
-        self.assertIn("Recommended for beginners", kde.description)
+        self.assertIn("Best for beginners", kde.description)
 
     def test_session_screenshot_names_match_roadmap(self):
         expected = {"gluewc": "screenshots/gluewc-glueqs-bar.png",
+                    "gluewc-noctalia": "screenshots/gluewc-noctalia-bar.png",
                     "nvwm": "screenshots/nvwm.png",
                     "kde-plasma": "screenshots/kde-plasma.png",
                     "xfce": "screenshots/xfce.png",
@@ -233,8 +246,8 @@ class TestPositive(unittest.TestCase):
         self.assertTrue(m.name)
         self.assertTrue(m.description)
 
-    def test_six_sessions_two_shells_two_kernels(self):
-        self.assertEqual(len(self.catalog.sessions), 6)
+    def test_seven_sessions_two_shells_two_kernels(self):
+        self.assertEqual(len(self.catalog.sessions), 7)
         self.assertEqual(len(self.catalog.shells), 2)
         self.assertEqual(len(self.catalog.kernels), 2)
 
@@ -529,15 +542,17 @@ class ScreenshotFilesTest(unittest.TestCase):
                 for f in files:
                     self.assertTrue((_PKG_ROOT / "catalog" / f).is_file(), f)
 
-    def test_calamares_gallery_matches_catalog(self):
-        gallery = _PKG_ROOT.parent / "glue-calamares-config" / "gluegallery.json"
-        data = json.loads(gallery.read_text())
+    def test_calamares_desktop_page_matches_catalog(self):
+        from glue_installer.calamares_gallery import parse_data_js
+        data_js = (_PKG_ROOT.parent / "glue-calamares-config" / "modules"
+                   / "gluedesktop" / "DesktopData.js")
+        entries = {e["id"]: e["images"] for e in parse_data_js(data_js.read_text())}
         raw = _load_raw()
-        prefix = "/usr/share/glue-installer/catalog/"
-        for e in raw["sessions"] + raw["shells"]:
+        prefix = "file:///usr/share/glue-installer/catalog/"
+        for e in raw["sessions"]:
             with self.subTest(entry=e["id"]):
-                self.assertEqual(data[e["id"]], [prefix + f for f in e["screenshots"]])
-        self.assertEqual(set(data), {e["id"] for e in raw["sessions"] + raw["shells"]})
+                self.assertEqual(entries[e["id"]], [prefix + f for f in e["screenshots"]])
+        self.assertEqual(set(entries), {e["id"] for e in raw["sessions"]})
 
     def test_sources_manifest_covers_web_screenshots(self):
         lines = (self.SCREENSHOTS_DIR / "SOURCES.tsv").read_text().splitlines()

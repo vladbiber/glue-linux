@@ -115,7 +115,30 @@ def _root_bytes(root_mount):
         return 0
 
 
-def run(execute_steps=execute, facts=None):
+_PROBES = ("http://ping.archlinux.org/nm-check.txt", "https://mirror1.artixlinux.org/")
+
+
+def _online(probes=_PROBES, timeout=6):
+    import urllib.request
+    for url in probes:
+        try:
+            with urllib.request.urlopen(url, timeout=timeout):
+                return True
+        except Exception:  # noqa: BLE001 - any failure means "try the next one"
+            continue
+    return False
+
+
+def _log_tail(path, lines=12):
+    try:
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            tail = fh.read().splitlines()[-lines:]
+    except OSError:
+        return ""
+    return "\n".join(line for line in tail if line.strip())
+
+
+def run(execute_steps=execute, facts=None, online=_online):
     """Calamares entry point: None on success, (title, message) on failure."""
     cala = _calamares()
     gs = cala.globalstorage
@@ -152,17 +175,24 @@ def run(execute_steps=execute, facts=None):
         return ("Glue Linux configuration rejected", str(exc))
     for line in list(result.warnings) + list(os_warnings):
         cala.utils.warning(line)
-    total = len(result.steps)
+    if not online():
+        return ("No internet connection",
+                "Glue Linux downloads its packages during the installation. Connect "
+                "to the internet (Network page, or plug in a cable) and start the "
+                "installer again. Nothing was installed.")
 
     def progress(i, n, description):
         cala.utils.debug(f"glueinstall [{i}/{n}] {description}")
         cala.job.setprogress(i / n if n else 1.0)
 
+    log_file = config.get("log_file", _DEFAULT_LOG)
     try:
         execute_steps(result.steps, dry_run=False, progress=progress,
-                      output_path=config.get("log_file", _DEFAULT_LOG))
+                      output_path=log_file)
     except ExecutorError as exc:
-        return ("Glue Linux installation failed", str(exc))
+        tail = _log_tail(log_file)
+        detail = f"{exc}\n\nLast lines of {log_file}:\n{tail}" if tail else str(exc)
+        return ("Glue Linux installation failed", detail)
     if result.swapfile_path:
         # Calamares' fstab job runs AFTER this module and only lists partitions:
         # record the swapfile line now; the fstab module appends its own lines.

@@ -4,7 +4,7 @@
     {
       "id": "linux-cachyos",
       "name": "CachyOS Kernel",
-      "description": "Performance-optimized kernel with BORE scheduler and CachyOS patches. The default kernel for Glue Linux.",
+      "description": "The kernel tuned for speed, with the BORE scheduler and the CachyOS patches. The default for Glue Linux.",
       "packages": [
         "linux-cachyos",
         "linux-cachyos-headers"
@@ -14,7 +14,7 @@
     {
       "id": "linux-zen",
       "name": "Zen Kernel",
-      "description": "Community-developed kernel tuned for desktop responsiveness. A solid secondary option.",
+      "description": "A community kernel tuned for a responsive desktop. A good second choice.",
       "packages": [
         "linux-zen",
         "linux-zen-headers"
@@ -26,7 +26,7 @@
     {
       "id": "dinit",
       "name": "dinit",
-      "description": "Recommended init system for Glue Linux. Fast, simple, and dependency-tracking. Recommended for its clean design and quick boot times.",
+      "description": "Fast and simple, with quick boot times. The default for Glue Linux.",
       "packages": [
         "dinit"
       ],
@@ -35,7 +35,7 @@
     {
       "id": "runit",
       "name": "runit",
-      "description": "Minimalist init system with a proven track record. Familiar to Void Linux users.",
+      "description": "Small and proven over many years. Void Linux uses it.",
       "packages": [
         "runit"
       ],
@@ -44,7 +44,7 @@
     {
       "id": "openrc",
       "name": "OpenRC",
-      "description": "Battle-tested init system from Gentoo. Familiar, well documented, and widely supported on Artix.",
+      "description": "Mature and well documented. Gentoo uses it.",
       "packages": [
         "openrc"
       ],
@@ -54,9 +54,9 @@
   "sessions": [
     {
       "id": "gluewc",
-      "name": "gluewc",
+      "name": "gluewc + glueqs",
       "kind": "wm",
-      "description": "Glue's own Wayland compositor: friendly tiling with smooth animations and three layouts (bsp, scroll, drift) you can cycle with one key. The default Glue Linux session.",
+      "description": "Glue's own tiling desktop with the glueqs bar: windows arrange themselves, with smooth animations, three layouts (bsp, scroll, drift) on one key, a launcher, notifications and a settings panel. The default Glue session.",
       "ease": 4,
       "lightness": 5,
       "keybindings": [
@@ -109,7 +109,10 @@
           "action": "Show Welcome and shortcuts"
         }
       ],
-      "screenshots": ["screenshots/gluewc-glueqs-bar.png"],
+      "screenshots": [
+        "screenshots/gluewc-glueqs-bar.png",
+        "screenshots/gluewc-glueqs-overview.png"
+      ],
       "packages": [
         "gluewc",
         "rofi",
@@ -118,17 +121,93 @@
       ],
       "services": [],
       "shell_choices": [
-        "glueqs",
+        "glueqs"
+      ],
+      "session_type": "wayland",
+      "exec": "gluewc-session",
+      "idle_ram": "about 450 MB"
+    },
+    {
+      "id": "gluewc-noctalia",
+      "name": "gluewc + Noctalia",
+      "kind": "wm",
+      "description": "The same gluewc tiling desktop with the Noctalia shell instead of glueqs: a polished bar, a control center and widgets from the Noctalia project. A bit heavier than glueqs.",
+      "ease": 4,
+      "lightness": 4,
+      "keybindings": [
+        {
+          "keys": "Super+Return",
+          "action": "Open terminal (alacritty)"
+        },
+        {
+          "keys": "Super+Space",
+          "action": "Open application launcher"
+        },
+        {
+          "keys": "Super+c",
+          "action": "Close focused window"
+        },
+        {
+          "keys": "Super",
+          "action": "Open the overview (tap Super alone)"
+        },
+        {
+          "keys": "Super+←↑↓→",
+          "action": "Move focus left/down/up/right"
+        },
+        {
+          "keys": "Super+Shift+←↑↓→",
+          "action": "Swap window left/down/up/right"
+        },
+        {
+          "keys": "Super+f",
+          "action": "Toggle fullscreen"
+        },
+        {
+          "keys": "Super+v",
+          "action": "Toggle floating (centered)"
+        },
+        {
+          "keys": "Super+n",
+          "action": "Cycle layout (bsp / scroll / drift)"
+        },
+        {
+          "keys": "Super+1-9",
+          "action": "Switch to workspace 1-9"
+        },
+        {
+          "keys": "Super+Shift+s",
+          "action": "Screenshot a region to the clipboard"
+        },
+        {
+          "keys": "Super+Shift+F1",
+          "action": "Show Welcome and shortcuts"
+        }
+      ],
+      "screenshots": [
+        "screenshots/gluewc-noctalia-bar.png",
+        "screenshots/gluewc-noctalia-overview.png"
+      ],
+      "packages": [
+        "gluewc",
+        "rofi",
+        "polkit-gnome",
+        "nautilus"
+      ],
+      "services": [],
+      "shell_choices": [
         "noctalia"
       ],
       "session_type": "wayland",
-      "exec": "gluewc-session"
+      "exec": "gluewc-session",
+      "desktop": "gluewc",
+      "idle_ram": "about 600 MB"
     },
     {
       "id": "nvwm",
       "name": "nvwm",
       "kind": "wm",
-      "description": "Light and strong custom window manager. Minimal footprint, maximum control. Part of the Glue Linux custom package set.",
+      "description": "A tiny X11 tiling window manager with its own bar. The lightest choice here: keyboard-driven, for people who like to tweak.",
       "ease": 3,
       "lightness": 5,
       "keybindings": [
@@ -165,7 +244,9 @@
           "action": "Show Welcome and shortcuts"
         }
       ],
-      "screenshots": ["screenshots/nvwm.png"],
+      "screenshots": [
+        "screenshots/nvwm.png"
+      ],
       "packages": [
         "nvwm",
         "st-glue",
@@ -177,13 +258,14 @@
       "services": [],
       "shell_choices": [],
       "session_type": "x11",
-      "exec": "nvwm"
+      "exec": "nvwm",
+      "idle_ram": "about 200 MB"
     },
     {
       "id": "kde-plasma",
       "name": "KDE Plasma",
       "kind": "de",
-      "description": "Recommended for beginners: a classic desktop, works like Windows. Pick it as well if you are not sure tiling is for you.",
+      "description": "A full classic desktop that works like Windows: taskbar, start menu, desktop icons and lots of settings. Best for beginners, and a good backup if tiling is not for you. The heaviest option.",
       "ease": 5,
       "lightness": 2,
       "keybindings": [
@@ -216,7 +298,9 @@
           "action": "Switch windows"
         }
       ],
-      "screenshots": ["screenshots/kde-plasma.png"],
+      "screenshots": [
+        "screenshots/kde-plasma.png"
+      ],
       "packages": [
         "plasma-meta",
         "dolphin",
@@ -226,13 +310,14 @@
       "services": [],
       "shell_choices": [],
       "session_type": "x11",
-      "exec": "startplasma-x11"
+      "exec": "startplasma-x11",
+      "idle_ram": "about 1 GB"
     },
     {
       "id": "xfce",
       "name": "XFCE",
       "kind": "de",
-      "description": "Optional full desktop environment. Lightweight and traditional. Included as a friendly fallback DE — considered optional extra on top of the core Glue experience.",
+      "description": "A light classic desktop with a panel, a menu, desktop icons and simple settings. Good for older or low-RAM computers.",
       "ease": 5,
       "lightness": 3,
       "keybindings": [
@@ -265,7 +350,9 @@
           "action": "Take screenshot"
         }
       ],
-      "screenshots": ["screenshots/xfce.png"],
+      "screenshots": [
+        "screenshots/xfce.png"
+      ],
       "packages": [
         "xfce4-session",
         "xfce4-panel",
@@ -279,13 +366,14 @@
       "services": [],
       "shell_choices": [],
       "session_type": "x11",
-      "exec": "startxfce4"
+      "exec": "startxfce4",
+      "idle_ram": "about 550 MB"
     },
     {
       "id": "gnome",
       "name": "GNOME (minimal)",
       "kind": "de",
-      "description": "Optional minimal GNOME desktop: the Shell, a terminal, the Files app and Settings — no extra GNOME apps. Runs on Wayland, coexists cleanly with KDE Plasma if you install both.",
+      "description": "A clean, modern desktop (minimal install): the Activities overview, a dock, Files and Settings, with no extra apps. Runs on Wayland and supports touchpad gestures.",
       "ease": 5,
       "lightness": 2,
       "keybindings": [
@@ -314,7 +402,9 @@
           "action": "Switch workspace"
         }
       ],
-      "screenshots": ["screenshots/gnome.png"],
+      "screenshots": [
+        "screenshots/gnome.png"
+      ],
       "packages": [
         "gnome-shell",
         "gnome-session",
@@ -329,13 +419,14 @@
       "shell_choices": [],
       "session_type": "wayland",
       "exec": "gnome-session",
-      "desktop": "GNOME"
+      "desktop": "GNOME",
+      "idle_ram": "about 1 GB"
     },
     {
       "id": "cinnamon",
       "name": "Cinnamon",
       "kind": "de",
-      "description": "A classic desktop, like in Linux Mint. Familiar menu, panel and system tray.",
+      "description": "A classic desktop like Linux Mint's: start menu, panel and system tray. Familiar and friendly, medium weight.",
       "ease": 5,
       "lightness": 3,
       "keybindings": [
@@ -364,7 +455,9 @@
           "action": "Show desktop"
         }
       ],
-      "screenshots": ["screenshots/cinnamon.png"],
+      "screenshots": [
+        "screenshots/cinnamon.png"
+      ],
       "packages": [
         "cinnamon",
         "cinnamon-translations",
@@ -376,18 +469,22 @@
       "services": [],
       "shell_choices": [],
       "session_type": "x11",
-      "exec": "cinnamon-session"
+      "exec": "cinnamon-session",
+      "idle_ram": "about 750 MB"
     }
   ],
   "shells": [
     {
       "id": "glueqs",
       "name": "glueqs",
-      "description": "Glue's own desktop shell: bar, launcher, notifications and a settings panel, matched to gluewc. Recommended.",
+      "description": "Glue's own desktop shell: bar, launcher, notifications and a settings panel, made for gluewc. Recommended.",
       "ease": 5,
       "lightness": 4,
       "keybindings": [],
-      "screenshots": ["screenshots/gluewc-glueqs-bar.png", "screenshots/gluewc-glueqs-overview.png"],
+      "screenshots": [
+        "screenshots/gluewc-glueqs-bar.png",
+        "screenshots/gluewc-glueqs-overview.png"
+      ],
       "packages": [
         "glueqs"
       ],
@@ -396,7 +493,7 @@
     {
       "id": "noctalia",
       "name": "Noctalia Shell",
-      "description": "Polished shell/bar for Wayland compositors. Clean amber-tinted aesthetic.",
+      "description": "A polished shell and bar for Wayland compositors, from the Noctalia project.",
       "ease": 4,
       "lightness": 4,
       "keybindings": [
@@ -421,7 +518,10 @@
           "action": "Reload bar configuration"
         }
       ],
-      "screenshots": ["screenshots/gluewc-noctalia-bar.png", "screenshots/gluewc-noctalia-overview.png"],
+      "screenshots": [
+        "screenshots/gluewc-noctalia-bar.png",
+        "screenshots/gluewc-noctalia-overview.png"
+      ],
       "packages": [
         "noctalia-shell",
         "noctalia-qs"
@@ -433,7 +533,7 @@
     {
       "id": "app-store",
       "name": "App store (Pacman + Flathub + AUR)",
-      "description": "Glue Apps finds, installs and updates apps from the system repositories, Flathub and the AUR through yay. Recommended.",
+      "description": "Glue Apps finds, installs and updates apps from the system repositories, Flathub and the AUR (through yay). Recommended.",
       "packages": [
         "flatpak",
         "yay",
@@ -446,7 +546,7 @@
     {
       "id": "bluetooth",
       "name": "Bluetooth Support",
-      "description": "Installs Bluetooth stack (BlueZ) and a GUI manager (Blueman) for easy pairing and management.",
+      "description": "Installs the Bluetooth stack (BlueZ) and Blueman for easy pairing.",
       "packages": [
         "bluez",
         "bluez-utils",
@@ -460,7 +560,7 @@
   ],
   "gaming": {
     "name": "Gaming Mode",
-    "description": "Fully prepares the system for plug-and-play gaming: Steam with Proton (CachyOS build preselected, Proton GE too), Heroic, Lutris, Faugus, Wine with winetricks/protontricks, Vulkan 32/64-bit, GameMode, MangoHud (32/64-bit) with GOverlay, Gamescope, a sched_ext CPU scheduler and ananicy-cpp process priorities. GPU drivers are auto-detected and installed.",
+    "description": "Prepares the system for gaming out of the box: Steam with Proton (the CachyOS build, plus Proton GE), Heroic, Lutris, Wine with winetricks and protontricks, 32- and 64-bit Vulkan, GameMode, MangoHud with GOverlay, Gamescope, a sched_ext CPU scheduler and ananicy-cpp process priorities. Graphics drivers are detected and installed automatically.",
     "packages": [
       "steam",
       "heroic-games-launcher-bin",
@@ -481,7 +581,6 @@
       "ananicy-cpp",
       "cachyos-ananicy-rules",
       "lib32-mangohud",
-      "faugus-launcher",
       "wine-cachyos-opt",
       "lutris",
       "goverlay",
