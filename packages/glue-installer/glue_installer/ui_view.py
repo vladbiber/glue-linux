@@ -19,7 +19,7 @@ from glue_installer.ui_forms import FormField, disk_label, masked
 DE_SECTION = "Desktop environments (optional)"
 
 SESSIONS_NOTICE = (
-    "You can tick several at once. Everything you tick gets installed, "
+    "You can pick several at once. Everything you pick gets installed, "
     "and at the login screen (greeter) you choose which one to start "
     "every time you log in — for example gluewc for daily use and KDE "
     "as a backup."

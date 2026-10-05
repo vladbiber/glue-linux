@@ -3,7 +3,7 @@
 # wlroots0.20 and scenefx0.5, not the copies install.sh would compile.
 pkgname=gluewc
 pkgver=0.3.0.r31.94acc30
-pkgrel=1
+pkgrel=2
 pkgdesc="Animated Wayland compositor with BSP, scrolling and infinite-canvas layouts"
 arch=('x86_64')
 url="https://github.com/vladbiber/gluewc"
@@ -31,19 +31,25 @@ pkgver() {
 
 prepare() {
     cd "$pkgname"
+    # Glue look: frosted blur behind translucent windows (the terminal is 50%)
+    sed -i -e 's/^blur *= *false$/blur           = true/' \
+        -e 's/^blur_passes *= *[0-9]*$/blur_passes    = 3/' \
+        -e 's/^blur_radius *= *[0-9]*$/blur_radius    = 5/' config.def.conf
+    grep -q '^blur *= *true$' config.def.conf && grep -q '^blur_radius *= *5$' config.def.conf || {
+        echo "ERROR: blur defaults patch failed" >&2; exit 1; }
     grep -q '^bind_insert = mod+shift+F1 = spawn:glue-welcome$' config.def.conf ||
         sed -i '/^bind_insert = mod+F1 = /a bind_insert = mod+shift+F1 = spawn:glue-welcome' \
             config.def.conf
     grep -q '^bind_insert = mod+F1 = spawn:playerctl play-pause$' config.def.conf &&
         grep -q '^bind_insert = mod+shift+F1 = spawn:glue-welcome$' config.def.conf || {
         echo "ERROR: Glue Welcome keybind patch failed" >&2; exit 1; }
-    #: adaptive_sync per output (default off) and alacritty default live upstream; fail loudly if a bump drops them
+    # adaptive_sync per output (default off) and alacritty default live upstream; fail loudly if a bump drops them
     grep -q 'adaptive_sync' config.def.conf &&
         grep -q 'wlr_output_state_set_adaptive_sync_enabled' gluewc.c || {
         echo "ERROR: gluewc source lost per-output adaptive_sync" >&2; exit 1; }
     grep -q '^bind_insert = mod+Return = spawn:alacritty$' config.def.conf || {
         echo "ERROR: alacritty is no longer the default terminal in config.def.conf" >&2; exit 1; }
-    #: the bar's hardware keys live in the default config (config.def.conf:171-181
+    # the bar's hardware keys live in the default config (config.def.conf:171-181
     # at the pinned commit); a bump that drops them leaves the user with dead keys
     grep -q '^bind_insert = XF86MonBrightnessUp = spawn:gluewc-backlight up$' config.def.conf &&
         grep -q '^bind_insert = XF86AudioRaiseVolume = spawn:.*wpctl set-volume' config.def.conf &&

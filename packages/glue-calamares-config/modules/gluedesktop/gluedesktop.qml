@@ -1,5 +1,5 @@
 // Glue Linux: "Choose your desktop" page (notesqml@gluedesktop).
-// Multi-select cards; the ticked ids go to globalstorage as
+// Multi-select cards; the picked ids go to globalstorage as
 // packagechooser_gluesessions (comma-separated), read by glueinstall.
 import QtQuick
 import QtQuick.Controls
@@ -37,7 +37,7 @@ Item {
         var at = next.indexOf(id)
         if (at >= 0) {
             if (next.length === 1) {
-                notice = "Keep at least one desktop ticked."
+                notice = "Keep at least one desktop picked."
                 return
             }
             next.splice(at, 1)
@@ -74,7 +74,7 @@ Item {
             wrapMode: Text.WordWrap
             color: page.colMuted
             font.pixelSize: 13
-            text: "Tick one or more. Everything you tick is installed, and the login screen lets you pick which one to start. Click a picture to see it bigger."
+            text: "Pick one or more. Everything you pick is installed, and the login screen lets you choose which one to start. Click a picture to see it bigger."
         }
         Text {
             visible: page.notice !== ""
