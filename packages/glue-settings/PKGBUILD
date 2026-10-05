@@ -1,7 +1,7 @@
 # Maintainer: Glue Linux
 pkgname=glue-settings
 pkgver=1
-pkgrel=2
+pkgrel=3
 pkgdesc="Glue Linux performance defaults (CachyOS-Settings ported to Artix inits): sysctl, udev rules, modprobe, limits, THP oneshot, game-performance"
 arch=('any')
 url="https://github.com/vladbiber/glue-linux"

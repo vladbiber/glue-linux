@@ -1,3 +1,5 @@
 # glue-sensors-detect - one-shot sensor detection at first boot
 type = scripted
 command = /usr/bin/glue-sensors-detect
+# needs the root filesystem mounted read-write to leave its marker
+depends-on = pre-local.target
