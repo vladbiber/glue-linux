@@ -257,6 +257,24 @@ class TestPlanLaptopRules(unittest.TestCase):
         plan = self._plan(is_laptop_=False)
         self.assertNotIn("glue-sensors-detect", plan.services)
 
+    def _gpu_plan(self, is_laptop_, vendors):
+        sel = Selection("k-main", "dinit", [], {}, [], True, False)
+        return resolve_plan(self.catalog, sel, is_laptop=is_laptop_,
+                            gpu_vendors=vendors)
+
+    def test_nvidia_laptop_has_powerd(self):
+        plan = self._gpu_plan(True, {"intel", "nvidia"})
+        self.assertIn("nvidia-powerd", plan.services)
+        self.assertIn("glue-settings", plan.packages)
+
+    def test_nvidia_desktop_no_powerd(self):
+        plan = self._gpu_plan(False, {"nvidia"})
+        self.assertNotIn("nvidia-powerd", plan.services)
+
+    def test_intel_laptop_no_powerd(self):
+        plan = self._gpu_plan(True, {"intel"})
+        self.assertNotIn("nvidia-powerd", plan.services)
+
     def test_amd_pstate_active_goes_to_cmdline_extra(self):
         plan = self._plan(cpu_vendor_id="amd", amd_pstate=True)
         self.assertEqual(plan.cmdline_extra, ["amd_pstate=active"])

@@ -324,6 +324,14 @@ def resolve_plan(
         packages.add("glue-settings")
         services.add("glue-tuning")
 
+    # Rule 19: NVIDIA Dynamic Boost on laptops. Without nvidia-powerd the GPU
+    # stays at its base power limit (measured: RTX 3050 60 W vs 75 W, -15% fps).
+    # The service script ships in glue-settings; it exits on unsupported GPUs.
+    if tuned and is_laptop and gpu_vendors and "nvidia" in gpu_vendors:
+        from glue_installer.hw_compat import proprietary_nvidia
+        if hw is None or proprietary_nvidia(hw):
+            services.add("nvidia-powerd")
+
     # Rule 14: zram via zramen on every install.
     # zramen-{init_id} is pulled in automatically by Rule 10 below.
     packages.add("zramen")
