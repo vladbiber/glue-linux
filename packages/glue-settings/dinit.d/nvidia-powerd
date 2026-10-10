@@ -1,0 +1,7 @@
+# nvidia-powerd - NVIDIA Dynamic Boost (laptop GPU power limit up to its max)
+type = process
+command = /usr/bin/nvidia-powerd
+depends-on = dbus
+# exits on GPUs without Dynamic Boost; don't loop
+restart = false
+logfile = /var/log/dinit/nvidia-powerd.log

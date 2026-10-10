@@ -1,0 +1,5 @@
+#!/bin/sh
+# nvidia-powerd (runit): NVIDIA Dynamic Boost, idles if the GPU lacks it
+sv check dbus >/dev/null || exit 1
+/usr/bin/nvidia-powerd
+exec sleep infinity

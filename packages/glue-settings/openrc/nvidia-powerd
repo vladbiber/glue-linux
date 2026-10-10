@@ -1,0 +1,10 @@
+#!/usr/bin/openrc-run
+# nvidia-powerd - NVIDIA Dynamic Boost
+description="NVIDIA Dynamic Boost daemon"
+command=/usr/bin/nvidia-powerd
+command_background=yes
+pidfile=/run/nvidia-powerd.pid
+
+depend() {
+    need dbus
+}

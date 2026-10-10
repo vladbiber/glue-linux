@@ -1,0 +1,14 @@
+#!/bin/sh
+# A running sshd keeps the old binary but spawns the new sshd-session, so new
+# logins fail until it restarts. Restart only if it was running; open sessions
+# stay up.
+if command -v dinitctl >/dev/null && [ "$(cat /proc/1/comm)" = dinit ]; then
+    dinitctl is-started sshd >/dev/null 2>&1 && dinitctl restart sshd >/dev/null
+elif command -v sv >/dev/null && [ "$(cat /proc/1/comm)" = runit ]; then
+    for d in /run/runit/service/sshd /var/service/sshd; do
+        [ -d "$d" ] && sv status "$d" | grep -q '^run:' && sv restart "$d" >/dev/null
+    done
+elif command -v rc-service >/dev/null; then
+    rc-service -q sshd status && rc-service -q sshd restart
+fi
+exit 0

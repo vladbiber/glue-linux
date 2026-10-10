@@ -1,0 +1,9 @@
+[Trigger]
+Type = Package
+Operation = Upgrade
+Target = openssh
+
+[Action]
+Description = Restarting sshd for the new OpenSSH...
+When = PostTransaction
+Exec = /usr/lib/glue/sshd-restart

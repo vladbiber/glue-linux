@@ -1,14 +1,15 @@
 # Maintainer: Glue Linux
 pkgname=glue-settings
 pkgver=1
-pkgrel=4
+pkgrel=5
 pkgdesc="Glue Linux performance defaults (CachyOS-Settings ported to Artix inits): sysctl, udev rules, modprobe, limits, THP oneshot, game-performance"
 arch=('any')
 url="https://github.com/vladbiber/glue-linux"
 license=('GPL-3.0-or-later')
 # hdparm: 69-hdparm.rules RUN; pciutils: setpci in pci-latency
 depends=('hdparm' 'pciutils')
-optdepends=('power-profiles-daemon: profile switching for game-performance')
+optdepends=('power-profiles-daemon: profile switching for game-performance'
+            'nvidia-utils: nvidia-powerd for the Dynamic Boost service')
 install=glue-settings.install
 source=('70-glue.conf'
         '60-ioschedulers.rules' '50-sata.rules' '69-hdparm.rules'
@@ -18,9 +19,11 @@ source=('70-glue.conf'
         'nvidia.conf' 'amdgpu.conf' 'blacklist.conf'
         '20-audio.conf'
         'glue-thp-tune' 'game-performance' 'pci-latency'
-        'glue-sensors-detect')
+        'glue-sensors-detect'
+        '99-glue-sshd-restart.hook' 'sshd-restart')
 sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
-            'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+            'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
+            'SKIP' 'SKIP')
 
 package() {
     # ----- sysctl (vendor dir; /etc stays free for the admin) -----
@@ -50,6 +53,11 @@ package() {
     install -Dm755 "$srcdir/pci-latency"         "$pkgdir/usr/bin/pci-latency"
     install -Dm755 "$srcdir/glue-sensors-detect" "$pkgdir/usr/bin/glue-sensors-detect"
 
+    # ----- restart a running sshd after an OpenSSH upgrade -----
+    install -Dm644 "$srcdir/99-glue-sshd-restart.hook" \
+        "$pkgdir/usr/share/libalpm/hooks/99-glue-sshd-restart.hook"
+    install -Dm755 "$srcdir/sshd-restart" "$pkgdir/usr/lib/glue/sshd-restart"
+
     # ----- glue-tuning oneshot for all three inits -----
     install -Dm644 "$startdir/dinit.d/glue-tuning" \
         "$pkgdir/etc/dinit.d/glue-tuning"
@@ -65,4 +73,12 @@ package() {
         "$pkgdir/etc/runit/sv/glue-sensors-detect/run"
     install -Dm755 "$startdir/openrc/glue-sensors-detect" \
         "$pkgdir/etc/init.d/glue-sensors-detect"
+
+    # ----- nvidia-powerd (Dynamic Boost) for all three inits -----
+    install -Dm644 "$startdir/dinit.d/nvidia-powerd" \
+        "$pkgdir/etc/dinit.d/nvidia-powerd"
+    install -Dm755 "$startdir/runit/nvidia-powerd/run" \
+        "$pkgdir/etc/runit/sv/nvidia-powerd/run"
+    install -Dm755 "$startdir/openrc/nvidia-powerd" \
+        "$pkgdir/etc/init.d/nvidia-powerd"
 }

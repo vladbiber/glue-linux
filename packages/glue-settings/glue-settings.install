@@ -17,8 +17,31 @@ _drop_thermald() {
     return 0
 }
 
+# Dynamic Boost: without nvidia-powerd laptop GPUs stay at their base power
+# limit (60 W instead of 75 W on an RTX 3050). Enabled once on NVIDIA systems.
+_enable_powerd() {
+    [ -x /usr/bin/nvidia-powerd ] || return 0
+    case "$(cat /proc/1/comm 2>/dev/null)" in
+    dinit)
+        [ -e /etc/dinit.d/boot.d/nvidia-powerd ] ||
+            ln -s ../nvidia-powerd /etc/dinit.d/boot.d/nvidia-powerd
+        dinitctl start nvidia-powerd >/dev/null 2>&1 ;;
+    runit)
+        [ -e /etc/runit/runsvdir/default/nvidia-powerd ] ||
+            ln -s /etc/runit/sv/nvidia-powerd /etc/runit/runsvdir/default/ ;;
+    *)
+        command -v rc-update >/dev/null &&
+            rc-update add nvidia-powerd default >/dev/null 2>&1 &&
+            rc-service nvidia-powerd start >/dev/null 2>&1 ;;
+    esac
+    return 0
+}
+
 post_upgrade() {
     if [ "$(vercmp "$2" 1-4)" -lt 0 ]; then
         _drop_thermald
+    fi
+    if [ "$(vercmp "$2" 1-5)" -lt 0 ]; then
+        _enable_powerd
     fi
 }
