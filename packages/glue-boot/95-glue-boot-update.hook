@@ -5,7 +5,14 @@ Operation = Upgrade
 Operation = Remove
 Target = usr/lib/modules/*/pkgbase
 
+[Trigger]
+Type = Package
+Operation = Install
+Operation = Upgrade
+Target = limine
+
 [Action]
 Description = Updating Limine boot entries...
 When = PostTransaction
-Exec = /usr/bin/glue-boot-update
+Exec = /usr/bin/glue-boot-update --hook
+NeedsTargets

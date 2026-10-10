@@ -9,13 +9,14 @@
 # glue-pkgbuild-img with the repo on /glue (the host has real disks and EFI
 # variables; nothing here needs them); exit code non-zero on any FAIL.
 # Inside (--inside, root) the probes are:
-#   install-pkg         makepkg + pacman -U glue-boot: script + two hooks present
+#   install-pkg         makepkg + pacman -U glue-boot: script + one hook present
 #   initial-conf        dummy kernel + /etc/glue/boot.conf -> limine.conf written
 #   deploy-efi          --deploy copies BOOTX64.EFI to EFI/BOOT + EFI/limine,
 #                       warns (exit 0) because the container has no EFI variables
-#   second-kernel-hook  pacman -U of a fake kernel package -> new entry appears
+#   second-kernel-hook  pacman -U of a fake kernel package -> new entry appears,
+#                       Limine files NOT redeployed
 #   remove-kernel-hook  pacman -R of it -> entry gone, primary kept
-#   limine-deploy-hook  reinstalling limine runs the deploy hook, EFI file refreshed
+#   limine-deploy-hook  reinstalling limine runs the hook in deploy mode, EFI file refreshed
 #   idempotent          two runs -> identical limine.conf
 #   no-bootconf-noop    without boot.conf: exit 0, limine.conf untouched
 #   foreign-entry-survives-kernel-update  boot.d/10-windows-deadbeef.conf stays
@@ -74,8 +75,8 @@ inside_main() {
     rm -f /tmp/build-glue-boot/*.pkg.tar.*
     build_and_install /tmp/build-glue-boot >/dev/null
     if [ -x /usr/bin/glue-boot-update ] && [ -f /usr/share/libalpm/hooks/95-glue-boot-update.hook ] \
-        && [ -f /usr/share/libalpm/hooks/95-glue-boot-deploy.hook ]; then
-        record install-pkg PASS "script + 2 hooks installed ($(pacman -Q glue-boot))"
+        && [ ! -e /usr/share/libalpm/hooks/95-glue-boot-deploy.hook ]; then
+        record install-pkg PASS "script + 1 hook installed ($(pacman -Q glue-boot))"
     else record install-pkg FAIL "files missing after pacman -U"; fi
 
     # (2) dummy primary kernel + boot.conf, then --deploy
@@ -122,12 +123,14 @@ package() {
     echo dummy > "$pkgdir/boot/initramfs-linux-fake.img"
 }
 PKG
+    echo stale > /boot/EFI/limine/BOOTX64.EFI
     out=$(build_and_install /tmp/build-linux-fake 2>&1) || true
     if printf '%s' "$out" | grep -q 'Updating Limine boot entries' \
+        && [ "$(cat /boot/EFI/limine/BOOTX64.EFI)" = stale ] \
         && grep -qx '/Glue Linux (linux-fake)' /boot/limine.conf \
         && grep -qx 'kernel_path: boot():/vmlinuz-linux-fake' /boot/limine.conf \
         && grep -qx '/Glue Linux' /boot/limine.conf; then
-        record second-kernel-hook PASS "pacman -U linux-fake ran the hook; entry added"
+        record second-kernel-hook PASS "pacman -U linux-fake ran the hook; entry added, no redeploy"
     else record second-kernel-hook FAIL "$(printf '%s' "$out" | tail -n 5 | tr '\n' '|')"; fi
 
     # (4) remove it -> entry gone
@@ -137,10 +140,10 @@ PKG
         record remove-kernel-hook PASS "pacman -R linux-fake: entry gone, primary kept"
     else record remove-kernel-hook FAIL "$(printf '%s' "$out" | tail -n 5 | tr '\n' '|')"; fi
 
-    # (5) reinstall limine -> 95-glue-boot-deploy.hook
+    # (5) reinstall limine -> same hook, deploy mode
     echo stale > /boot/EFI/limine/BOOTX64.EFI
     out=$(pacman -S --noconfirm limine 2>&1) || true
-    if printf '%s' "$out" | grep -q 'Deploying Limine' \
+    if printf '%s' "$out" | grep -q 'Updating Limine boot entries' \
         && [ "$(sha /boot/EFI/limine/BOOTX64.EFI)" = "$(sha /usr/share/limine/BOOTX64.EFI)" ] \
         && [ "$(sha /boot/EFI/BOOT/BOOTX64.EFI)" = "$(sha /usr/share/limine/BOOTX64.EFI)" ]; then
         record limine-deploy-hook PASS "hook ran on reinstall; BOOTX64.EFI sha256 matches /usr/share/limine"

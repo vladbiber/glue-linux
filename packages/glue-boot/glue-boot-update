@@ -29,8 +29,9 @@ die()  { printf '%s: error: %s\n' "$ME" "$*" >&2; exit 1; }
 
 usage() {
     cat <<USAGE
-usage: $ME [--deploy] [--print] [--root DIR]
+usage: $ME [--deploy] [--hook] [--print] [--root DIR]
   --deploy   also copy the Limine loader files and register the boot entry
+  --hook     pacman hook mode: targets on stdin, --deploy if limine is one
   --print    write the generated limine.conf to stdout, touch nothing
   --root DIR operate on the system mounted at DIR instead of /
 USAGE
@@ -40,6 +41,7 @@ USAGE
 while [ $# -gt 0 ]; do
     case $1 in
         --deploy) DEPLOY=1 ;;
+        --hook) HOOK=1 ;;
         --print) PRINT=1 ;;
         --root) [ $# -ge 2 ] || die "--root needs a directory"; ROOT=$2; shift ;;
         --root=*) ROOT=${1#--root=} ;;
@@ -48,6 +50,15 @@ while [ $# -gt 0 ]; do
     esac
     shift
 done
+# one hook for kernels and limine: deploy only when limine itself changed
+if [ "${HOOK:-0}" = 1 ]; then
+    targets=$(cat)
+    case "
+$targets
+" in *"
+limine
+"*) DEPLOY=1 ;; esac
+fi
 ROOT=${ROOT%/}
 [ -z "$ROOT" ] || [ -d "$ROOT" ] || die "no such directory: $ROOT"
 BOOT="$ROOT/boot"
