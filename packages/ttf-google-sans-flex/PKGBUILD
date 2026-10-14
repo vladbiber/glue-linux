@@ -1,0 +1,18 @@
+# Maintainer: Glue Linux
+# Not packaged upstream; UI font of the ii shell (the copy its installer fetches).
+pkgname=ttf-google-sans-flex
+pkgver=r1.251aa5a
+pkgrel=1
+_commit=251aa5abd30496368f634e54ce2a508fe5a2fdfa
+pkgdesc="Google Sans Flex variable font"
+arch=('any')
+url="https://github.com/end-4/google-sans-flex"
+license=('OFL-1.1')
+source=("GoogleSansFlex.ttf::$url/raw/$_commit/GoogleSansFlex-VariableFont_GRAD,ROND,opsz,slnt,wdth,wght.ttf"
+        "LICENSE::$url/raw/$_commit/LICENSE")
+sha256sums=('SKIP' 'SKIP')
+
+package() {
+    install -Dm644 GoogleSansFlex.ttf "$pkgdir/usr/share/fonts/TTF/GoogleSansFlex-VariableFont_GRAD,ROND,opsz,slnt,wdth,wght.ttf"
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

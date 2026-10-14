@@ -1,0 +1,24 @@
+# Maintainer: Glue Linux
+# In Arch [extra] but not in Artix; screenshot editor used by caelestia.
+pkgname=swappy
+pkgver=1.8.0
+pkgrel=1
+pkgdesc="A Wayland native snapshot editing tool"
+url="https://github.com/jtheoof/swappy"
+arch=('x86_64')
+license=('MIT')
+depends=('cairo' 'gtk3' 'pango')
+optdepends=('wl-clipboard: copy to clipboard support')
+makedepends=('meson' 'scdoc' 'git')
+source=("git+${url}.git#tag=v${pkgver}")
+sha256sums=('SKIP')
+
+build() {
+    arch-meson "$pkgname" build
+    ninja -C build
+}
+
+package() {
+    DESTDIR="$pkgdir" ninja -C build install
+    install -Dm644 "$pkgname/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

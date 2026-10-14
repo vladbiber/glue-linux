@@ -1,0 +1,24 @@
+# Maintainer: Glue Linux
+# Hyprland sessions of Glue: the launcher and the caelestia Hyprland config
+# (from caelestia-dots/caelestia, adapted: Adwaita cursor, alacritty, nautilus,
+# read-only in /usr/share with user files in ~/.config/caelestia).
+pkgname=glue-hyprland
+pkgver=1
+pkgrel=1
+pkgdesc="Glue Linux Hyprland sessions (caelestia and ii)"
+arch=('any')
+url="https://github.com/vladbiber/glue-linux"
+license=('GPL-3.0-only')
+depends=('hyprland' 'xdg-desktop-portal-hyprland' 'xdg-desktop-portal-gtk' 'adwaita-cursors'
+         'hyprpicker' 'wl-clipboard' 'cliphist' 'gnome-keyring')
+optdepends=('caelestia-shell: the caelestia desktop'
+            'ii-vynx: the ii desktop')
+source=("glue-hyprland")
+sha256sums=('SKIP')
+
+package() {
+    install -Dm755 glue-hyprland "$pkgdir/usr/bin/glue-hyprland"
+    install -d "$pkgdir/usr/share/glue/hyprland"
+    cp -r "$startdir/caelestia" "$pkgdir/usr/share/glue/hyprland/caelestia"
+    chmod -R u=rwX,go=rX "$pkgdir/usr/share/glue/hyprland"
+}

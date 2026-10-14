@@ -1,0 +1,23 @@
+# Maintainer: Glue Linux
+# In Arch [extra] but not in Artix; icon font for the caelestia and ii shells.
+pkgname=ttf-material-symbols-variable
+pkgver=4.0.0.r20261009
+pkgrel=1
+_commit=49d4db35df873165d6bd6ba09b063c7dafbac2f4
+pkgdesc="Material Symbols variable icon fonts by Google"
+arch=('any')
+url="https://github.com/google/material-design-icons"
+license=('Apache-2.0')
+source=("Outlined.ttf::$url/raw/$_commit/variablefont/MaterialSymbolsOutlined%5BFILL,GRAD,opsz,wght%5D.ttf"
+        "Rounded.ttf::$url/raw/$_commit/variablefont/MaterialSymbolsRounded%5BFILL,GRAD,opsz,wght%5D.ttf"
+        "Sharp.ttf::$url/raw/$_commit/variablefont/MaterialSymbolsSharp%5BFILL,GRAD,opsz,wght%5D.ttf"
+        "LICENSE::$url/raw/$_commit/LICENSE")
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP')
+
+package() {
+    local s
+    for s in Outlined Rounded Sharp; do
+        install -Dm644 "$s.ttf" "$pkgdir/usr/share/fonts/TTF/MaterialSymbols$s[FILL,GRAD,opsz,wght].ttf"
+    done
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

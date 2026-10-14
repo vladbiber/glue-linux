@@ -1,0 +1,18 @@
+# Maintainer: Glue Linux
+# AUR-only upstream; display font of the ii shell.
+pkgname=otf-space-grotesk
+pkgver=2.0.0
+pkgrel=1
+_commit=03507d024a01282884232081fc6011c09ff4e849
+pkgdesc="Space Grotesk, a proportional sans-serif typeface"
+arch=('any')
+url="https://github.com/floriankarsten/space-grotesk"
+license=('OFL-1.1')
+source=("space-grotesk-$pkgver.tar.gz::$url/archive/$_commit.tar.gz")
+sha256sums=('SKIP')
+
+package() {
+    cd "space-grotesk-$_commit"
+    install -Dm644 fonts/otf/*.otf -t "$pkgdir/usr/share/fonts/OTF/"
+    install -Dm644 OFL.txt "$pkgdir/usr/share/licenses/$pkgname/OFL.txt"
+}

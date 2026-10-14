@@ -1,0 +1,23 @@
+# Maintainer: Glue Linux
+# AUR-only upstream; logout menu used by the ii shell.
+pkgname=wlogout
+pkgver=1.2.2
+pkgrel=1
+pkgdesc="Logout menu for wayland"
+arch=('x86_64')
+license=('MIT')
+url="https://github.com/ArtsyMacaw/wlogout"
+depends=('gtk3' 'gobject-introspection' 'gtk-layer-shell')
+makedepends=('meson' 'scdoc')
+source=("$pkgname-$pkgver.tar.gz::$url/releases/download/$pkgver/$pkgname.tar.gz")
+md5sums=('2d129a847cdf9aa212b834f690f86e4a')
+
+build() {
+    meson setup build --prefix /usr
+    ninja -C build
+}
+
+package() {
+    DESTDIR="$pkgdir" ninja -C build install
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

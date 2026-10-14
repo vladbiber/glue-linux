@@ -1,0 +1,29 @@
+#!/bin/sh
+# Copy the ii desktop into ~/.config at login: everything on first run, the
+# shell code and Hyprland base config again after a package update. Never
+# touches ~/.config/hypr/custom or the colours matugen generated.
+set -eu
+src=/usr/share/ii-vynx/config
+cfg=${XDG_CONFIG_HOME:-$HOME/.config}
+stamp=$cfg/illogical-impulse/.glue-version
+ver=$(cat /usr/share/ii-vynx/version)
+[ "$(cat "$stamp" 2>/dev/null || true)" = "$ver" ] && exit 0
+mkdir -p "$cfg/quickshell" "$cfg/hypr" "$cfg/illogical-impulse"
+if [ ! -f "$stamp" ]; then
+    for f in hyprland.lua hyprland.conf; do
+        [ -e "$cfg/hypr/$f" ] && cp -a "$cfg/hypr/$f" "$cfg/hypr/$f.before-ii"
+    done
+fi
+rsync -a --delete "$src/quickshell/ii/" "$cfg/quickshell/ii/"
+keep="--exclude=colors.conf --exclude=shellOverrides/main.lua"
+rsync -a $keep "$src/hypr/hyprland/" "$cfg/hypr/hyprland/"
+rsync -a --exclude=colors.conf "$src/hypr/hyprlock/" "$cfg/hypr/hyprlock/"
+for f in hyprland/colors.conf hyprlock/colors.conf hyprland/shellOverrides/main.lua; do
+    [ -e "$src/hypr/$f" ] && [ ! -e "$cfg/hypr/$f" ] && cp "$src/hypr/$f" "$cfg/hypr/$f"
+done
+cp "$src/hypr/hyprland.lua" "$src/hypr/hypridle.conf" "$src/hypr/hyprlock.conf" "$cfg/hypr/"
+[ -d "$cfg/hypr/custom" ] || cp -a "$src/hypr/custom" "$cfg/hypr/custom"
+for d in matugen fuzzel wlogout; do
+    [ -d "$cfg/$d" ] || cp -a "$src/$d" "$cfg/$d"
+done
+echo "$ver" > "$stamp"

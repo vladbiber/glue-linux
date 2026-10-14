@@ -1,0 +1,18 @@
+# Maintainer: Glue Linux
+# AUR-only upstream; reading font of the ii shell.
+pkgname=ttf-readex-pro
+pkgver=1.204
+pkgrel=1
+_commit=1a5aaa4c15edb043c37113a8cddf020235917050
+pkgdesc="Readex Pro, a world-script expansion of Lexend"
+arch=('any')
+url="https://github.com/ThomasJockin/readexpro"
+license=('OFL-1.1')
+source=("readex-pro-$pkgver.tar.gz::$url/archive/$_commit.tar.gz")
+sha256sums=('128848eba1ae8fe0454f279a367f5ef0e932949e131382f7b3e26b9373c9a7e4')
+
+package() {
+    cd "readexpro-$_commit"
+    install -Dm644 fonts/ttf/*.ttf -t "$pkgdir/usr/share/fonts/$pkgname/"
+    install -Dm644 OFL.txt "$pkgdir/usr/share/licenses/$pkgname/OFL.txt"
+}

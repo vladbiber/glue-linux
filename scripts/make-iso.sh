@@ -64,7 +64,10 @@ sign_pkgs() {
 # ctify, spotc (with librespot) and creader are optional apps of the repo,
 # not installed on the ISO.
 for pkg in glue-keyring glue-zsh glue-branding glue-settings glue-boot st-glue nvwm proton-ge-custom-bin \
-           scx-scheds ananicy-cpp lib32-glew lib32-mangohud cage gluewc glueqs gluemac gluemac-shell \
+           scx-scheds ananicy-cpp lib32-glew lib32-mangohud cage gluewc glueqs noctalia-shell gluemac gluemac-shell \
+           ttf-material-symbols-variable ttf-rubik-vf ttf-google-sans-flex ttf-readex-pro otf-space-grotesk \
+           swappy libcava qt6-m3shapes python-materialyoucolor matugen caelestia-cli caelestia-shell \
+           wlogout ii-vynx glue-hyprland \
            glue-apps glue-welcome glue-installer glue-calamares-config \
            librespot spotc ctify creader; do
     # GLUE_PKGS="a b" rebuilds only those; the rest come from the persisted repo

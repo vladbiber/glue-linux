@@ -1,0 +1,35 @@
+# Maintainer: Glue Linux
+# Noctalia v5 (native C++, no Quickshell), built from the release tarball.
+# [cachyos] noctalia-shell 5.2.1-1 ships only the source tree, so it cannot
+# start; this package of the same name wins because [glue] comes first.
+pkgname=noctalia-shell
+pkgver=5.2.1
+pkgrel=100
+pkgdesc="Noctalia desktop shell for Wayland compositors"
+arch=('x86_64')
+url="https://github.com/noctalia-dev/noctalia-shell"
+license=('MIT')
+depends=('wayland' 'libglvnd' 'freetype2' 'fontconfig' 'cairo' 'pango' 'harfbuzz'
+         'libxkbcommon' 'glib2' 'libsecret' 'libsodium' 'sdbus-cpp' 'libpipewire'
+         'wireplumber' 'polkit' 'pam' 'curl' 'libwebp' 'libjxl' 'libsndfile' 'librsvg'
+         'libqalculate' 'libxml2' 'md4c' 'tomlplusplus' 'libical' 'jemalloc')
+makedepends=('meson' 'ninja' 'wayland-protocols' 'nlohmann-json' 'stb')
+provides=('noctalia')
+conflicts=('noctalia-qs')
+source=("noctalia-v$pkgver.tar.gz::$url/releases/download/v$pkgver/noctalia-v$pkgver.tar.gz")
+sha256sums=('fddff2d78677b8889709c8b2e707896fce1b79d24cb9a81d36f3be6aa66e58bb')
+
+build() {
+    local src
+    src=$(find "$srcdir" -mindepth 1 -maxdepth 1 -type d | head -n1)
+    arch-meson "$src" build -Db_lto=true -Dtests=disabled
+    meson compile -C build
+}
+
+package() {
+    local src
+    src=$(find "$srcdir" -mindepth 1 -maxdepth 1 -type d ! -name build | head -n1)
+    meson install -C build --destdir "$pkgdir"
+    [ -f "$src/LICENSE" ] && install -Dm644 "$src/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+    true
+}

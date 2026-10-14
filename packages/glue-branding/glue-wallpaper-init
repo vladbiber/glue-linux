@@ -63,8 +63,17 @@ case "$session:$shell" in
     gluemac*:gluemac-shell)
         run_until_ok qs -c gluemac-shell ipc call wallpaper change "$wallpaper" || ok=0
         ;;
+    hyprland*:caelestia)
+        run_until_ok caelestia wallpaper -f "$wallpaper" || ok=0
+        ;;
+    hyprland*:ii)
+        switchwall=${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/ii/scripts/colors/switchwall.sh
+        export ILLOGICAL_IMPULSE_VIRTUAL_ENV=/usr/lib/ii-vynx/venv
+        run_until_ok qs -c ii ipc show || ok=0
+        [ "$ok" -eq 1 ] && { "$switchwall" --image "$wallpaper" >/dev/null 2>&1 || ok=0; }
+        ;;
     gluewc*:noctalia)
-        run_until_ok qs -c noctalia-shell ipc call wallpaper set "$wallpaper" all || ok=0
+        run_until_ok noctalia msg wallpaper-set "$wallpaper" || ok=0
         ;;
     nvwm:*)
         run_until_ok feh --no-fehbg --bg-fill "$wallpaper" || ok=0

@@ -1,0 +1,13 @@
+#!/bin/sh
+# glue-hyprland caelestia|ii - start Hyprland with the chosen desktop shell
+case "${1:-}" in
+    caelestia)
+        conf=/usr/share/glue/hyprland/caelestia/hyprland.lua ;;
+    ii)
+        ii-vynx-seed || echo "glue-hyprland: ii-vynx-seed failed" >&2
+        conf=${XDG_CONFIG_HOME:-$HOME/.config}/hypr/hyprland.lua ;;
+    *)
+        echo "usage: glue-hyprland caelestia|ii" >&2
+        exit 2 ;;
+esac
+exec start-hyprland -- -c "$conf"

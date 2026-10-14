@@ -1,0 +1,79 @@
+# Maintainer: Glue Linux
+# The ii (illogical impulse) desktop from the ii-vynx fork, for Hyprland.
+# Upstream is a dotfiles repo: the files go to /usr/share/ii-vynx and
+# ii-vynx-seed copies them into ~/.config at login. The python helpers run in
+# a venv built here with uv's Python 3.12, as the upstream installer does.
+pkgname=ii-vynx
+pkgver=r0.78e333e
+pkgrel=2
+_commit=78e333e9013647f71c6ad1d0e13f22f0fa6d64dd
+_shapes=e31ec4cb4ebf6a46b267f5c42eabf6874916fa16
+_pyver=3.12
+pkgdesc="The ii desktop shell (ii-vynx fork of illogical impulse) for Hyprland"
+arch=('x86_64')
+url="https://github.com/P3DROVFX/ii-p3drovfx"
+license=('GPL-3.0-only')
+depends=('hyprland' 'quickshell' 'matugen' 'rsync'
+         'cava' 'pavucontrol-qt' 'wireplumber' 'playerctl' 'libdbusmenu-gtk3'
+         'geoclue' 'brightnessctl' 'ddcutil' 'bc' 'cliphist' 'curl' 'wget' 'ripgrep' 'jq'
+         'xdg-user-dirs' 'fuzzel' 'gjs' 'imagemagick' 'hypridle' 'hyprlock' 'hyprpicker'
+         'hyprsunset' 'libqalculate' 'upower' 'wtype' 'wlogout' 'wl-clipboard' 'wl-clip-persist'
+         'slurp' 'grim' 'swappy' 'wf-recorder' 'hyprshot' 'tesseract' 'tesseract-data-eng'
+         'gnome-keyring' 'xdg-desktop-portal-hyprland' 'xdg-desktop-portal-gtk'
+         'breeze' 'kdialog' 'kirigami' 'syntax-highlighting'
+         'qt6-5compat' 'qt6-imageformats' 'qt6-multimedia' 'qt6-positioning' 'qt6-quicktimeline'
+         'qt6-sensors' 'qt6-svg' 'qt6-translations' 'qt6-virtualkeyboard' 'qt6-wayland'
+         'ttf-material-symbols-variable' 'ttf-rubik-vf' 'ttf-google-sans-flex' 'ttf-readex-pro'
+         'otf-space-grotesk' 'ttf-jetbrains-mono-nerd' 'cairo' 'gobject-introspection-runtime' 'dbus'
+         'python-dbus' 'python-gobject' 'python-pillow' 'fd' 'zip' 'unzip' 'bluez-utils' 'pacman-contrib' 'which' 'git')
+optdepends=('easyeffects: equalizer'
+            'scrcpy: phone screen mirroring')
+makedepends=('git' 'uv' 'gcc' 'pkgconf' 'cairo' 'gobject-introspection' 'dbus' 'meson' 'ninja')
+options=('!strip' '!debug')
+source=("ii::git+$url.git#commit=$_commit"
+        "shapes::git+https://github.com/end-4/rounded-polygon-qmljs.git#commit=$_shapes"
+        "ii-vynx-seed")
+sha256sums=('SKIP' 'SKIP' 'SKIP')
+
+prepare() {
+    cd ii
+    git submodule init
+    git config submodule.dots/.config/quickshell/ii/modules/common/widgets/shapes.url "$srcdir/shapes"
+    git -c protocol.file.allow=always submodule update
+    # the venv is system-wide, not in ~/.local/state
+    sed -i 's|home_dir .. "/.local/state/quickshell/.venv"|"/usr/lib/ii-vynx/venv"|' \
+        dots/.config/hypr/hyprland/env.lua
+    grep -q '"/usr/lib/ii-vynx/venv"' dots/.config/hypr/hyprland/env.lua
+}
+
+build() {
+    # built at its final path: venvs and uv's Python are not relocatable
+    local root=/tmp/ii-vynx-build-$$
+    rm -rf "$root"; mkdir -p "$root"
+    export UV_PYTHON_INSTALL_DIR="$root/python" UV_CACHE_DIR="$srcdir/uv-cache" UV_NO_MODIFY_PATH=1
+    uv python install "$_pyver"
+    uv venv --prompt .venv "$root/venv" -p "$_pyver" --relocatable
+    VIRTUAL_ENV="$root/venv" uv pip install -r ii/sdata/uv/requirements.txt
+    echo "$root" > "$root/.root"
+    rm -rf "$srcdir/stage"; mv "$root" "$srcdir/stage"
+}
+
+package() {
+    install -d "$pkgdir/usr/share/ii-vynx/config" "$pkgdir/usr/lib/ii-vynx"
+    cp -a ii/dots/.config/{quickshell,hypr,matugen,fuzzel,wlogout} "$pkgdir/usr/share/ii-vynx/config/"
+    find "$pkgdir/usr/share/ii-vynx" -name .git -prune -exec rm -rf {} +
+    echo "$pkgver-$pkgrel" > "$pkgdir/usr/share/ii-vynx/version"
+    cp -a "$srcdir/stage/python" "$srcdir/stage/venv" "$pkgdir/usr/lib/ii-vynx/"
+    rm -rf "$pkgdir"/usr/lib/ii-vynx/python/{.lock,.temp,.gitignore}
+    # point what still names the build directory at /usr/lib/ii-vynx
+    local root link
+    root=$(cat "$srcdir/stage/.root")
+    find "$pkgdir/usr/lib/ii-vynx" -type l | while read -r link; do
+        case "$(readlink "$link")" in "$root"/*)
+            ln -sfn "/usr/lib/ii-vynx/$(readlink "$link" | cut -c$((${#root} + 2))-)" "$link" ;;
+        esac
+    done
+    grep -rlI --null "$root" "$pkgdir/usr/lib/ii-vynx" | xargs -0r sed -i "s|$root|/usr/lib/ii-vynx|g"
+    install -Dm755 ii-vynx-seed "$pkgdir/usr/bin/ii-vynx-seed"
+    install -Dm644 ii/LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
