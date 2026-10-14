@@ -118,11 +118,10 @@ for isoconf in /usr/share/artools/pacman.conf.d/iso*-x86_64.conf; do
 [cachyos]
 SigLevel = Optional TrustAll
 Include = /etc/pacman.d/cachyos-mirrorlist
-
-[glue]
-SigLevel = Optional TrustAll
-Server = file://$REPO
 EOF
+    # [glue] before every other repo, as on the installed system
+    sed -i "0,/^\[system\]/s||[glue]\nSigLevel = Optional TrustAll\nServer = file://$REPO\n\n[system]|" "$isoconf"
+    grep -q '^\[glue\]' "$isoconf" || { echo "no [glue] in $isoconf" >&2; exit 1; }
 done
 
 if [ "${GLUE_REPO_ONLY:-0}" = 1 ]; then
