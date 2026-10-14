@@ -275,8 +275,13 @@ class TestGluemacPkgbuilds(unittest.TestCase):
 
     def test_gluemac_needs_pango_and_librsvg_and_guards_shell_autostart(self):
         depends = re.search(r"^depends=\((.*?)\)", self.mac, re.S | re.M).group(1)
-        for pkg in ("wlroots0.20", "scenefx0.5", "pango", "librsvg"):
+        for pkg in ("wlroots0.20", "pango", "librsvg", "lcms2", "libglvnd", "mesa"):
             self.assertIn(f"'{pkg}'", depends)
+        # SceneFX is vendored and linked statically
+        self.assertNotIn("scenefx", depends)
+        makedepends = re.search(r"^makedepends=\((.*?)\)", self.mac, re.S | re.M).group(1)
+        for pkg in ("meson", "ninja"):
+            self.assertIn(f"'{pkg}'", makedepends)
         self.assertIn("autostart = qs -c gluemac-shell", self.mac)
 
     def test_shell_installed_like_glueqs_without_apple_fonts(self):
