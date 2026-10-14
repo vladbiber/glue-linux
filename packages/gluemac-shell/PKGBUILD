@@ -1,0 +1,38 @@
+# Maintainer: Glue Linux
+# gluemac-shell: the Quickshell desktop of gluemac (an eqSh fork). The QML tree
+# is installed system-wide and started by gluemac as `qs -c gluemac-shell`;
+# settings are written to ~/.config/gluemac-shell by the shell itself.
+# The repo has no remote yet: build.sh mounts it at /src/gluemac-shell.
+pkgname=gluemac-shell
+pkgver=r0.0000000
+pkgrel=1
+pkgdesc="Mac-style desktop shell for gluemac (menu bar, dock, Spotlight, Launchpad, notifications)"
+arch=('any')
+url="https://github.com/vladbiber/gluemac-shell"
+license=('Apache-2.0')
+# glue-branding: the default wallpapers the shell points at
+depends=('quickshell' 'gluemac' 'glue-branding' 'sh' 'coreutils'
+         'networkmanager' 'brightnessctl' 'xdg-utils')
+optdepends=('ddcutil: brightness of external monitors')
+makedepends=('git')
+source=("gluemac-shell::git+file://${GLUEMAC_SHELL_SRC:-/src/gluemac-shell}")
+sha256sums=('SKIP')
+
+pkgver() {
+    cd "$pkgname"
+    printf 'r%s.%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+package() {
+    local dest="$pkgdir/etc/xdg/quickshell/gluemac-shell"
+    install -dm755 "$dest"
+    cd "$pkgname"
+    cp -r eqsh/. "$dest/"
+    # Apple's SF Pro fonts may not be redistributed; Qt falls back to the system font
+    rm -rf "$dest/media/fonts"
+    # media/wallpapers is not in git; the shell's defaults point at these names
+    install -dm755 "$dest/media/wallpapers"
+    ln -s /usr/share/backgrounds/glue/glue-mac.jpg "$dest/media/wallpapers/glue-mac.jpg"
+    ln -s /usr/share/backgrounds/glue/wallpaper.png "$dest/media/wallpapers/stillwater.png"
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

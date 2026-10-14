@@ -17,6 +17,8 @@ packages/glue-installer/pacman.conf
 packages/apeturewm/apeturewm/
 packages/atomwm/atomwm/
 packages/gluewc/gluewc/
+packages/gluemac/gluemac/
+packages/gluemac-shell/gluemac-shell/
 packages/nvwm/nvwm/
 # tooling
 __pycache__/

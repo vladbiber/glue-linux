@@ -36,6 +36,21 @@ var entries = [
     "checked": false
   },
   {
+    "id": "gluemac",
+    "name": "Glue Mac (gluemac)",
+    "kind": "Floating",
+    "description": "A desktop that works like a Mac: floating windows with a title bar, a menu bar at the top, a dock, Spotlight and Launchpad, Mission Control and Spaces you swipe between on the touchpad. Cmd is the Super key; Cmd+C, Cmd+V and the other app shortcuts work as on a Mac.",
+    "lightness": 4,
+    "weight": "Light",
+    "ease": 4,
+    "ram": "about 500 MB",
+    "wayland": true,
+    "images": [
+      "file:///usr/share/glue-installer/catalog/screenshots/gluemac.png"
+    ],
+    "checked": false
+  },
+  {
     "id": "nvwm",
     "name": "nvwm",
     "kind": "Tiling",

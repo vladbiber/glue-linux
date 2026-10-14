@@ -205,7 +205,8 @@ find_display() {
     for l in /tmp/.X*-lock; do
         [ -f "$l" ] || continue
         p=$(tr -cd 0-9 < "$l")
-        [ "$(cat "/proc/$p/comm" 2>/dev/null)" = gluewc ] && [ -O "/proc/$p" ] || continue
+        case "$(cat "/proc/$p/comm" 2>/dev/null)" in gluewc|gluemac) ;; *) continue ;; esac
+        [ -O "/proc/$p" ] || continue
         n=${l#/tmp/.X}
         DISPLAY=":${n%-lock}"; export DISPLAY
         return 0

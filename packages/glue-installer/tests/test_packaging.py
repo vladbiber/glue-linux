@@ -257,6 +257,38 @@ class TestGluewcPkgbuildGuards(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# gluemac + gluemac-shell PKGBUILDs (local sources mounted by build.sh)
+# ---------------------------------------------------------------------------
+
+class TestGluemacPkgbuilds(unittest.TestCase):
+    def setUp(self):
+        self.mac = (_PKG_ROOT.parent / "gluemac" / "PKGBUILD").read_text()
+        self.shell = (_PKG_ROOT.parent / "gluemac-shell" / "PKGBUILD").read_text()
+
+    def test_sources_are_the_mounted_local_repos(self):
+        self.assertIn('git+file://${GLUEMAC_SRC:-/src/gluemac}', self.mac)
+        self.assertIn('git+file://${GLUEMAC_SHELL_SRC:-/src/gluemac-shell}', self.shell)
+        build = (_PKG_ROOT.parent.parent / "build.sh").read_text()
+        self.assertIn("-v $HOME/$src:/src/$src:ro", build)
+        make_iso = (_PKG_ROOT.parent.parent / "scripts" / "make-iso.sh").read_text()
+        self.assertIn("gluewc glueqs gluemac gluemac-shell", make_iso)
+
+    def test_gluemac_needs_pango_and_librsvg_and_guards_shell_autostart(self):
+        depends = re.search(r"^depends=\((.*?)\)", self.mac, re.S | re.M).group(1)
+        for pkg in ("wlroots0.20", "scenefx0.5", "pango", "librsvg"):
+            self.assertIn(f"'{pkg}'", depends)
+        self.assertIn("autostart = qs -c gluemac-shell", self.mac)
+
+    def test_shell_installed_like_glueqs_without_apple_fonts(self):
+        self.assertIn('"$pkgdir/etc/xdg/quickshell/gluemac-shell"', self.shell)
+        self.assertIn('rm -rf "$dest/media/fonts"', self.shell)
+        self.assertIn("/usr/share/backgrounds/glue/glue-mac.jpg", self.shell)
+        depends = re.search(r"^depends=\((.*?)\)", self.shell, re.S | re.M).group(1)
+        for pkg in ("quickshell", "gluemac", "glue-branding"):
+            self.assertIn(f"'{pkg}'", depends)
+
+
+# ---------------------------------------------------------------------------
 # nvwm PKGBUILD keeps alacritty as the default terminal
 # ---------------------------------------------------------------------------
 

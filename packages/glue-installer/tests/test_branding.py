@@ -555,6 +555,61 @@ class DefaultWallpaperTest(unittest.TestCase):
             self.assertIn("picture-uri-dark file://", calls[1])
             self.assertIn("picture-options zoom", calls[2])
 
+    def _run_fake_qs(self, session, shell, wallpaper=None):
+        """Run the script with a fake qs; returns (result, marker, qs calls)."""
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        root = Path(temp.name)
+        marker = root / "state/glue/wallpaper-pending"
+        marker.parent.mkdir(parents=True)
+        marker.touch()
+        bindir = root / "bin"
+        bindir.mkdir()
+        log = root / "qs.log"
+        fake = bindir / "qs"
+        fake.write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$QS_LOG"\n')
+        fake.chmod(0o755)
+        env = os.environ.copy()
+        env.pop("GLUE_WALLPAPER_PATH", None)
+        env.update({"HOME": str(root), "XDG_STATE_HOME": str(root / "state"),
+                    "PATH": f"{bindir}:{env['PATH']}", "QS_LOG": str(log)})
+        if wallpaper is not None:
+            env["GLUE_WALLPAPER_PATH"] = wallpaper
+        result = subprocess.run([str(self.script), session, shell], env=env,
+                                capture_output=True, text=True)
+        calls = log.read_text().splitlines() if log.exists() else []
+        return result, marker, calls
+
+    def test_gluemac_uses_mac_wallpaper_through_shell_ipc(self):
+        result, marker, calls = self._run_fake_qs(
+            "gluemac", "gluemac-shell", str(_BRANDING_ROOT / "glue-mac.jpg"))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse(marker.exists())
+        self.assertEqual(calls, ["-c gluemac-shell ipc call wallpaper change "
+                                 + str(_BRANDING_ROOT / "glue-mac.jpg")])
+
+    def test_gluemac_default_is_the_mac_wallpaper_not_stillwater(self):
+        text = self.script.read_text()
+        self.assertIn("gluemac*) default=/usr/share/backgrounds/glue/glue-mac.jpg",
+                      text)
+        # without the packaged file the script must not fall back to Stillwater
+        if not Path("/usr/share/backgrounds/glue/glue-mac.jpg").exists():
+            result, marker, calls = self._run_fake_qs("gluemac", "gluemac-shell")
+            self.assertEqual(result.returncode, 1)
+            self.assertTrue(marker.exists())
+            self.assertEqual(calls, [])
+
+    def test_package_ships_mac_wallpaper_and_credits(self):
+        self.assertIn('"$pkgdir/usr/share/backgrounds/glue/glue-mac.jpg"', self.pkgbuild)
+        self.assertIn('"$pkgdir/etc/skel/Pictures/Wallpapers/glue-mac.jpg"', self.pkgbuild)
+        data = (_BRANDING_ROOT / "glue-mac.jpg").read_bytes()
+        self.assertEqual(data[:3], b"\xff\xd8\xff")
+        digest = hashlib.sha256(data).hexdigest()
+        self.assertIn(digest, self.pkgbuild)
+        credits = (_BRANDING_ROOT / "WALLPAPER-CREDITS.md").read_text()
+        self.assertIn(digest, credits)
+        self.assertIn("tools/wallpaper.py", credits)
+
 
 if __name__ == "__main__":
     unittest.main()

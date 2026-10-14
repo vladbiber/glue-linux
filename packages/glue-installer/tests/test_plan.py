@@ -707,12 +707,16 @@ class TestGreeterProfile(unittest.TestCase):
 
     def test_real_catalog_sessions_have_exec_and_type(self):
         catalog = load_catalog(_CATALOG_PATH)
-        wayland = {"gluewc", "gluewc-noctalia", "gnome"}
+        wayland = {"gluewc", "gluewc-noctalia", "gluemac", "gnome"}
         for session in catalog.sessions:
             self.assertIsNotNone(session.exec, session.id)
             expected = "wayland" if session.id in wayland else "x11"
             self.assertEqual(session.session_type, expected, session.id)
         for shell in catalog.shells:
+            if shell.id == "gluemac-shell":
+                # gluemac autostarts it; a second copy would draw two menu bars
+                self.assertIsNone(shell.exec)
+                continue
             self.assertIsNotNone(shell.exec, shell.id)
 
 

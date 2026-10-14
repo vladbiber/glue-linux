@@ -30,6 +30,11 @@ RUN_TTY=""; [ -t 1 ] && RUN_TTY="-it"   # only attach a TTY when interactive
 SIGNHOME=${GLUE_SIGN_HOME:-$HOME/.local/share/glue-signing}
 SIGN_MOUNT=""
 [ -d "$SIGNHOME" ] && SIGN_MOUNT="-v $SIGNHOME:/glue-sign:ro"
+# gluemac and gluemac-shell have no remote yet: their PKGBUILDs clone /src/<name>
+SRC_MOUNTS=""
+for src in gluemac gluemac-shell; do
+    [ -d "$HOME/$src/.git" ] && SRC_MOUNTS="$SRC_MOUNTS -v $HOME/$src:/src/$src:ro"
+done
 
 docker run --rm $RUN_TTY \
     --privileged \
@@ -39,7 +44,7 @@ docker run --rm $RUN_TTY \
     -v "$WORK:/var/lib/artools" \
     -v "$PKGCACHE:/var/cache/pacman/pkg" \
     -v "$GLUEREPO:/glue/repo/x86_64" \
-    $SIGN_MOUNT \
+    $SIGN_MOUNT $SRC_MOUNTS \
     -e GLUE_PKGS="${GLUE_PKGS:-}" \
     -e GLUE_REPO_ONLY="${GLUE_REPO_ONLY:-0}" \
     "$IMAGE"

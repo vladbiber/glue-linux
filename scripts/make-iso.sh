@@ -64,13 +64,16 @@ sign_pkgs() {
 # ctify, spotc (with librespot) and creader are optional apps of the repo,
 # not installed on the ISO.
 for pkg in glue-keyring glue-zsh glue-branding glue-settings glue-boot st-glue nvwm proton-ge-custom-bin \
-           scx-scheds ananicy-cpp lib32-glew lib32-mangohud cage gluewc glueqs \
+           scx-scheds ananicy-cpp lib32-glew lib32-mangohud cage gluewc glueqs gluemac gluemac-shell \
            glue-apps glue-welcome glue-installer glue-calamares-config \
            librespot spotc ctify creader; do
     # GLUE_PKGS="a b" rebuilds only those; the rest come from the persisted repo
     if [ -n "${GLUE_PKGS:-}" ] && ls "$REPO/$pkg"-[0-9r]*.pkg.tar.* >/dev/null 2>&1; then
         case " $GLUE_PKGS " in *" $pkg "*) ;; *) echo "    -- $pkg (kept)"; continue ;; esac
     fi
+    case $pkg in gluemac|gluemac-shell)
+        [ -d "/src/$pkg/.git" ] || { echo "    -- $pkg (skipped: /src/$pkg not mounted)"; continue; } ;;
+    esac
     echo "    -- $pkg"
     rm -f "$REPO/$pkg"-[0-9r]*.pkg.tar.zst "$REPO/$pkg"-[0-9r]*.pkg.tar.zst.sig
     # a rebuild with the same version must not meet the old copy in the cache

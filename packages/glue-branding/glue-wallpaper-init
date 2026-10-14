@@ -6,7 +6,11 @@ set -u
 
 session=${1:-}
 shell=${2:-none}
-wallpaper=${GLUE_WALLPAPER_PATH:-/usr/share/backgrounds/glue/wallpaper.png}
+case "$session" in
+    gluemac*) default=/usr/share/backgrounds/glue/glue-mac.jpg ;;
+    *) default=/usr/share/backgrounds/glue/wallpaper.png ;;
+esac
+wallpaper=${GLUE_WALLPAPER_PATH:-$default}
 state_dir=${XDG_STATE_HOME:-"$HOME/.local/state"}/glue
 marker=$state_dir/wallpaper-pending
 retries=${GLUE_WALLPAPER_RETRIES:-150}
@@ -55,6 +59,9 @@ ok=1
 case "$session:$shell" in
     gluewc*:glueqs)
         run_until_ok qs -c glueqs ipc call glueqs setwallpaper "$wallpaper" || ok=0
+        ;;
+    gluemac*:gluemac-shell)
+        run_until_ok qs -c gluemac-shell ipc call wallpaper change "$wallpaper" || ok=0
         ;;
     gluewc*:noctalia)
         run_until_ok qs -c noctalia-shell ipc call wallpaper set "$wallpaper" all || ok=0

@@ -63,23 +63,24 @@ class TestPositive(unittest.TestCase):
         self.assertTrue(dinit.recommended)
 
     def test_expected_session_ids_in_exact_order(self):
-        """Exactly 7 sessions, gluewc first (the default), its Noctalia twin next."""
+        """Exactly 8 sessions, gluewc first (the default), its Noctalia twin next."""
         ids = [s.id for s in self.catalog.sessions]
-        self.assertEqual(ids, ["gluewc", "gluewc-noctalia", "nvwm", "kde-plasma",
+        self.assertEqual(ids, ["gluewc", "gluewc-noctalia", "gluemac", "nvwm", "kde-plasma",
                                "xfce", "gnome", "cinnamon"])
 
     def test_session_kinds(self):
         wms = {s.id for s in self.catalog.sessions if s.kind == "wm"}
         des = {s.id for s in self.catalog.sessions if s.kind == "de"}
-        self.assertEqual(wms, {"gluewc", "gluewc-noctalia", "nvwm"})
+        self.assertEqual(wms, {"gluewc", "gluewc-noctalia", "gluemac", "nvwm"})
         self.assertEqual(des, {"kde-plasma", "xfce", "gnome", "cinnamon"})
 
-    def test_two_shells_glueqs_first(self):
-        """glueqs + noctalia; each gluewc session has exactly one shell,
-        every other session offers none."""
+    def test_three_shells_glueqs_first(self):
+        """glueqs, noctalia, gluemac-shell; each gluewc/gluemac session has
+        exactly one shell, every other session offers none."""
         self.assertEqual([s.id for s in self.catalog.shells],
-                         ["glueqs", "noctalia"])
-        fixed = {"gluewc": ["glueqs"], "gluewc-noctalia": ["noctalia"]}
+                         ["glueqs", "noctalia", "gluemac-shell"])
+        fixed = {"gluewc": ["glueqs"], "gluewc-noctalia": ["noctalia"],
+                 "gluemac": ["gluemac-shell"]}
         for s in self.catalog.sessions:
             self.assertEqual(s.shell_choices, fixed.get(s.id, []), s.id)
             for pkg in s.packages:
@@ -148,6 +149,7 @@ class TestPositive(unittest.TestCase):
     def test_session_screenshot_names(self):
         expected = {"gluewc": "screenshots/gluewc-glueqs-bar.png",
                     "gluewc-noctalia": "screenshots/gluewc-noctalia-bar.png",
+                    "gluemac": "screenshots/gluemac.png",
                     "nvwm": "screenshots/nvwm.png",
                     "kde-plasma": "screenshots/kde-plasma.png",
                     "xfce": "screenshots/xfce.png",
@@ -247,9 +249,9 @@ class TestPositive(unittest.TestCase):
         self.assertTrue(m.name)
         self.assertTrue(m.description)
 
-    def test_seven_sessions_two_shells_two_kernels(self):
-        self.assertEqual(len(self.catalog.sessions), 7)
-        self.assertEqual(len(self.catalog.shells), 2)
+    def test_eight_sessions_three_shells_two_kernels(self):
+        self.assertEqual(len(self.catalog.sessions), 8)
+        self.assertEqual(len(self.catalog.shells), 3)
         self.assertEqual(len(self.catalog.kernels), 2)
 
 
@@ -448,6 +450,7 @@ class ScreenshotFilesTest(unittest.TestCase):
     # the only names allowed (5.6/): headless captures + 4 DEs
     ALLOWED = {"gluewc-glueqs-bar.png", "gluewc-glueqs-overview.png",
                "gluewc-noctalia-bar.png", "gluewc-noctalia-overview.png",
+               "gluemac.png",
                "nvwm.png", "kde-plasma.png", "xfce.png", "gnome.png", "cinnamon.png"}
     WEB = {"kde-plasma.png", "xfce.png", "gnome.png", "cinnamon.png"}
     LICENSES = {"CC-BY-4.0", "CC-BY-SA-3.0", "CC-BY-SA-4.0", "GPL-2.0", "GPL-3.0",

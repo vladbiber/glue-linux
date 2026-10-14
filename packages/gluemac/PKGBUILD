@@ -1,0 +1,53 @@
+# Maintainer: Glue Linux
+# gluemac: the macOS-style Glue session, a gluewc fork with floating windows,
+# Spaces, Mission Control and a Mac title bar. The repo has no remote yet:
+# build.sh mounts ~/gluemac read-only at /src/gluemac for the build container.
+pkgname=gluemac
+pkgver=0.3.0.r0.0000000
+pkgrel=1
+pkgdesc="Wayland compositor that works like a Mac: floating windows, Spaces, Mission Control"
+arch=('x86_64')
+url="https://github.com/vladbiber/gluemac"
+license=('GPL-3.0-only')
+depends=('wlroots0.20' 'scenefx0.5' 'wayland' 'libinput' 'libxkbcommon' 'pixman'
+         'libdrm' 'libxcb' 'xcb-util-wm' 'mesa' 'dbus' 'xorg-xwayland'
+         'pango' 'cairo' 'librsvg')
+makedepends=('git' 'wayland-protocols')
+optdepends=('gluemac-shell: the menu bar, dock, Spotlight and Launchpad gluemac autostarts'
+            'pipewire: audio in the session'
+            'wireplumber: audio session manager and wpctl for the volume keys'
+            'pipewire-pulse: PulseAudio compatible audio'
+            'alacritty: terminal on Ctrl+Opt+Cmd+T'
+            'brightnessctl: brightness keys through gluemac-backlight'
+            'playerctl: media keys'
+            'grim: screenshots'
+            'slurp: screenshots of a region'
+            'wl-clipboard: screenshots to the clipboard'
+            'glib2: gsettings, hides the GTK title buttons gluemac draws itself')
+source=("gluemac::git+file://${GLUEMAC_SRC:-/src/gluemac}")
+sha256sums=('SKIP')
+
+pkgver() {
+    cd "$pkgname"
+    printf '%s.r%s.%s' "$(sed -n 's/^_VERSION = //p' config.mk)" \
+        "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+prepare() {
+    cd "$pkgname"
+    # the shell is started by gluemac itself, not by the session wrapper
+    grep -q '^autostart = qs -c gluemac-shell$' config.def.conf || {
+        echo "ERROR: config.def.conf no longer autostarts gluemac-shell" >&2; exit 1; }
+}
+
+build() {
+    cd "$pkgname"
+    make PREFIX=/usr
+}
+
+package() {
+    cd "$pkgname"
+    make PREFIX=/usr DESTDIR="$pkgdir" install
+    rm -rf "$pkgdir/usr/share/doc/gluemac/docs/media"
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

@@ -189,7 +189,7 @@ class TestDesktopPage(unittest.TestCase):
 
     def test_entries_match_catalog_sessions_in_order(self):
         self.assertEqual([e["id"] for e in self.entries], [s.id for s in _CATALOG.sessions])
-        self.assertEqual(len(self.entries), 7)
+        self.assertEqual(len(self.entries), 8)
         names = {s.id: s.name for s in _CATALOG.sessions}
         for e in self.entries:
             self.assertEqual(e["name"], names[e["id"]])

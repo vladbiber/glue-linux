@@ -81,6 +81,26 @@ class GreeterLauncherTest(unittest.TestCase):
         self.assertIn("glue-wallpaper-init gluewc noctalia", noctalia)
         self.assertIn("glue-wallpaper-init nvwm none", desktop)
 
+    def test_gluemac_wrapper_inits_wallpaper_and_leaves_shell_to_gluemac(self):
+        from glue_installer.catalog import load_catalog
+        catalog = load_catalog(_PKG_ROOT / "catalog" / "catalog.json")
+        sessions = [s for s in catalog.sessions if s.id == "gluemac"]
+        shells = {s.id: s for s in catalog.shells}
+        files = {f.path: f.content for f in _greeter_files(
+            sessions, {"gluemac": "gluemac-shell"}, shells)}
+        wrapper = files["/usr/local/bin/glue-session-gluemac"]
+        self.assertIn("glue-wallpaper-init gluemac gluemac-shell", wrapper)
+        self.assertIn("exec gluemac-session", wrapper)
+        self.assertNotIn("qs -c gluemac-shell", wrapper)
+        self.assertIn("gluewc|gluemac", wrapper)
+        self.assertIn("/usr/share/xdg-desktop-portal/gluemac-portals.conf", files)
+        entry = files["/usr/share/glue/sessions/gluemac.desktop"]
+        self.assertIn("DesktopNames=gluemac", entry)
+        self.assertIn("X-Glue-SessionType=wayland", entry)
+        result = subprocess.run(["sh", "-n"], input=wrapper, text=True,
+                                capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_wrapper_builds_regreet_view_from_glue_sessions(self):
         self.assertIn("/usr/share/glue/sessions/*.desktop",
                       _GREETER_WRAPPER_CONTENT)

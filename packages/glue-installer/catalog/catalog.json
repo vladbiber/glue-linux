@@ -210,6 +210,85 @@
       "idle_ram": "about 600 MB"
     },
     {
+      "id": "gluemac",
+      "name": "Glue Mac (gluemac)",
+      "kind": "wm",
+      "description": "A desktop that works like a Mac: floating windows with a title bar, a menu bar at the top, a dock, Spotlight and Launchpad, Mission Control and Spaces you swipe between on the touchpad. Cmd is the Super key; Cmd+C, Cmd+V and the other app shortcuts work as on a Mac.",
+      "ease": 4,
+      "lightness": 4,
+      "keybindings": [
+        {
+          "keys": "Cmd+Space",
+          "action": "Spotlight: search apps and files"
+        },
+        {
+          "keys": "F4",
+          "action": "Open Launchpad (or pinch on the touchpad)"
+        },
+        {
+          "keys": "Cmd+Tab",
+          "action": "Switch between apps"
+        },
+        {
+          "keys": "Cmd+Q",
+          "action": "Quit the app"
+        },
+        {
+          "keys": "Cmd+H / Cmd+M",
+          "action": "Hide the app / minimize the window"
+        },
+        {
+          "keys": "Ctrl+Cmd+F",
+          "action": "Toggle full screen"
+        },
+        {
+          "keys": "Ctrl+↑ or F3",
+          "action": "Mission Control (or swipe up with three fingers)"
+        },
+        {
+          "keys": "Ctrl+←/→",
+          "action": "Previous/next Space (or swipe sideways)"
+        },
+        {
+          "keys": "Ctrl+1-9",
+          "action": "Go to Space 1-9"
+        },
+        {
+          "keys": "Cmd+Shift+3 / Cmd+Shift+4",
+          "action": "Screenshot of the screen / of a region"
+        },
+        {
+          "keys": "Ctrl+Cmd+Q",
+          "action": "Lock the screen"
+        },
+        {
+          "keys": "Ctrl+Opt+Cmd+T",
+          "action": "Open terminal (alacritty)"
+        }
+      ],
+      "screenshots": [
+        "screenshots/gluemac.png"
+      ],
+      "packages": [
+        "gluemac",
+        "gluemac-shell",
+        "polkit-gnome",
+        "nautilus",
+        "loupe",
+        "celluloid",
+        "papers",
+        "grim",
+        "slurp"
+      ],
+      "services": [],
+      "shell_choices": [
+        "gluemac-shell"
+      ],
+      "session_type": "wayland",
+      "exec": "gluemac-session",
+      "idle_ram": "about 500 MB"
+    },
+    {
       "id": "nvwm",
       "name": "nvwm",
       "kind": "wm",
@@ -536,6 +615,20 @@
         "noctalia-qs"
       ],
       "exec": "qs -c noctalia-shell"
+    },
+    {
+      "id": "gluemac-shell",
+      "name": "gluemac-shell",
+      "description": "The Mac desktop of gluemac: menu bar, dock, Spotlight, Launchpad, notifications and control center. gluemac starts it itself.",
+      "ease": 5,
+      "lightness": 4,
+      "keybindings": [],
+      "screenshots": [
+        "screenshots/gluemac.png"
+      ],
+      "packages": [
+        "gluemac-shell"
+      ]
     }
   ],
   "support": [
