@@ -127,6 +127,12 @@ class TestPositive(unittest.TestCase):
             self.assertRegex(s.idle_ram or "", r"^about \d", s.id)
             self.assertRegex(s.disk or "", r"^about \d", s.id)
 
+    def test_sessions_that_pin_or_bind_a_browser_install_firefox(self):
+        # the gluemac dock pins it, Hyprland's Super+W opens it
+        for sid in ("gluemac", "hyprland-caelestia", "hyprland-ii"):
+            s = next(x for x in self.catalog.sessions if x.id == sid)
+            self.assertIn("firefox", s.packages, sid)
+
     def test_hyprland_sessions_share_the_launcher_and_say_they_are_heavier(self):
         for sid, shell, pkg in (("hyprland-caelestia", "caelestia", "caelestia-shell"),
                                 ("hyprland-ii", "ii", "ii-vynx")):

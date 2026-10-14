@@ -56,7 +56,7 @@ var entries = [
     "weight": "Light",
     "ease": 4,
     "ram": "about 300 MB",
-    "disk": "about 500 MB",
+    "disk": "about 800 MB",
     "wayland": true,
     "images": [
       "file:///usr/share/glue-installer/catalog/screenshots/gluemac-desktop.png",
@@ -77,7 +77,7 @@ var entries = [
     "weight": "Heavier",
     "ease": 3,
     "ram": "about 400 MB",
-    "disk": "about 850 MB",
+    "disk": "about 1.2 GB",
     "wayland": true,
     "images": [
       "file:///usr/share/glue-installer/catalog/screenshots/hyprland-caelestia-desktop.png",
@@ -97,7 +97,7 @@ var entries = [
     "weight": "Heavy",
     "ease": 3,
     "ram": "about 700 MB",
-    "disk": "about 1.9 GB",
+    "disk": "about 2.2 GB",
     "wayland": true,
     "images": [
       "file:///usr/share/glue-installer/catalog/screenshots/hyprland-ii-desktop.png",

@@ -2,7 +2,7 @@
 Name=Network
 Comment=Connect to Wi-Fi
 Exec=glue-network %u
-Icon=network-wireless
+Icon=org.glue.Network
 Terminal=false
 Type=Application
 Categories=Settings;Network;

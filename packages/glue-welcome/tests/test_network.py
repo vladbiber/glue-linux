@@ -225,3 +225,15 @@ class TestPure(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class NetworkDesktopIconTest(unittest.TestCase):
+    def test_launchers_use_icons_the_package_ships(self):
+        # Adwaita has no full-colour network-wireless: launchers showed a broken icon
+        root = Path(__file__).parent.parent
+        pkgbuild = (root / "PKGBUILD").read_text()
+        for entry in ("org.glue.Network", "org.glue.Welcome"):
+            desktop = (root / "data/applications" / f"{entry}.desktop").read_text()
+            self.assertIn(f"Icon={entry}\n", desktop)
+            self.assertTrue((root / "data/icons" / f"{entry}.svg").exists(), entry)
+            self.assertIn(f"/usr/share/icons/hicolor/scalable/apps/{entry}.svg", pkgbuild)

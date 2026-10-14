@@ -1,7 +1,7 @@
 # Maintainer: Glue Linux
 pkgname=glue-welcome
 pkgver=0.3.0
-pkgrel=6
+pkgrel=7
 pkgdesc="Glue Linux welcome window: keyboard shortcuts, system information and settings"
 arch=('any')
 url="https://github.com/vladbiber/glue-linux"
@@ -29,6 +29,8 @@ package() {
         "$pkgdir/etc/xdg/autostart/org.glue.Welcome.desktop"
     install -Dm644 "$startdir/data/icons/org.glue.Welcome.svg" \
         "$pkgdir/usr/share/icons/hicolor/scalable/apps/org.glue.Welcome.svg"
+    install -Dm644 "$startdir/data/icons/org.glue.Network.svg" \
+        "$pkgdir/usr/share/icons/hicolor/scalable/apps/org.glue.Network.svg"
     install -Dm644 "$startdir/../glue-installer/catalog/catalog.json" \
         "$pkgdir/usr/share/glue/catalog.json"
     install -Dm755 "$startdir/data/helpers/greeter-background" \

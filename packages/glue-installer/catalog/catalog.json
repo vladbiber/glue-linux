@@ -295,7 +295,8 @@
         "celluloid",
         "papers",
         "grim",
-        "slurp"
+        "slurp",
+        "firefox"
       ],
       "services": [],
       "shell_choices": [
@@ -304,7 +305,7 @@
       "session_type": "wayland",
       "exec": "gluemac-session",
       "idle_ram": "about 300 MB",
-      "disk": "about 500 MB"
+      "disk": "about 800 MB"
     },
     {
       "id": "hyprland-caelestia",
@@ -386,7 +387,8 @@
         "loupe",
         "celluloid",
         "papers",
-        "pavucontrol"
+        "pavucontrol",
+        "firefox"
       ],
       "services": [],
       "shell_choices": [
@@ -396,7 +398,7 @@
       "exec": "glue-hyprland caelestia",
       "desktop": "hyprland",
       "idle_ram": "about 400 MB",
-      "disk": "about 850 MB"
+      "disk": "about 1.2 GB"
     },
     {
       "id": "hyprland-ii",
@@ -471,7 +473,8 @@
         "loupe",
         "celluloid",
         "papers",
-        "pavucontrol"
+        "pavucontrol",
+        "firefox"
       ],
       "services": [],
       "shell_choices": [
@@ -481,7 +484,7 @@
       "exec": "glue-hyprland ii",
       "desktop": "hyprland",
       "idle_ram": "about 700 MB",
-      "disk": "about 1.9 GB"
+      "disk": "about 2.2 GB"
     },
     {
       "id": "nvwm",
