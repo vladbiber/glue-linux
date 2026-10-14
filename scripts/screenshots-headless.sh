@@ -5,12 +5,15 @@
 #   sh scripts/screenshots-headless.sh [glueqs|noctalia|nvwm|all]
 #
 # Host side: one `docker run --rm --privileged -v /dev/dri:/dev/dri` of
-# glue-pkgbuild-img PER TARGET, with the repo bind-mounted on /glue. One
-# container per target because glueqs needs the `quickshell` package while
-# noctalia-shell needs `noctalia-qs`, which CONFLICTS with (and PROVIDES)
-# quickshell: the two providers cannot be installed side by side, so each
-# capture gets its own throwaway container. --network host: the docker bridge
-# has no IPv4 forwarding on the build host, host networking is what works.
+# glue-build (GLUE_SCREENSHOT_IMAGE, entrypoint overridden) PER TARGET, with
+# the repo bind-mounted on /glue. Each capture gets its own throwaway
+# container. --network host: the docker bridge has no IPv4 forwarding on the
+# build host, host networking is what works.
+#
+# Noctalia is v5 (native C++, no Qt), built from the pinned upstream release
+# with meson: [cachyos] noctalia-shell 5.2.1-1 only ships the v5 source tree,
+# and the last QML release (v4.7.7) breaks on Qt 6.12. The built tree is cached
+# in out/screenshot-cache/, so only the first noctalia run compiles (~10 min).
 #
 # Inside (--inside TARGET, runs as root in the container): installs what the
 # capture needs (local packages + repos), then re-executes itself under
@@ -24,14 +27,18 @@
 # The gluewc shells run on the packaged Stillwater wallpaper (set through the
 # shell's own IPC, like glue-wallpaper-init); nvwm gets it through feh.
 #
-# gluewc targets produce TWO captures in one container run: `-bar` (desktop +
-# bar) and `-overview`. The compositor has no IPC for the overview (it is
-# toggled by a tap on Super, gluewc.c keypress), so `vkbd` - gluewc's own
-# virtual-keyboard test injector, built here from the gluewc sources - sends a
-# real Super tap. Both pictures are plain grim captures of the live output.
+# gluewc runs nested in a headless cage: on the headless backend alone gluewc
+# never advertises pointer/keyboard on its seat, so injected clicks and typing
+# would never reach the shell. Through cage's window gluewc gets a real seat.
+# `vkbd`/`vptr` - gluewc's virtual-keyboard/-pointer test injectors, built here
+# from the gluewc sources - drive cage, grim captures cage's 1920x1080 output.
+#
+# gluewc targets produce `-bar` (desktop + bar), `-overview` (a real Super tap,
+# the compositor has no IPC for it) and then the shell's own menus and panels,
+# opened by clicks on the bar or the shell's IPC (glueqs_extras).
 #
 # Output: packages/glue-installer/catalog/screenshots/
-#   gluewc-glueqs-{bar,overview}.png  gluewc-noctalia-{bar,overview}.png  nvwm.png
+#   gluewc-glueqs-*.png  gluewc-noctalia-*.png  nvwm.png
 # Each is verified to be a 1920x1080 PNG with > 1000 unique colours.
 set -eu
 
@@ -40,7 +47,7 @@ HEIGHT=1080
 MIN_COLORS=1000
 MAX_BYTES=$((3 * 1024 * 1024))
 TIMEOUT=60                       # seconds to wait for sockets / windows
-IMAGE="${GLUE_SCREENSHOT_IMAGE:-glue-pkgbuild-img}"
+IMAGE="${GLUE_SCREENSHOT_IMAGE:-glue-build}"
 TARGETS_ALL="glueqs noctalia nvwm"
 
 log() { printf '[screenshots] %s\n' "$*" >&2; }
@@ -51,8 +58,14 @@ WALLPAPER=/usr/share/backgrounds/glue/wallpaper.png   # Stillwater, glue-brandin
 # every file a target produces (first = the "bar" picture, shown first in the TUI)
 files_for() {
     case "$1" in
-        glueqs)   echo gluewc-glueqs-bar.png gluewc-glueqs-overview.png ;;
-        noctalia) echo gluewc-noctalia-bar.png gluewc-noctalia-overview.png ;;
+        glueqs)   echo gluewc-glueqs-bar.png gluewc-glueqs-overview.png \
+                       gluewc-glueqs-launcher.png gluewc-glueqs-calendar.png \
+                       gluewc-glueqs-notifications.png gluewc-glueqs-settings.png \
+                       gluewc-glueqs-wallpapers.png ;;
+        noctalia) echo gluewc-noctalia-bar.png gluewc-noctalia-overview.png \
+                       gluewc-noctalia-launcher.png gluewc-noctalia-control-center.png \
+                       gluewc-noctalia-notifications.png gluewc-noctalia-settings.png \
+                       gluewc-noctalia-wallpapers.png ;;
         nvwm)     echo nvwm.png ;;
         *) die "unknown target '$1' (glueqs|noctalia|nvwm|all)" ;;
     esac
@@ -86,10 +99,11 @@ host_main() {
     start=$(date +%s)
     for t in $targets; do
         log "=== $t -> $(files_for "$t") (container $IMAGE)"
-        docker run --rm --privileged --network host \
+        # glue-build's entrypoint is make-iso.sh: override it or a full ISO build starts
+        docker run --rm --privileged --network host --entrypoint /bin/bash \
             -v /dev/dri:/dev/dri -v "$root:/glue" -w /glue \
             -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
-            "$IMAGE" /bin/bash /glue/scripts/screenshots-headless.sh --inside "$t"
+            "$IMAGE" /glue/scripts/screenshots-headless.sh --inside "$t"
         for f in $(files_for "$t"); do verify_png "$out/$f"; done
     done
     for t in $targets; do
@@ -119,6 +133,7 @@ install_local() {
     pkg=$(ls -1 /glue/.glue-repo/"$name"-[0-9r]*.pkg.tar.zst 2>/dev/null | tail -n1 || true)
     [ -n "$pkg" ] || pkg=$(ls -1 /glue/packages/"$name"/*.pkg.tar.* /home/builder/pkgs/"$name"-*.pkg.tar.* 2>/dev/null | head -n1 || true)
     fi
+    case "$pkg" in /glue/.glue-repo/*) glue_keyring ;; esac
     if [ -z "$pkg" ]; then
         log "building $name with makepkg"
         rm -rf "/tmp/build-$name"
@@ -130,6 +145,17 @@ install_local() {
     fi
     log "installing $pkg"
     pacman -U --noconfirm --needed "$pkg"
+}
+
+# the [glue] packages carry signatures from a key the image does not know:
+# install glue-keyring itself without its .sig (LocalFileSigLevel = Optional)
+glue_keyring() {
+    [ -e /usr/share/pacman/keyrings/glue.gpg ] && return
+    local kr
+    kr=$(ls -1 /glue/.glue-repo/glue-keyring-*.pkg.tar.zst | tail -n1) || die "no glue-keyring in .glue-repo"
+    cp "$kr" /tmp/
+    pacman -U --noconfirm "/tmp/${kr##*/}"
+    pacman-key --populate glue
 }
 
 inside_main() {
@@ -156,18 +182,16 @@ inside_main() {
         glueqs)
             install_local gluewc
             install_local glueqs
-            pacman -S --noconfirm --needed grim
-            build_vkbd
+            install_local cage
+            pacman -S --noconfirm --needed grim wlr-randr libnotify
+            build_injectors
             ;;
         noctalia)
             install_local gluewc
-            # noctalia-qs PROVIDES+CONFLICTS quickshell: drop the galaxy
-            # provider (and glueqs, which depends on it) in THIS container only
-            if pacman -Q quickshell >/dev/null 2>&1; then
-                pacman -Rdd --noconfirm quickshell
-            fi
-            pacman -S --noconfirm --needed grim noctalia-qs noctalia-shell
-            build_vkbd
+            install_local cage
+            pacman -S --noconfirm --needed grim wlr-randr libnotify
+            install_noctalia
+            build_injectors
             ;;
         nvwm)
             install_local nvwm
@@ -178,10 +202,14 @@ inside_main() {
     export XDG_RUNTIME_DIR=/tmp/xdg-run
     rm -rf "$XDG_RUNTIME_DIR"; mkdir -m 700 "$XDG_RUNTIME_DIR"
     rm -rf /root/.config/gluewc /root/.local/state/gluewc /tmp/ff
+    # gluewc creates only the last level of its state dir (the workspaces file
+    # the bar's workspace widget and the overview dock read)
+    mkdir -p /root/.local/state
     mkdir -p /root/.config/fastfetch
     cp /etc/glue/fastfetch.jsonc /root/.config/fastfetch/config.jsonc
     write_firefox_profile
     [ "$target" = noctalia ] && seed_noctalia
+    case "$target" in glueqs|noctalia) seed_wallpapers ;; esac
     for f in $(files_for "$target"); do rm -f "$outdir/$f"; done
     # the installed wrappers run the session under dbus-run-session; so do we
     dbus-run-session -- /bin/bash /glue/scripts/screenshots-headless.sh --session "$target" "$outdir"
@@ -191,37 +219,97 @@ inside_main() {
     done
 }
 
-# vkbd (virtual-keyboard injector) is a test helper of the gluewc repo that the
-# gluewc package does not ship and the packaged source checkout does not carry:
-# fetch it from the commit the gluewc package is pinned to and build it here.
+# vkbd/vptr (virtual-keyboard/-pointer injectors) are test helpers of the
+# gluewc repo that the gluewc package does not ship and the packaged source
+# checkout does not carry: fetch them from the commit the gluewc package is
+# pinned to and build them here. Two local fixes: vkbd gets the letters its
+# table lacks (a d e p u x y z, space, BackSpace) and vptr's `release` no longer
+# parses as a right-button `rrelease` (it left the left button held down).
 GLUEWC_RAW=https://raw.githubusercontent.com/vladbiber/gluewc/94acc30/tests
-build_vkbd() {
-    local d=/tmp/vkbd-build f
+build_injectors() {
+    local d=/tmp/injectors-build f
     rm -r -f "$d"; mkdir -p "$d"
-    for f in vkbd.c virtual-keyboard-unstable-v1.xml; do
+    for f in vkbd.c virtual-keyboard-unstable-v1.xml vptr.c wlr-virtual-pointer-unstable-v1.xml; do
         curl -fsSL "$GLUEWC_RAW/$f" -o "$d/$f" || die "cannot fetch $GLUEWC_RAW/$f"
     done
+    sed -i 's/{"Print",99},/&\n\t{"a",30},{"d",32},{"e",18},{"p",25},{"u",22},{"x",45},{"y",21},{"z",44},{"space",57},{"BackSpace",14},/' "$d/vkbd.c"
+    sed -i "s/int right = argv\[i\]\[0\] == 'r';/int right = argv[i][0] == 'r' \&\& (argv[i][1] == 'p' || argv[i][1] == 'r');/" "$d/vptr.c"
+    grep -q '"BackSpace",14' "$d/vkbd.c" || die "vkbd key table patch did not apply"
+    grep -q "argv\[i\]\[1\] == 'p'" "$d/vptr.c" || die "vptr release patch did not apply"
     ( cd "$d" &&
       wayland-scanner client-header virtual-keyboard-unstable-v1.xml vkbd-protocol.h &&
       wayland-scanner private-code virtual-keyboard-unstable-v1.xml vkbd-protocol.c &&
       gcc -D_GNU_SOURCE $(pkg-config --cflags wayland-client xkbcommon) -o vkbd \
-          vkbd.c vkbd-protocol.c $(pkg-config --libs wayland-client xkbcommon) ) >&2 \
-        || die "building vkbd failed"
-    install -m755 "$d/vkbd" /usr/local/bin/vkbd
+          vkbd.c vkbd-protocol.c $(pkg-config --libs wayland-client xkbcommon) &&
+      wayland-scanner client-header wlr-virtual-pointer-unstable-v1.xml vptr-protocol.h &&
+      wayland-scanner private-code wlr-virtual-pointer-unstable-v1.xml vptr-protocol.c &&
+      gcc -D_GNU_SOURCE $(pkg-config --cflags wayland-client) -o vptr \
+          vptr.c vptr-protocol.c $(pkg-config --libs wayland-client) -lm ) >&2 \
+        || die "building vkbd/vptr failed"
+    install -m755 "$d/vkbd" "$d/vptr" /usr/local/bin/
 }
 
-# Started without settings.json Noctalia opens its setup wizard over the whole
-# desktop, and with settings but no shell-state it opens the telemetry wizard
-# (Commons/Settings.qml, Services/Noctalia/UpdateService.qml). Seed both with
-# the installed version so the capture shows the bar, not a wizard.
+# The glueqs wallpaper picker lists ~/Pictures/Wallpapers: the two Glue
+# wallpapers (CC0) and four colour treatments of Stillwater (CC0 derivatives).
+WALLDIR=/root/Pictures/Wallpapers
+seed_wallpapers() {
+    local s=/usr/share/backgrounds/glue
+    rm -r -f "$WALLDIR"; mkdir -p "$WALLDIR"
+    cp "$s/wallpaper.png" "$WALLDIR/stillwater.png"
+    cp "$s/glue-mac.jpg" "$WALLDIR/glue-mac.jpg"
+    magick "$s/wallpaper.png" -sepia-tone 80% "$WALLDIR/stillwater-sepia.jpg"
+    magick "$s/wallpaper.png" -colorspace gray -fill '#2b4c7e' -tint 100 "$WALLDIR/stillwater-blue.jpg"
+    magick "$s/wallpaper.png" -colorspace gray +level-colors '#1d0b0b,#e9a46b' "$WALLDIR/stillwater-dusk.jpg"
+    magick "$s/wallpaper.png" -negate -colorspace gray "$WALLDIR/stillwater-night.jpg"
+}
+
+# Noctalia v5 from the upstream release tarball (same flags as upstream's
+# `just configure release`, tests off). Runtime and build deps are BUILDING.md's
+# Arch list; noctalia-qs/quickshell are not needed.
+NOCTALIA_VER=5.2.1
+NOCTALIA_URL=https://github.com/noctalia-dev/noctalia-shell/releases/download/v$NOCTALIA_VER/noctalia-v$NOCTALIA_VER.tar.gz
+NOCTALIA_SHA256=fddff2d78677b8889709c8b2e707896fce1b79d24cb9a81d36f3be6aa66e58bb
+NOCTALIA_CACHE=/glue/out/screenshot-cache/noctalia-$NOCTALIA_VER-x86_64.tar
+install_noctalia() {
+    local d=/tmp/noctalia-build
+    pacman -S --noconfirm --needed meson ninja gcc \
+        wayland wayland-protocols libglvnd freetype2 fontconfig \
+        cairo pango harfbuzz libxkbcommon glib2 libsecret libsodium \
+        sdbus-cpp libpipewire wireplumber polkit pam curl libwebp libjxl \
+        libsndfile librsvg libqalculate libxml2 md4c tomlplusplus libical \
+        nlohmann-json stb jemalloc
+    if [ ! -s "$NOCTALIA_CACHE" ]; then
+        log "building noctalia $NOCTALIA_VER with meson (cached afterwards)"
+        rm -r -f "$d"; mkdir -p "$d/src" "$d/dest"
+        curl -fsSL "$NOCTALIA_URL" -o "$d/src.tar.gz" || die "cannot fetch $NOCTALIA_URL"
+        echo "$NOCTALIA_SHA256  $d/src.tar.gz" | sha256sum -c - >&2 || die "noctalia tarball checksum mismatch"
+        tar xzf "$d/src.tar.gz" -C "$d/src" --strip-components=1
+        ( cd "$d/src" &&
+          meson setup build --prefix=/usr --buildtype=release -Db_lto=true -Dtests=disabled &&
+          meson compile -C build &&
+          meson install -C build --destdir "$d/dest" ) >&2 || die "building noctalia failed"
+        mkdir -p "${NOCTALIA_CACHE%/*}"
+        tar cf "$NOCTALIA_CACHE.tmp" -C "$d/dest" . && mv "$NOCTALIA_CACHE.tmp" "$NOCTALIA_CACHE"
+        chown -R "${HOST_UID:-0}:${HOST_GID:-0}" "${NOCTALIA_CACHE%/*}"
+    fi
+    tar xf "$NOCTALIA_CACHE" -C / --no-same-owner --no-overwrite-dir
+    command -v noctalia >/dev/null || die "noctalia not installed"
+}
+
+# No setup wizard (it opens over the whole desktop until a marker exists), no
+# telemetry ping; the wallpaper picker browses the seeded folder.
 seed_noctalia() {
-    local ver
-    ver=$(pacman -Q noctalia-shell | awk '{print $2}' | sed 's/-[0-9]*$//')
-    mkdir -p /root/.config/noctalia /root/.cache/noctalia
-    printf '{\n  "settingsVersion": 59\n}\n' > /root/.config/noctalia/settings.json
-    printf '{\n  "changelogState": { "lastSeenVersion": "%s" }\n}\n' "$ver" \
-        > /root/.cache/noctalia/shell-state.json
-    log "seeded noctalia settings (version $ver)"
+    rm -r -f /root/.config/noctalia /root/.local/state/noctalia
+    mkdir -p /root/.config/noctalia
+    cat > /root/.config/noctalia/config.toml <<EOF
+[shell]
+setup_wizard_enabled = false
+telemetry_enabled = false
+
+[wallpaper]
+directory = "$WALLDIR"
+EOF
+    log "seeded noctalia config"
 }
 
 write_firefox_profile() {
@@ -266,15 +354,102 @@ poll() { # poll SECONDS "description" cmd args... - polls at 0.2 s like the wrap
     die "timed out after ${secs}s waiting for $what"
 }
 
-wayland_socket_ready() {
+wayland_socket_ready() { # [taken socket name]: the first other one wins
     local s
     for s in "$XDG_RUNTIME_DIR"/wayland-*; do
         case "$s" in *.lock) continue ;; esac
         [ -S "$s" ] || continue
+        [ "${s##*/}" = "${1:-}" ] && continue
         WAYLAND_DISPLAY="${s##*/}"; export WAYLAND_DISPLAY
         return 0
     done
     return 1
+}
+
+# input and captures go to cage (CAGE_DISPLAY), everything else to gluewc
+snap() { # snap NAME -> gluewc-TARGET-NAME.png
+    local f="$OUTDIR/gluewc-$TARGET-$1.png"
+    WAYLAND_DISPLAY=$CAGE_DISPLAY grim -o HEADLESS-1 "$f" || die "grim failed ($1)"
+    log "capture: $f"
+}
+key() { WAYLAND_DISPLAY=$CAGE_DISPLAY vkbd "$@" || die "vkbd $* failed"; }
+click() { # click X Y (pixels): glide there, settle, left click
+    local x y
+    x=$(awk -v v="$1" -v w="$WIDTH" 'BEGIN { printf "%.4f", v / w }')
+    y=$(awk -v v="$2" -v h="$HEIGHT" 'BEGIN { printf "%.4f", v / h }')
+    WAYLAND_DISPLAY=$CAGE_DISPLAY vptr line 0.5 0.6 "$x" "$y" 8 sleep 200 \
+        press sleep 80 release || die "vptr click $1 $2 failed"
+}
+park_pointer() { # off the bar, over the wallpaper strip between the windows
+    WAYLAND_DISPLAY=$CAGE_DISPLAY vptr abs 0.5 0.98 >/dev/null 2>&1 || true
+}
+
+# Bar positions are those of glueqs' default layout at 1920x1080
+# (Settings.qml barLeft/barCenter/barRight; the centre group includes the
+# weather tile, which needs the network the container has anyway).
+glueqs_extras() {
+    local ipc="qs -c glueqs ipc call glueqs"
+    # launcher: the dot-grid tile, then a query typed on the keyboard
+    click 76 22
+    sleep 1
+    key f i r e
+    sleep 2; snap launcher
+    key Escape; sleep 1
+    # calendar: the clock tile
+    click 1000 22
+    sleep 2; snap calendar
+    click 1000 22; sleep 1
+    # notifications: three real ones through the shell's notification server
+    notify-send -a "Glue Apps" "Updates installed" "12 packages were upgraded."
+    notify-send -a "Firefox" "Download finished" "glue-linux-x86_64.iso"
+    notify-send -a "Glue Welcome" "Welcome to Glue Linux" "Light. Fast. Yours."
+    sleep 7   # toasts time out
+    click 1116 22
+    sleep 2; snap notifications
+    click 1116 22; sleep 1
+    park_pointer
+    # settings, opened on the THEME page
+    $ipc settingspage 2
+    sleep 3; snap settings
+    $ipc close; sleep 2
+    # wallpaper picker over ~/Pictures/Wallpapers
+    $ipc wallpaper
+    sleep 4; snap wallpapers
+    $ipc close; sleep 1
+}
+
+# Noctalia v5's own IPC (`noctalia msg`, docs/user/ipc in its sources)
+noctalia_extras() {
+    local ipc="noctalia msg"
+    # launcher, query typed on the keyboard
+    $ipc panel-toggle launcher
+    sleep 1
+    key f i r e
+    sleep 2; snap launcher
+    key Escape; sleep 1
+    # control center, Home tab
+    $ipc panel-open control-center home
+    sleep 2; snap control-center
+    $ipc panel-close; sleep 1
+    # notifications: three real ones, then the control center's history tab
+    notify-send -a "Glue Apps" "Updates installed" "12 packages were upgraded."
+    notify-send -a "Firefox" "Download finished" "glue-linux-x86_64.iso"
+    notify-send -a "Glue Welcome" "Welcome to Glue Linux" "Light. Fast. Yours."
+    sleep 8   # toasts time out
+    $ipc panel-open control-center notifications
+    sleep 2; snap notifications
+    $ipc panel-close; sleep 1
+    # settings is a normal window: gluewc's float-centred bind (mod+v) lifts
+    # it out of the tiling
+    $ipc settings-open
+    sleep 2
+    key M+v
+    sleep 2; snap settings
+    $ipc settings-close; sleep 2
+    # wallpaper picker over ~/Pictures/Wallpapers
+    $ipc panel-toggle wallpaper
+    sleep 3; snap wallpapers
+    $ipc panel-close; sleep 1
 }
 
 gluewc_clients_ready() { # at least 2 clients on the output (alacritty + firefox)
@@ -344,20 +519,33 @@ session_main() {
         [ "$rc" -eq 0 ] || die "import failed"
         return 0
     fi
-    # gluewc, headless wlroots backend, one 1920x1080 output
+    # cage on the headless backend, 1920x1080; gluewc runs inside it on the
+    # wayland backend, so its seat gets cage's pointer and keyboard
+    TARGET=$target OUTDIR=$outdir
+    WLR_BACKENDS=headless WLR_HEADLESS_OUTPUTS=1 WLR_LIBINPUT_NO_DEVICES=1 \
+        WLR_RENDER_DRM_DEVICE=/dev/dri/renderD128 cage -d -- sleep infinity >/tmp/cage.log 2>&1 &
+    log "cage pid $!"
+    poll "$TIMEOUT" "the cage wayland socket" wayland_socket_ready
+    CAGE_DISPLAY=$WAYLAND_DISPLAY
+    poll "$TIMEOUT" "cage output at ${WIDTH}x${HEIGHT}" \
+        wlr-randr --output HEADLESS-1 --custom-mode "${WIDTH}x${HEIGHT}"
+    # one virtual keyboard and pointer that live as long as the session: cage
+    # (and so gluewc's seat) has keyboard/pointer from the start, instead of
+    # dropping them each time a one-shot vkbd/vptr exits
+    WAYLAND_DISPLAY=$CAGE_DISPLAY vkbd sleep2000000 >/dev/null 2>&1 &
+    WAYLAND_DISPLAY=$CAGE_DISPLAY vptr sleep 2000000 >/dev/null 2>&1 &
+    sleep 1
     mkdir -p /root/.config/gluewc
     cp /usr/share/gluewc/config.def.conf /root/.config/gluewc/config.conf
     sed -i 's/^root_color *= *.*/root_color     = E9E9E7/' /root/.config/gluewc/config.conf
-    printf '\noutput = HEADLESS-1 mode=%sx%s@60\n' "$WIDTH" "$HEIGHT" >> /root/.config/gluewc/config.conf
     export XDG_SESSION_TYPE=wayland XDG_CURRENT_DESKTOP=gluewc XDG_SESSION_DESKTOP=gluewc
-    WLR_BACKENDS=headless WLR_HEADLESS_OUTPUTS=1 \
-        WLR_RENDER_DRM_DEVICE=/dev/dri/renderD128 gluewc >/tmp/gluewc.log 2>&1 &
+    WLR_BACKENDS=wayland WLR_RENDER_DRM_DEVICE=/dev/dri/renderD128 gluewc >/tmp/gluewc.log 2>&1 &
     log "gluewc pid $!"
-    poll "$TIMEOUT" "the gluewc wayland socket" wayland_socket_ready
-    log "WAYLAND_DISPLAY=$WAYLAND_DISPLAY"
+    poll "$TIMEOUT" "the gluewc wayland socket" wayland_socket_ready "$CAGE_DISPLAY"
+    log "cage on $CAGE_DISPLAY, gluewc on $WAYLAND_DISPLAY"
     case "$target" in
         glueqs)   shell_cmd="glueqs" ;;
-        noctalia) shell_cmd="qs -c noctalia-shell" ;;
+        noctalia) shell_cmd="noctalia" ;;
     esac
     shell_log=/tmp/shell.log
     $shell_cmd >"$shell_log" 2>&1 &
@@ -366,33 +554,38 @@ session_main() {
     if [ "$target" = glueqs ]; then
         poll "$TIMEOUT" "glueqs 'Configuration Loaded'" grep -q "Configuration Loaded" "$shell_log"
     else
-        poll "$TIMEOUT" "noctalia-shell to start" sh -c "[ -s $shell_log ] && kill -0 $SHELL_PID"
+        poll "$TIMEOUT" "noctalia IPC" noctalia msg status
     fi
     kill -0 "$SHELL_PID" || die "shell exited: $(tail -n 20 "$shell_log")"
     sleep 8   # let the bar settle before windows open
-    # Stillwater through the shell's own IPC (what glue-wallpaper-init does)
+    # Stillwater through the shell's own IPC (what glue-wallpaper-init does);
+    # glueqs gets the copy in its picker folder so the picker marks it current
     case "$target" in
-        glueqs)   poll "$TIMEOUT" "glueqs setwallpaper" qs -c glueqs ipc call glueqs setwallpaper "$WALLPAPER" ;;
-        noctalia) poll "$TIMEOUT" "noctalia wallpaper set" qs -c noctalia-shell ipc call wallpaper set "$WALLPAPER" all ;;
+        glueqs)   poll "$TIMEOUT" "glueqs setwallpaper" qs -c glueqs ipc call glueqs setwallpaper "$WALLDIR/stillwater.png" ;;
+        noctalia) poll "$TIMEOUT" "noctalia wallpaper set" noctalia msg wallpaper-set "$WALLDIR/stillwater.png" ;;
     esac
     sleep 4   # wallpaper decode + fade
     launch_clients wayland
     poll "$TIMEOUT" "alacritty + firefox under gluewc" gluewc_clients_ready
     sleep 8   # fastfetch output + firefox first paint
     log "gluewc-msg status: $(gluewc-msg status 2>&1 | head -n1)"
-    grim -o HEADLESS-1 "$png" || die "grim failed (bar capture)"
-    log "bar capture: $png"
+    snap bar
     # overview: a real tap on Super, exactly what the keypress handler waits for
-    vkbd Super || die "vkbd could not tap Super"
+    key Super
     sleep 5   # overview animation
-    grim -o HEADLESS-1 "$outdir/$(files_for "$target" | awk '{print $2}')" \
-        || die "grim failed (overview capture)"
+    snap overview
+    key Super
+    sleep 3
+    case "$target" in
+        glueqs)   glueqs_extras ;;
+        noctalia) noctalia_extras ;;
+    esac
     tail -n 5 "$shell_log" >&2 || true
 }
 
 case "${1:-all}" in
     --inside)  inside_main "${2:?target}" ;;
     --session) session_main "${2:?target}" "${3:?png}" ;;
-    -h|--help) sed -n '2,25p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,/^set -eu$/{/^set -eu$/!p}' "$0"; exit 0 ;;
     *)         host_main "${1:-all}" ;;
 esac
