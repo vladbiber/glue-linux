@@ -30,9 +30,9 @@ package() {
     cp -r eqsh/. "$dest/"
     # Apple's SF Pro fonts may not be redistributed; Qt falls back to the system font
     rm -rf "$dest/media/fonts"
-    # media/wallpapers is not in git; the shell's defaults point at these names
+    # the shell's default wallpapers point at the branding copies
     install -dm755 "$dest/media/wallpapers"
-    ln -s /usr/share/backgrounds/glue/glue-mac.jpg "$dest/media/wallpapers/glue-mac.jpg"
-    ln -s /usr/share/backgrounds/glue/wallpaper.png "$dest/media/wallpapers/stillwater.png"
+    ln -sf /usr/share/backgrounds/glue/glue-mac.jpg "$dest/media/wallpapers/glue-mac.jpg"
+    ln -sf /usr/share/backgrounds/glue/wallpaper.png "$dest/media/wallpapers/stillwater.png"
     install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
 }
