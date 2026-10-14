@@ -74,3 +74,9 @@ command = { program = "termfont", args = ["alacritty", "-1"] }
 key = "Backspace"
 mods = "Control|Shift"
 command = { program = "termfont", args = ["alacritty", "reset"] }
+
+# Ctrl+Shift+N (Cmd+N in gluemac) opens a new window, as in foot and kitty
+[[keyboard.bindings]]
+key = "N"
+mods = "Control|Shift"
+action = "CreateNewWindow"
