@@ -588,6 +588,33 @@ class DefaultWallpaperTest(unittest.TestCase):
         self.assertEqual(calls, ["-c gluemac-shell ipc call wallpaper change "
                                  + str(_BRANDING_ROOT / "glue-mac.jpg")])
 
+    def test_hyprland_shells_set_the_wallpaper_their_own_way(self):
+        text = self.script.read_text()
+        self.assertIn('run_until_ok caelestia wallpaper -f "$wallpaper"', text)
+        self.assertIn("quickshell/ii/scripts/colors/switchwall.sh", text)
+        self.assertIn("ILLOGICAL_IMPULSE_VIRTUAL_ENV=/usr/lib/ii-vynx/venv", text)
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        root = Path(temp.name)
+        marker = root / "state/glue/wallpaper-pending"
+        marker.parent.mkdir(parents=True)
+        marker.touch()
+        bindir = root / "bin"
+        bindir.mkdir()
+        log = root / "calls.log"
+        (bindir / "caelestia").write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$CALLS"\n')
+        (bindir / "caelestia").chmod(0o755)
+        env = os.environ.copy()
+        env.update({"HOME": str(root), "XDG_STATE_HOME": str(root / "state"),
+                    "PATH": f"{bindir}:{env['PATH']}", "CALLS": str(log),
+                    "GLUE_WALLPAPER_PATH": str(_BRANDING_ROOT / "wallpaper.png")})
+        result = subprocess.run([str(self.script), "hyprland-caelestia", "caelestia"],
+                                env=env, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse(marker.exists())
+        self.assertEqual(log.read_text().splitlines(),
+                         ["wallpaper -f " + str(_BRANDING_ROOT / "wallpaper.png")])
+
     def test_gluemac_default_is_the_mac_wallpaper_not_stillwater(self):
         text = self.script.read_text()
         self.assertIn("gluemac*) default=/usr/share/backgrounds/glue/glue-mac.jpg",

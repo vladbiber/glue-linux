@@ -34,7 +34,7 @@ def build_desktop_entries(catalog, default_id: str) -> List[Dict[str, object]]:
             "id": s.id, "name": s.name, "kind": _KIND_BY_ID.get(s.id, _KIND.get(s.kind, s.kind)),
             "description": s.description,
             "lightness": s.lightness, "weight": _WEIGHT.get(s.lightness, ""),
-            "ease": s.ease, "ram": s.idle_ram or "",
+            "ease": s.ease, "ram": s.idle_ram or "", "disk": s.disk or "",
             "wayland": s.session_type == "wayland",
             "images": [f"{FILE_URL_PREFIX}{SCREENSHOT_ROOT}/{p}" for p in shots],
             "checked": s.id == default_id,

@@ -707,14 +707,15 @@ class TestGreeterProfile(unittest.TestCase):
 
     def test_real_catalog_sessions_have_exec_and_type(self):
         catalog = load_catalog(_CATALOG_PATH)
-        wayland = {"gluewc", "gluewc-noctalia", "gluemac", "gnome"}
+        wayland = {"gluewc", "gluewc-noctalia", "gluemac", "hyprland-caelestia",
+                   "hyprland-ii", "gnome"}
         for session in catalog.sessions:
             self.assertIsNotNone(session.exec, session.id)
             expected = "wayland" if session.id in wayland else "x11"
             self.assertEqual(session.session_type, expected, session.id)
         for shell in catalog.shells:
-            if shell.id == "gluemac-shell":
-                # gluemac autostarts it; a second copy would draw two menu bars
+            if shell.id in ("gluemac-shell", "caelestia", "ii"):
+                # their compositor config starts them; a second copy draws twice
                 self.assertIsNone(shell.exec)
                 continue
             self.assertIsNotNone(shell.exec, shell.id)
@@ -1131,7 +1132,7 @@ class TestSessionRuntime(unittest.TestCase):
                 self.assertNotIn("noctalia-qs", pkgs)
                 self.assertNotIn("noctalia-shell", pkgs)
 
-    def test_gluewc_noctalia_names_its_quickshell_provider(self):
+    def test_gluewc_noctalia_is_v5_without_quickshell(self):
         for init_id in ("dinit", "runit", "openrc"):
             with self.subTest(init=init_id):
                 plan = self._plan(["gluewc-noctalia"], {"gluewc-noctalia": "noctalia"},
@@ -1140,7 +1141,7 @@ class TestSessionRuntime(unittest.TestCase):
                 self.assertTrue(_BAR_WAYLAND <= pkgs, _BAR_WAYLAND - pkgs)
                 self.assertIn(f"power-profiles-daemon-{init_id}", pkgs)
                 self.assertIn("noctalia-shell", pkgs)
-                self.assertIn("noctalia-qs", pkgs)
+                self.assertNotIn("noctalia-qs", pkgs)
                 self.assertNotIn("quickshell", pkgs)
                 self.assertNotIn("glueqs", pkgs)
                 self.assertIn("power-profiles-daemon", plan.services)

@@ -11,11 +11,17 @@ var entries = [
     "lightness": 5,
     "weight": "Very light",
     "ease": 4,
-    "ram": "about 450 MB",
+    "ram": "about 230 MB",
+    "disk": "about 500 MB",
     "wayland": true,
     "images": [
       "file:///usr/share/glue-installer/catalog/screenshots/gluewc-glueqs-bar.png",
-      "file:///usr/share/glue-installer/catalog/screenshots/gluewc-glueqs-overview.png"
+      "file:///usr/share/glue-installer/catalog/screenshots/gluewc-glueqs-launcher.png",
+      "file:///usr/share/glue-installer/catalog/screenshots/gluewc-glueqs-overview.png",
+      "file:///usr/share/glue-installer/catalog/screenshots/gluewc-glueqs-calendar.png",
+      "file:///usr/share/glue-installer/catalog/screenshots/gluewc-glueqs-notifications.png",
+      "file:///usr/share/glue-installer/catalog/screenshots/gluewc-glueqs-settings.png",
+      "file:///usr/share/glue-installer/catalog/screenshots/gluewc-glueqs-wallpapers.png"
     ],
     "checked": true
   },
@@ -23,15 +29,21 @@ var entries = [
     "id": "gluewc-noctalia",
     "name": "gluewc + Noctalia",
     "kind": "Tiling",
-    "description": "The same gluewc tiling desktop with the Noctalia shell instead of glueqs: a polished bar, a control center and widgets from the Noctalia project. A bit heavier than glueqs.",
-    "lightness": 4,
-    "weight": "Light",
+    "description": "The same gluewc tiling desktop with the Noctalia shell instead of glueqs: a polished bar, a control center, a launcher and a wallpaper picker from the Noctalia project. Noctalia v5 is native code, so it uses less memory than glueqs.",
+    "lightness": 5,
+    "weight": "Very light",
     "ease": 4,
-    "ram": "about 600 MB",
+    "ram": "about 150 MB",
+    "disk": "about 550 MB",
     "wayland": true,
     "images": [
       "file:///usr/share/glue-installer/catalog/screenshots/gluewc-noctalia-bar.png",
-      "file:///usr/share/glue-installer/catalog/screenshots/gluewc-noctalia-overview.png"
+      "file:///usr/share/glue-installer/catalog/screenshots/gluewc-noctalia-launcher.png",
+      "file:///usr/share/glue-installer/catalog/screenshots/gluewc-noctalia-control-center.png",
+      "file:///usr/share/glue-installer/catalog/screenshots/gluewc-noctalia-notifications.png",
+      "file:///usr/share/glue-installer/catalog/screenshots/gluewc-noctalia-overview.png",
+      "file:///usr/share/glue-installer/catalog/screenshots/gluewc-noctalia-settings.png",
+      "file:///usr/share/glue-installer/catalog/screenshots/gluewc-noctalia-wallpapers.png"
     ],
     "checked": false
   },
@@ -43,10 +55,57 @@ var entries = [
     "lightness": 4,
     "weight": "Light",
     "ease": 4,
-    "ram": "about 500 MB",
+    "ram": "about 300 MB",
+    "disk": "about 500 MB",
     "wayland": true,
     "images": [
-      "file:///usr/share/glue-installer/catalog/screenshots/gluemac.png"
+      "file:///usr/share/glue-installer/catalog/screenshots/gluemac-desktop.png",
+      "file:///usr/share/glue-installer/catalog/screenshots/gluemac-menu.png",
+      "file:///usr/share/glue-installer/catalog/screenshots/gluemac-spotlight.png",
+      "file:///usr/share/glue-installer/catalog/screenshots/gluemac-launchpad.png",
+      "file:///usr/share/glue-installer/catalog/screenshots/gluemac-control-center.png",
+      "file:///usr/share/glue-installer/catalog/screenshots/gluemac-mission-control.png"
+    ],
+    "checked": false
+  },
+  {
+    "id": "hyprland-caelestia",
+    "name": "Hyprland + Caelestia",
+    "kind": "Tiling",
+    "description": "The Hyprland tiling compositor with the Caelestia shell: a bar down the side, a launcher, a dashboard with media, weather and calendar, notifications and colours taken from your wallpaper. Big animations and blur: heavier than the gluewc sessions and needs a decent GPU.",
+    "lightness": 2,
+    "weight": "Heavier",
+    "ease": 3,
+    "ram": "about 400 MB",
+    "disk": "about 850 MB",
+    "wayland": true,
+    "images": [
+      "file:///usr/share/glue-installer/catalog/screenshots/hyprland-caelestia-desktop.png",
+      "file:///usr/share/glue-installer/catalog/screenshots/hyprland-caelestia-launcher.png",
+      "file:///usr/share/glue-installer/catalog/screenshots/hyprland-caelestia-dashboard.png",
+      "file:///usr/share/glue-installer/catalog/screenshots/hyprland-caelestia-sidebar.png",
+      "file:///usr/share/glue-installer/catalog/screenshots/hyprland-caelestia-session.png"
+    ],
+    "checked": false
+  },
+  {
+    "id": "hyprland-ii",
+    "name": "Hyprland + ii",
+    "kind": "Tiling",
+    "description": "The Hyprland tiling compositor with the ii shell (illogical impulse, ii-vynx fork): a Material You desktop with an overview, two sidebars with quick settings, notes, media and an optional AI chat, desktop widgets and colours from your wallpaper. The heaviest tiling option: it brings its own Python environment and many helpers.",
+    "lightness": 1,
+    "weight": "Heavy",
+    "ease": 3,
+    "ram": "about 700 MB",
+    "disk": "about 1.9 GB",
+    "wayland": true,
+    "images": [
+      "file:///usr/share/glue-installer/catalog/screenshots/hyprland-ii-desktop.png",
+      "file:///usr/share/glue-installer/catalog/screenshots/hyprland-ii-search.png",
+      "file:///usr/share/glue-installer/catalog/screenshots/hyprland-ii-overview.png",
+      "file:///usr/share/glue-installer/catalog/screenshots/hyprland-ii-sidebar-right.png",
+      "file:///usr/share/glue-installer/catalog/screenshots/hyprland-ii-sidebar-left.png",
+      "file:///usr/share/glue-installer/catalog/screenshots/hyprland-ii-cheatsheet.png"
     ],
     "checked": false
   },
@@ -58,7 +117,8 @@ var entries = [
     "lightness": 5,
     "weight": "Very light",
     "ease": 3,
-    "ram": "about 200 MB",
+    "ram": "about 60 MB",
+    "disk": "about 480 MB",
     "wayland": false,
     "images": [
       "file:///usr/share/glue-installer/catalog/screenshots/nvwm.png"
@@ -73,7 +133,8 @@ var entries = [
     "lightness": 2,
     "weight": "Heavier",
     "ease": 5,
-    "ram": "about 1 GB",
+    "ram": "about 670 MB",
+    "disk": "about 1.7 GB",
     "wayland": false,
     "images": [
       "file:///usr/share/glue-installer/catalog/screenshots/kde-plasma.png"
@@ -85,10 +146,11 @@ var entries = [
     "name": "XFCE",
     "kind": "Classic desktop",
     "description": "A light classic desktop with a panel, a menu, desktop icons and simple settings. Good for older or low-RAM computers.",
-    "lightness": 3,
-    "weight": "Medium",
+    "lightness": 4,
+    "weight": "Light",
     "ease": 5,
-    "ram": "about 550 MB",
+    "ram": "about 260 MB",
+    "disk": "about 110 MB",
     "wayland": false,
     "images": [
       "file:///usr/share/glue-installer/catalog/screenshots/xfce.png"
@@ -100,10 +162,11 @@ var entries = [
     "name": "GNOME (minimal)",
     "kind": "Classic desktop",
     "description": "A clean, modern desktop (minimal install): the Activities overview, a dock, Files and Settings, with no extra apps. Runs on Wayland and supports touchpad gestures.",
-    "lightness": 2,
-    "weight": "Heavier",
+    "lightness": 3,
+    "weight": "Medium",
     "ease": 5,
-    "ram": "about 1 GB",
+    "ram": "about 360 MB",
+    "disk": "about 1.1 GB",
     "wayland": true,
     "images": [
       "file:///usr/share/glue-installer/catalog/screenshots/gnome.png"
@@ -115,10 +178,11 @@ var entries = [
     "name": "Cinnamon",
     "kind": "Classic desktop",
     "description": "A classic desktop like Linux Mint's: start menu, panel and system tray. Familiar and friendly, medium weight.",
-    "lightness": 3,
-    "weight": "Medium",
+    "lightness": 2,
+    "weight": "Heavier",
     "ease": 5,
-    "ram": "about 750 MB",
+    "ram": "about 580 MB",
+    "disk": "about 700 MB",
     "wayland": false,
     "images": [
       "file:///usr/share/glue-installer/catalog/screenshots/cinnamon.png"

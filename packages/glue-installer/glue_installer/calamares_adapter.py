@@ -39,7 +39,7 @@ SCHEDULERS = ("scx_lavd", "scx_bpfland", "none")
 FIRMWARES = ("uefi", "bios")
 # Catalog shell ids; the package name noctalia-shell is accepted as an alias.
 SHELLS = {"glueqs": "glueqs", "noctalia": "noctalia", "noctalia-shell": "noctalia",
-          "gluemac-shell": "gluemac-shell"}
+          "gluemac-shell": "gluemac-shell", "caelestia": "caelestia", "ii": "ii"}
 # Selection keys this adaptor reads; anything else (users, passwords…) is
 # Calamares' business and is never touched or logged.
 SELECTION_KEYS = ("kernel", "init", "sessions", "shell", "gaming", "scheduler",

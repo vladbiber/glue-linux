@@ -34,7 +34,10 @@ class TestAlacrittyToml(unittest.TestCase):
 
     def test_bindings(self):
         b = self.d["keyboard"]["bindings"]
-        self.assertEqual(len(b), 3)
+        self.assertEqual(len(b), 4)
+        new_window = b.pop()
+        self.assertEqual((new_window["key"], new_window["mods"], new_window["action"]),
+                         ("N", "Control|Shift", "CreateNewWindow"))
         for x in b:
             self.assertEqual(x["mods"], "Control|Shift")
             self.assertEqual(x["command"]["program"], "termfont")

@@ -205,7 +205,7 @@ find_display() {
     for l in /tmp/.X*-lock; do
         [ -f "$l" ] || continue
         p=$(tr -cd 0-9 < "$l")
-        case "$(cat "/proc/$p/comm" 2>/dev/null)" in gluewc|gluemac) ;; *) continue ;; esac
+        case "$(cat "/proc/$p/comm" 2>/dev/null)" in gluewc|gluemac|Hyprland) ;; *) continue ;; esac
         [ -O "/proc/$p" ] || continue
         n=${l#/tmp/.X}
         DISPLAY=":${n%-lock}"; export DISPLAY
@@ -259,6 +259,7 @@ fi
 # file, so screen sharing and file dialogs silently fail; gtk covers the
 # general interfaces, wlr the screencast/screenshot ones. DEs ship their own.
 _PORTAL_CONF_DIR = "/usr/share/xdg-desktop-portal"
+_OWN_PORTAL_CONF = frozenset({"hyprland"})
 _PORTAL_CONF_CONTENT = """\
 # {desktop}-portals.conf — written by the Glue Linux installer.
 [preferred]
@@ -299,6 +300,9 @@ def _portal_file(session: Session) -> Optional[PlannedFile]:
     if session.kind != "wm" or session.session_type != "wayland":
         return None
     desktop = session.desktop or session.id
+    # xdg-desktop-portal-hyprland ships hyprland-portals.conf itself
+    if desktop in _OWN_PORTAL_CONF:
+        return None
     if desktop != desktop.lower():
         raise ValueError(
             f"session '{session.id}': portal config needs a lowercase desktop "

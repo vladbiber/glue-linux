@@ -188,7 +188,7 @@ class TestNoticeAndDetail(unittest.TestCase):
         self.assertIn("Ease: 4/5", detail)
         self.assertIn("Lightness: 5/5", detail)
         self.assertIn("Keys: Super+Return — Open terminal", detail)
-        self.assertIn("Preview: 2 images (P to view)", detail)
+        self.assertIn("Preview: 7 images (P to view)", detail)
         self.assertIn("tiling desktop with the glueqs bar", detail)
 
     def test_detail_follows_the_cursor(self):

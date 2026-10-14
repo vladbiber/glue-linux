@@ -101,6 +101,28 @@ class GreeterLauncherTest(unittest.TestCase):
                                 capture_output=True)
         self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_hyprland_wrappers_start_glue_hyprland_and_keep_its_portal_conf(self):
+        from glue_installer.catalog import load_catalog
+        catalog = load_catalog(_PKG_ROOT / "catalog" / "catalog.json")
+        sessions = [s for s in catalog.sessions if s.id.startswith("hyprland-")]
+        shells = {s.id: s for s in catalog.shells}
+        files = {f.path: f.content for f in _greeter_files(
+            sessions, {"hyprland-caelestia": "caelestia", "hyprland-ii": "ii"}, shells)}
+        for sid, shell in (("hyprland-caelestia", "caelestia"), ("hyprland-ii", "ii")):
+            wrapper = files[f"/usr/local/bin/glue-session-{sid}"]
+            self.assertIn(f"exec glue-hyprland {shell}", wrapper)
+            self.assertIn(f"glue-wallpaper-init {sid} {shell}", wrapper)
+            self.assertIn("export XDG_CURRENT_DESKTOP=hyprland", wrapper)
+            self.assertIn("export XCURSOR_THEME=Adwaita", wrapper)
+            self.assertIn("gluewc|gluemac|Hyprland", wrapper)
+            self.assertNotIn("qs -c", wrapper)
+            result = subprocess.run(["sh", "-n"], input=wrapper, text=True,
+                                    capture_output=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+        # xdg-desktop-portal-hyprland owns hyprland-portals.conf
+        self.assertNotIn("/usr/share/xdg-desktop-portal/hyprland-portals.conf", files)
+        self.assertIn("/etc/xdg/hyprland-mimeapps.list", files)
+
     def test_wrapper_builds_regreet_view_from_glue_sessions(self):
         self.assertIn("/usr/share/glue/sessions/*.desktop",
                       _GREETER_WRAPPER_CONTENT)

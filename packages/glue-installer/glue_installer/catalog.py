@@ -73,6 +73,8 @@ class Session:
     screenshots: List[str] = field(default_factory=list)
     # rough idle memory shown by the installer, e.g. "about 400 MB"
     idle_ram: Optional[str] = None
+    # extra disk space over the base system, e.g. "about 1.2 GB"
+    disk: Optional[str] = None
 
 
 @dataclass
@@ -260,7 +262,7 @@ def _parse_init(raw: dict, idx: int) -> Init:
 
 _SESSION_KEYS = {"id", "name", "kind", "description", "ease", "lightness",
                  "keybindings", "packages", "services", "shell_choices"}
-_SESSION_OPTIONAL_KEYS = frozenset({"session_type", "exec", "desktop", "idle_ram"}) | SHOT_KEYS
+_SESSION_OPTIONAL_KEYS = frozenset({"session_type", "exec", "desktop", "idle_ram", "disk"}) | SHOT_KEYS
 _VALID_SESSION_TYPES = {"x11", "wayland"}
 
 
@@ -287,6 +289,7 @@ def _parse_session(raw: dict, idx: int) -> Session:
     if desktop is not None and not desktop:
         raise CatalogError(f"{ctx}: 'desktop' must be a non-empty string or null")
     idle_ram = _optional_str(raw, "idle_ram", ctx) if "idle_ram" in raw else None
+    disk = _optional_str(raw, "disk", ctx) if "disk" in raw else None
     return Session(
         id=eid,
         name=_str_field(raw, "name", ctx),
@@ -303,6 +306,7 @@ def _parse_session(raw: dict, idx: int) -> Session:
         exec=exec_cmd,
         desktop=desktop,
         idle_ram=idle_ram,
+        disk=disk,
     )
 
 

@@ -3,6 +3,7 @@
 import importlib
 import os
 import shutil
+import subprocess
 import re
 import sys
 import tempfile
@@ -271,7 +272,7 @@ class TestGluemacPkgbuilds(unittest.TestCase):
         build = (_PKG_ROOT.parent.parent / "build.sh").read_text()
         self.assertIn("-v $HOME/$src:/src/$src:ro", build)
         make_iso = (_PKG_ROOT.parent.parent / "scripts" / "make-iso.sh").read_text()
-        self.assertIn("gluewc glueqs gluemac gluemac-shell", make_iso)
+        self.assertIn("gluewc glueqs noctalia-shell gluemac gluemac-shell", make_iso)
 
     def test_gluemac_needs_pango_and_librsvg_and_guards_shell_autostart(self):
         depends = re.search(r"^depends=\((.*?)\)", self.mac, re.S | re.M).group(1)
@@ -312,3 +313,73 @@ class TestNvwmPkgbuildTerminal(unittest.TestCase):
     def test_alacritty_is_a_dependency(self):
         m = re.search(r"^depends=\((.*?)\)", self.text, re.S | re.M)
         self.assertIn("'alacritty'", m.group(1))
+
+
+# ---------------------------------------------------------------------------
+# Hyprland sessions: glue-hyprland, caelestia-shell, ii-vynx and their deps
+# ---------------------------------------------------------------------------
+
+class TestHyprlandPkgbuilds(unittest.TestCase):
+    PKGS = _PKG_ROOT.parent
+
+    def _read(self, name):
+        return (self.PKGS / name / "PKGBUILD").read_text()
+
+    def _depends(self, name):
+        return re.search(r"^depends=\((.*?)\)", self._read(name), re.S | re.M).group(1)
+
+    def test_every_dependency_is_built_before_its_user(self):
+        make_iso = (self.PKGS.parent / "scripts" / "make-iso.sh").read_text()
+        loop = re.search(r"^for pkg in (.*?); do", make_iso, re.S | re.M).group(1)
+        order = loop.replace("\\", " ").split()
+        before = {
+            "caelestia-cli": ["python-materialyoucolor", "swappy"],
+            "caelestia-shell": ["caelestia-cli", "libcava", "qt6-m3shapes",
+                                "ttf-material-symbols-variable", "ttf-rubik-vf", "swappy"],
+            "ii-vynx": ["matugen", "wlogout", "swappy", "ttf-google-sans-flex",
+                        "ttf-readex-pro", "otf-space-grotesk", "ttf-material-symbols-variable"],
+        }
+        for pkg, deps in before.items():
+            self.assertIn(pkg, order)
+            for dep in deps:
+                self.assertIn(f"'{dep}'", self._depends(pkg), (pkg, dep))
+                self.assertLess(order.index(dep), order.index(pkg), (dep, pkg))
+        self.assertIn("glue-hyprland", order)
+
+    def test_shells_use_the_repo_quickshell(self):
+        for pkg in ("caelestia-shell", "ii-vynx"):
+            depends = self._depends(pkg)
+            self.assertIn("'quickshell'", depends, pkg)
+            self.assertNotIn("quickshell-git", depends, pkg)
+
+    def test_launcher_picks_the_shell_config(self):
+        launcher = (self.PKGS / "glue-hyprland" / "glue-hyprland").read_text()
+        self.assertIn("conf=/usr/share/glue/hyprland/caelestia/hyprland.lua", launcher)
+        self.assertIn("ii-vynx-seed", launcher)
+        self.assertIn('exec start-hyprland -- -c "$conf"', launcher)
+        self.assertIn("'adwaita-cursors'", self._depends("glue-hyprland"))
+
+    def test_caelestia_config_uses_the_normal_cursor_and_glue_apps(self):
+        conf = self.PKGS / "glue-hyprland" / "caelestia"
+        variables = (conf / "variables.lua").read_text()
+        self.assertIn('cursorTheme                = "Adwaita"', variables)
+        self.assertIn('terminal                   = "alacritty"', variables)
+        self.assertIn('fileExplorer               = "nautilus"', variables)
+        self.assertNotIn("sweet-cursors", variables)
+        main = (conf / "hyprland.lua").read_text()
+        self.assertIn('package.preload["scheme.current"]', main)
+        self.assertIn('maybe_copy(sysdir .. "/scheme/default.lua"', main)
+        # Glue's session wrapper starts the polkit agent
+        self.assertNotIn("polkit-gnome", (conf / "hyprland" / "execs.lua").read_text())
+
+    def test_ii_venv_is_system_wide_and_seed_keeps_user_files(self):
+        text = self._read("ii-vynx")
+        self.assertIn('"/usr/lib/ii-vynx/venv"', text)
+        self.assertIn("--relocatable", text)
+        for dep in ("python-dbus", "fd", "zip", "unzip", "bluez-utils"):
+            self.assertIn(f"'{dep}'", self._depends("ii-vynx"), dep)
+        seed = (self.PKGS / "ii-vynx" / "ii-vynx-seed").read_text()
+        self.assertIn('[ -d "$cfg/hypr/custom" ] ||', seed)
+        self.assertIn("--exclude=colors.conf", seed)
+        result = subprocess.run(["sh", "-n"], input=seed, text=True, capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr)

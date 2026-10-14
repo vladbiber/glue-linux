@@ -111,7 +111,12 @@
       ],
       "screenshots": [
         "screenshots/gluewc-glueqs-bar.png",
-        "screenshots/gluewc-glueqs-overview.png"
+        "screenshots/gluewc-glueqs-launcher.png",
+        "screenshots/gluewc-glueqs-overview.png",
+        "screenshots/gluewc-glueqs-calendar.png",
+        "screenshots/gluewc-glueqs-notifications.png",
+        "screenshots/gluewc-glueqs-settings.png",
+        "screenshots/gluewc-glueqs-wallpapers.png"
       ],
       "packages": [
         "gluewc",
@@ -128,15 +133,16 @@
       ],
       "session_type": "wayland",
       "exec": "gluewc-session",
-      "idle_ram": "about 450 MB"
+      "idle_ram": "about 230 MB",
+      "disk": "about 500 MB"
     },
     {
       "id": "gluewc-noctalia",
       "name": "gluewc + Noctalia",
       "kind": "wm",
-      "description": "The same gluewc tiling desktop with the Noctalia shell instead of glueqs: a polished bar, a control center and widgets from the Noctalia project. A bit heavier than glueqs.",
+      "description": "The same gluewc tiling desktop with the Noctalia shell instead of glueqs: a polished bar, a control center, a launcher and a wallpaper picker from the Noctalia project. Noctalia v5 is native code, so it uses less memory than glueqs.",
       "ease": 4,
-      "lightness": 4,
+      "lightness": 5,
       "keybindings": [
         {
           "keys": "Super+Return",
@@ -189,7 +195,12 @@
       ],
       "screenshots": [
         "screenshots/gluewc-noctalia-bar.png",
-        "screenshots/gluewc-noctalia-overview.png"
+        "screenshots/gluewc-noctalia-launcher.png",
+        "screenshots/gluewc-noctalia-control-center.png",
+        "screenshots/gluewc-noctalia-notifications.png",
+        "screenshots/gluewc-noctalia-overview.png",
+        "screenshots/gluewc-noctalia-settings.png",
+        "screenshots/gluewc-noctalia-wallpapers.png"
       ],
       "packages": [
         "gluewc",
@@ -207,7 +218,8 @@
       "session_type": "wayland",
       "exec": "gluewc-session",
       "desktop": "gluewc",
-      "idle_ram": "about 600 MB"
+      "idle_ram": "about 150 MB",
+      "disk": "about 550 MB"
     },
     {
       "id": "gluemac",
@@ -267,7 +279,12 @@
         }
       ],
       "screenshots": [
-        "screenshots/gluemac.png"
+        "screenshots/gluemac-desktop.png",
+        "screenshots/gluemac-menu.png",
+        "screenshots/gluemac-spotlight.png",
+        "screenshots/gluemac-launchpad.png",
+        "screenshots/gluemac-control-center.png",
+        "screenshots/gluemac-mission-control.png"
       ],
       "packages": [
         "gluemac",
@@ -286,7 +303,185 @@
       ],
       "session_type": "wayland",
       "exec": "gluemac-session",
-      "idle_ram": "about 500 MB"
+      "idle_ram": "about 300 MB",
+      "disk": "about 500 MB"
+    },
+    {
+      "id": "hyprland-caelestia",
+      "name": "Hyprland + Caelestia",
+      "kind": "wm",
+      "description": "The Hyprland tiling compositor with the Caelestia shell: a bar down the side, a launcher, a dashboard with media, weather and calendar, notifications and colours taken from your wallpaper. Big animations and blur: heavier than the gluewc sessions and needs a decent GPU.",
+      "ease": 3,
+      "lightness": 2,
+      "keybindings": [
+        {
+          "keys": "Super",
+          "action": "Open the launcher (tap Super alone)"
+        },
+        {
+          "keys": "Super+T",
+          "action": "Open terminal (alacritty)"
+        },
+        {
+          "keys": "Super+W / Super+E",
+          "action": "Open browser / file manager"
+        },
+        {
+          "keys": "Super+Q",
+          "action": "Close focused window"
+        },
+        {
+          "keys": "Super+←↑↓→",
+          "action": "Move focus"
+        },
+        {
+          "keys": "Super+1-9",
+          "action": "Switch to workspace 1-9"
+        },
+        {
+          "keys": "Super+Alt+1-9",
+          "action": "Move window to workspace 1-9"
+        },
+        {
+          "keys": "Super+F",
+          "action": "Toggle fullscreen"
+        },
+        {
+          "keys": "Super+Alt+Space",
+          "action": "Toggle floating"
+        },
+        {
+          "keys": "Super+N",
+          "action": "Open the sidebar (notifications)"
+        },
+        {
+          "keys": "Super+Shift+S",
+          "action": "Screenshot a region"
+        },
+        {
+          "keys": "Super+V",
+          "action": "Clipboard history"
+        },
+        {
+          "keys": "Super+L",
+          "action": "Lock the screen"
+        },
+        {
+          "keys": "Ctrl+Alt+Delete",
+          "action": "Session menu (log out, restart, shut down)"
+        }
+      ],
+      "screenshots": [
+        "screenshots/hyprland-caelestia-desktop.png",
+        "screenshots/hyprland-caelestia-launcher.png",
+        "screenshots/hyprland-caelestia-dashboard.png",
+        "screenshots/hyprland-caelestia-sidebar.png",
+        "screenshots/hyprland-caelestia-session.png"
+      ],
+      "packages": [
+        "glue-hyprland",
+        "caelestia-shell",
+        "polkit-gnome",
+        "nautilus",
+        "loupe",
+        "celluloid",
+        "papers",
+        "pavucontrol"
+      ],
+      "services": [],
+      "shell_choices": [
+        "caelestia"
+      ],
+      "session_type": "wayland",
+      "exec": "glue-hyprland caelestia",
+      "desktop": "hyprland",
+      "idle_ram": "about 400 MB",
+      "disk": "about 850 MB"
+    },
+    {
+      "id": "hyprland-ii",
+      "name": "Hyprland + ii",
+      "kind": "wm",
+      "description": "The Hyprland tiling compositor with the ii shell (illogical impulse, ii-vynx fork): a Material You desktop with an overview, two sidebars with quick settings, notes, media and an optional AI chat, desktop widgets and colours from your wallpaper. The heaviest tiling option: it brings its own Python environment and many helpers.",
+      "ease": 3,
+      "lightness": 1,
+      "keybindings": [
+        {
+          "keys": "Super",
+          "action": "Search apps, files and commands (tap Super alone)"
+        },
+        {
+          "keys": "Super+Tab",
+          "action": "Overview of workspaces and windows"
+        },
+        {
+          "keys": "Super+Return",
+          "action": "Open terminal"
+        },
+        {
+          "keys": "Super+W / Super+E",
+          "action": "Open browser / file manager"
+        },
+        {
+          "keys": "Super+Q",
+          "action": "Close focused window"
+        },
+        {
+          "keys": "Super+1-9",
+          "action": "Switch to workspace 1-9"
+        },
+        {
+          "keys": "Super+A / Super+N",
+          "action": "Left sidebar / right sidebar"
+        },
+        {
+          "keys": "Super+Alt+Space",
+          "action": "Toggle floating"
+        },
+        {
+          "keys": "Super+Shift+S",
+          "action": "Screenshot a region"
+        },
+        {
+          "keys": "Super+/",
+          "action": "Show all shortcuts"
+        },
+        {
+          "keys": "Super+L",
+          "action": "Lock the screen"
+        },
+        {
+          "keys": "Ctrl+Alt+Delete",
+          "action": "Session menu (log out, restart, shut down)"
+        }
+      ],
+      "screenshots": [
+        "screenshots/hyprland-ii-desktop.png",
+        "screenshots/hyprland-ii-search.png",
+        "screenshots/hyprland-ii-overview.png",
+        "screenshots/hyprland-ii-sidebar-right.png",
+        "screenshots/hyprland-ii-sidebar-left.png",
+        "screenshots/hyprland-ii-cheatsheet.png"
+      ],
+      "packages": [
+        "glue-hyprland",
+        "ii-vynx",
+        "polkit-gnome",
+        "nautilus",
+        "loupe",
+        "celluloid",
+        "papers",
+        "pavucontrol"
+      ],
+      "services": [],
+      "shell_choices": [
+        "ii"
+      ],
+      "session_type": "wayland",
+      "exec": "glue-hyprland ii",
+      "desktop": "hyprland",
+      "idle_ram": "about 700 MB",
+      "disk": "about 1.9 GB"
     },
     {
       "id": "nvwm",
@@ -347,7 +542,8 @@
       "shell_choices": [],
       "session_type": "x11",
       "exec": "nvwm",
-      "idle_ram": "about 200 MB"
+      "idle_ram": "about 60 MB",
+      "disk": "about 480 MB"
     },
     {
       "id": "kde-plasma",
@@ -399,7 +595,8 @@
       "shell_choices": [],
       "session_type": "x11",
       "exec": "startplasma-x11",
-      "idle_ram": "about 1 GB"
+      "idle_ram": "about 670 MB",
+      "disk": "about 1.7 GB"
     },
     {
       "id": "xfce",
@@ -407,7 +604,7 @@
       "kind": "de",
       "description": "A light classic desktop with a panel, a menu, desktop icons and simple settings. Good for older or low-RAM computers.",
       "ease": 5,
-      "lightness": 3,
+      "lightness": 4,
       "keybindings": [
         {
           "keys": "Ctrl+Alt+T",
@@ -455,7 +652,8 @@
       "shell_choices": [],
       "session_type": "x11",
       "exec": "startxfce4",
-      "idle_ram": "about 550 MB"
+      "idle_ram": "about 260 MB",
+      "disk": "about 110 MB"
     },
     {
       "id": "gnome",
@@ -463,7 +661,7 @@
       "kind": "de",
       "description": "A clean, modern desktop (minimal install): the Activities overview, a dock, Files and Settings, with no extra apps. Runs on Wayland and supports touchpad gestures.",
       "ease": 5,
-      "lightness": 2,
+      "lightness": 3,
       "keybindings": [
         {
           "keys": "Super",
@@ -508,7 +706,8 @@
       "session_type": "wayland",
       "exec": "env SHELL=/bin/bash gnome-session",
       "desktop": "GNOME",
-      "idle_ram": "about 1 GB"
+      "idle_ram": "about 360 MB",
+      "disk": "about 1.1 GB"
     },
     {
       "id": "cinnamon",
@@ -516,7 +715,7 @@
       "kind": "de",
       "description": "A classic desktop like Linux Mint's: start menu, panel and system tray. Familiar and friendly, medium weight.",
       "ease": 5,
-      "lightness": 3,
+      "lightness": 2,
       "keybindings": [
         {
           "keys": "Ctrl+Alt+T",
@@ -558,7 +757,8 @@
       "shell_choices": [],
       "session_type": "x11",
       "exec": "cinnamon-session",
-      "idle_ram": "about 750 MB"
+      "idle_ram": "about 580 MB",
+      "disk": "about 700 MB"
     }
   ],
   "shells": [
@@ -571,7 +771,12 @@
       "keybindings": [],
       "screenshots": [
         "screenshots/gluewc-glueqs-bar.png",
-        "screenshots/gluewc-glueqs-overview.png"
+        "screenshots/gluewc-glueqs-launcher.png",
+        "screenshots/gluewc-glueqs-overview.png",
+        "screenshots/gluewc-glueqs-calendar.png",
+        "screenshots/gluewc-glueqs-notifications.png",
+        "screenshots/gluewc-glueqs-settings.png",
+        "screenshots/gluewc-glueqs-wallpapers.png"
       ],
       "packages": [
         "glueqs"
@@ -581,40 +786,23 @@
     {
       "id": "noctalia",
       "name": "Noctalia Shell",
-      "description": "A polished shell and bar for Wayland compositors, from the Noctalia project.",
+      "description": "Noctalia v5, a native shell from the Noctalia project: a polished bar, a control center with notifications and media, a launcher, a wallpaper picker and its own settings window.",
       "ease": 4,
-      "lightness": 4,
-      "keybindings": [
-        {
-          "keys": "Super+b",
-          "action": "Toggle bar visibility"
-        },
-        {
-          "keys": "Super+n",
-          "action": "Open notification center"
-        },
-        {
-          "keys": "Super+m",
-          "action": "Open media controls"
-        },
-        {
-          "keys": "Super+s",
-          "action": "Open system settings panel"
-        },
-        {
-          "keys": "Super+Shift+b",
-          "action": "Reload bar configuration"
-        }
-      ],
+      "lightness": 5,
+      "keybindings": [],
       "screenshots": [
         "screenshots/gluewc-noctalia-bar.png",
-        "screenshots/gluewc-noctalia-overview.png"
+        "screenshots/gluewc-noctalia-launcher.png",
+        "screenshots/gluewc-noctalia-control-center.png",
+        "screenshots/gluewc-noctalia-notifications.png",
+        "screenshots/gluewc-noctalia-overview.png",
+        "screenshots/gluewc-noctalia-settings.png",
+        "screenshots/gluewc-noctalia-wallpapers.png"
       ],
       "packages": [
-        "noctalia-shell",
-        "noctalia-qs"
+        "noctalia-shell"
       ],
-      "exec": "qs -c noctalia-shell"
+      "exec": "noctalia"
     },
     {
       "id": "gluemac-shell",
@@ -624,10 +812,52 @@
       "lightness": 4,
       "keybindings": [],
       "screenshots": [
-        "screenshots/gluemac.png"
+        "screenshots/gluemac-desktop.png",
+        "screenshots/gluemac-menu.png",
+        "screenshots/gluemac-spotlight.png",
+        "screenshots/gluemac-launchpad.png",
+        "screenshots/gluemac-control-center.png",
+        "screenshots/gluemac-mission-control.png"
       ],
       "packages": [
         "gluemac-shell"
+      ]
+    },
+    {
+      "id": "caelestia",
+      "name": "Caelestia",
+      "description": "Caelestia shell for Hyprland, from the caelestia-dots project. Hyprland starts it itself.",
+      "ease": 4,
+      "lightness": 2,
+      "keybindings": [],
+      "screenshots": [
+        "screenshots/hyprland-caelestia-desktop.png",
+        "screenshots/hyprland-caelestia-launcher.png",
+        "screenshots/hyprland-caelestia-dashboard.png",
+        "screenshots/hyprland-caelestia-sidebar.png",
+        "screenshots/hyprland-caelestia-session.png"
+      ],
+      "packages": [
+        "caelestia-shell"
+      ]
+    },
+    {
+      "id": "ii",
+      "name": "ii (illogical impulse)",
+      "description": "The ii shell for Hyprland, from the ii-vynx fork of end-4's illogical impulse. Hyprland starts it itself.",
+      "ease": 3,
+      "lightness": 1,
+      "keybindings": [],
+      "screenshots": [
+        "screenshots/hyprland-ii-desktop.png",
+        "screenshots/hyprland-ii-search.png",
+        "screenshots/hyprland-ii-overview.png",
+        "screenshots/hyprland-ii-sidebar-right.png",
+        "screenshots/hyprland-ii-sidebar-left.png",
+        "screenshots/hyprland-ii-cheatsheet.png"
+      ],
+      "packages": [
+        "ii-vynx"
       ]
     }
   ],

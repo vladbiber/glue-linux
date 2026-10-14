@@ -63,24 +63,26 @@ class TestPositive(unittest.TestCase):
         self.assertTrue(dinit.recommended)
 
     def test_expected_session_ids_in_exact_order(self):
-        """Exactly 8 sessions, gluewc first (the default), its Noctalia twin next."""
+        """Exactly 10 sessions, gluewc first (the default), its Noctalia twin next."""
         ids = [s.id for s in self.catalog.sessions]
-        self.assertEqual(ids, ["gluewc", "gluewc-noctalia", "gluemac", "nvwm", "kde-plasma",
-                               "xfce", "gnome", "cinnamon"])
+        self.assertEqual(ids, ["gluewc", "gluewc-noctalia", "gluemac", "hyprland-caelestia",
+                               "hyprland-ii", "nvwm", "kde-plasma", "xfce", "gnome", "cinnamon"])
 
     def test_session_kinds(self):
         wms = {s.id for s in self.catalog.sessions if s.kind == "wm"}
         des = {s.id for s in self.catalog.sessions if s.kind == "de"}
-        self.assertEqual(wms, {"gluewc", "gluewc-noctalia", "gluemac", "nvwm"})
+        self.assertEqual(wms, {"gluewc", "gluewc-noctalia", "gluemac", "hyprland-caelestia",
+                               "hyprland-ii", "nvwm"})
         self.assertEqual(des, {"kde-plasma", "xfce", "gnome", "cinnamon"})
 
-    def test_three_shells_glueqs_first(self):
-        """glueqs, noctalia, gluemac-shell; each gluewc/gluemac session has
-        exactly one shell, every other session offers none."""
+    def test_five_shells_glueqs_first(self):
+        """glueqs, noctalia, gluemac-shell, caelestia, ii; each gluewc/gluemac/
+        Hyprland session has exactly one shell, every other session offers none."""
         self.assertEqual([s.id for s in self.catalog.shells],
-                         ["glueqs", "noctalia", "gluemac-shell"])
+                         ["glueqs", "noctalia", "gluemac-shell", "caelestia", "ii"])
         fixed = {"gluewc": ["glueqs"], "gluewc-noctalia": ["noctalia"],
-                 "gluemac": ["gluemac-shell"]}
+                 "gluemac": ["gluemac-shell"], "hyprland-caelestia": ["caelestia"],
+                 "hyprland-ii": ["ii"]}
         for s in self.catalog.sessions:
             self.assertEqual(s.shell_choices, fixed.get(s.id, []), s.id)
             for pkg in s.packages:
@@ -112,14 +114,28 @@ class TestPositive(unittest.TestCase):
         self.assertEqual((twin.kind, twin.session_type, twin.exec, twin.desktop),
                          ("wm", "wayland", "gluewc-session", "gluewc"))
         self.assertEqual(twin.packages, gluewc.packages)
-        self.assertEqual(twin.screenshots, ["screenshots/gluewc-noctalia-bar.png",
-                                            "screenshots/gluewc-noctalia-overview.png"])
-        self.assertEqual(gluewc.screenshots, ["screenshots/gluewc-glueqs-bar.png",
-                                              "screenshots/gluewc-glueqs-overview.png"])
+        self.assertEqual(twin.screenshots[:2], ["screenshots/gluewc-noctalia-bar.png",
+                                                "screenshots/gluewc-noctalia-launcher.png"])
+        self.assertEqual(gluewc.screenshots[:2], ["screenshots/gluewc-glueqs-bar.png",
+                                                  "screenshots/gluewc-glueqs-launcher.png"])
+        # menus open, not only the bar
+        for s in (gluewc, twin):
+            self.assertGreaterEqual(len(s.screenshots), 5, s.id)
 
-    def test_every_session_states_idle_ram(self):
+    def test_every_session_states_idle_ram_and_disk(self):
         for s in self.catalog.sessions:
             self.assertRegex(s.idle_ram or "", r"^about \d", s.id)
+            self.assertRegex(s.disk or "", r"^about \d", s.id)
+
+    def test_hyprland_sessions_share_the_launcher_and_say_they_are_heavier(self):
+        for sid, shell, pkg in (("hyprland-caelestia", "caelestia", "caelestia-shell"),
+                                ("hyprland-ii", "ii", "ii-vynx")):
+            s = next(x for x in self.catalog.sessions if x.id == sid)
+            self.assertEqual((s.kind, s.session_type, s.exec, s.desktop),
+                             ("wm", "wayland", f"glue-hyprland {shell}", "hyprland"))
+            self.assertEqual(s.packages[:2], ["glue-hyprland", pkg])
+            self.assertLessEqual(s.lightness, 2, sid)
+            self.assertIn("heav", s.description.lower(), sid)
 
     def test_cinnamon_entry_exact_packages(self):
         cinnamon = next(s for s in self.catalog.sessions
@@ -149,7 +165,9 @@ class TestPositive(unittest.TestCase):
     def test_session_screenshot_names(self):
         expected = {"gluewc": "screenshots/gluewc-glueqs-bar.png",
                     "gluewc-noctalia": "screenshots/gluewc-noctalia-bar.png",
-                    "gluemac": "screenshots/gluemac.png",
+                    "gluemac": "screenshots/gluemac-desktop.png",
+                    "hyprland-caelestia": "screenshots/hyprland-caelestia-desktop.png",
+                    "hyprland-ii": "screenshots/hyprland-ii-desktop.png",
                     "nvwm": "screenshots/nvwm.png",
                     "kde-plasma": "screenshots/kde-plasma.png",
                     "xfce": "screenshots/xfce.png",
@@ -166,7 +184,8 @@ class TestPositive(unittest.TestCase):
 
     def test_noctalia_shell_entry_without_upstream_wm_reference(self):
         noctalia = self.catalog.shells[1]
-        self.assertEqual(noctalia.packages, ["noctalia-shell", "noctalia-qs"])  #
+        self.assertEqual(noctalia.packages, ["noctalia-shell"])
+        self.assertEqual(noctalia.exec, "noctalia")
         # name assembled at runtime - see test_removed_sessions_gone_from_raw_json
         self.assertNotIn("".join(("Ni", "ri")), noctalia.description)
 
@@ -249,9 +268,9 @@ class TestPositive(unittest.TestCase):
         self.assertTrue(m.name)
         self.assertTrue(m.description)
 
-    def test_eight_sessions_three_shells_two_kernels(self):
-        self.assertEqual(len(self.catalog.sessions), 8)
-        self.assertEqual(len(self.catalog.shells), 3)
+    def test_ten_sessions_five_shells_two_kernels(self):
+        self.assertEqual(len(self.catalog.sessions), 10)
+        self.assertEqual(len(self.catalog.shells), 5)
         self.assertEqual(len(self.catalog.kernels), 2)
 
 
@@ -426,9 +445,12 @@ class ShellProviderTest(unittest.TestCase):
     def setUp(self):
         self.shells = {s.id: s for s in load_catalog(_CATALOG_PATH).shells}
 
-    def test_noctalia_names_noctalia_qs_explicitly(self):
-        self.assertEqual(
-            self.shells["noctalia"].packages, ["noctalia-shell", "noctalia-qs"])
+    def test_noctalia_is_v5_without_a_quickshell_fork(self):
+        # [glue] builds Noctalia v5; [cachyos] ships only its source tree
+        self.assertEqual(self.shells["noctalia"].packages, ["noctalia-shell"])
+        pkgbuild = (_PKG_ROOT.parent / "noctalia-shell" / "PKGBUILD").read_text()
+        self.assertIn("conflicts=('noctalia-qs')", pkgbuild)
+        self.assertIn("meson compile", pkgbuild)
 
     def test_glueqs_leaves_quickshell_to_its_depends(self):
         self.assertEqual(self.shells["glueqs"].packages, ["glueqs"])
@@ -448,10 +470,21 @@ class ScreenshotFilesTest(unittest.TestCase):
 
     SCREENSHOTS_DIR = _PKG_ROOT / "catalog" / "screenshots"
     # the only names allowed (5.6/): headless captures + 4 DEs
-    ALLOWED = {"gluewc-glueqs-bar.png", "gluewc-glueqs-overview.png",
-               "gluewc-noctalia-bar.png", "gluewc-noctalia-overview.png",
-               "gluemac.png",
-               "nvwm.png", "kde-plasma.png", "xfce.png", "gnome.png", "cinnamon.png"}
+    ALLOWED = ({f"gluewc-glueqs-{n}.png" for n in (
+                   "bar", "launcher", "overview", "calendar", "notifications",
+                   "settings", "wallpapers")}
+               | {f"gluewc-noctalia-{n}.png" for n in (
+                   "bar", "launcher", "control-center", "notifications", "overview",
+                   "settings", "wallpapers")}
+               | {f"gluemac-{n}.png" for n in (
+                   "desktop", "menu", "spotlight", "launchpad", "control-center",
+                   "mission-control")}
+               | {f"hyprland-caelestia-{n}.png" for n in (
+                   "desktop", "launcher", "dashboard", "sidebar", "session")}
+               | {f"hyprland-ii-{n}.png" for n in (
+                   "desktop", "search", "overview", "sidebar-right", "sidebar-left",
+                   "cheatsheet")}
+               | {"nvwm.png", "kde-plasma.png", "xfce.png", "gnome.png", "cinnamon.png"})
     WEB = {"kde-plasma.png", "xfce.png", "gnome.png", "cinnamon.png"}
     LICENSES = {"CC-BY-4.0", "CC-BY-SA-3.0", "CC-BY-SA-4.0", "GPL-2.0", "GPL-3.0",
                 "GPL", "CC0-1.0", "Public domain"}

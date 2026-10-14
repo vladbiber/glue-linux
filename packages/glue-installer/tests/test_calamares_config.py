@@ -189,11 +189,11 @@ class TestDesktopPage(unittest.TestCase):
 
     def test_entries_match_catalog_sessions_in_order(self):
         self.assertEqual([e["id"] for e in self.entries], [s.id for s in _CATALOG.sessions])
-        self.assertEqual(len(self.entries), 8)
+        self.assertEqual(len(self.entries), 10)
         names = {s.id: s.name for s in _CATALOG.sessions}
         for e in self.entries:
             self.assertEqual(e["name"], names[e["id"]])
-            self.assertTrue(e["description"] and e["ram"], e["id"])
+            self.assertTrue(e["description"] and e["ram"] and e["disk"], e["id"])
 
     def test_gluewc_checked_by_default(self):
         self.assertEqual(default_session(_CATALOG), "gluewc")

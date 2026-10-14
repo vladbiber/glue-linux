@@ -206,6 +206,9 @@ Item {
                                     text: modelData.weight + (modelData.ram !== "" ? " · " + modelData.ram + " of RAM when idle" : "")
                                     color: page.colMuted; font.pixelSize: 12
                                 }
+                                Text { text: "Disk space"; color: page.colMuted; font.pixelSize: 12; visible: modelData.disk !== "" }
+                                Text { text: modelData.disk; color: page.colText; font.pixelSize: 12; visible: modelData.disk !== "" }
+                                Text { text: "added to the base system"; color: page.colMuted; font.pixelSize: 12; visible: modelData.disk !== "" }
                                 Text { text: "Easy to use"; color: page.colMuted; font.pixelSize: 12 }
                                 Text { text: page.dots(modelData.ease); color: page.colAccent; font.pixelSize: 13 }
                                 Text {
