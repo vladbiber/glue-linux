@@ -1,7 +1,7 @@
 # Maintainer: Glue Linux
 pkgname=glue-branding
 pkgver=1
-pkgrel=18
+pkgrel=19
 pkgdesc="Glue Linux branding, default wallpaper and boot theme"
 arch=('any')
 url="https://github.com/vladbiber/glue-linux"
@@ -63,8 +63,8 @@ package() {
         "$pkgdir/usr/share/licenses/glue-branding/WALLPAPER-CREDITS.md"
     install -Dm755 "$srcdir/glue-wallpaper-init" \
         "$pkgdir/usr/bin/glue-wallpaper-init"
-    # useradd copies this marker; the login wrapper removes it after applying
-    # the default once, so later wallpaper choices remain untouched.
+    # useradd copies this marker; glue-wallpaper-init applies the default once
+    # per desktop, so later wallpaper choices remain untouched.
     install -Dm644 /dev/null \
         "$pkgdir/etc/skel/.local/state/glue/wallpaper-pending"
     # screen sharing on gluewc: pick the only screen at once, rofi for several

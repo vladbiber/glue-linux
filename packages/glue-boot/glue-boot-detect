@@ -1,0 +1,82 @@
+#!/usr/bin/python3
+"""glue-boot-detect - add the other operating systems to the Limine menu.
+
+    glue-boot-detect [--print]
+
+Finds Windows (os-prober, when installed) and every loader on another EFI
+system partition (Limine, systemd-boot, GRUB, rEFInd of other Linux
+installs), writes one /etc/glue/boot.d fragment per entry and runs
+glue-boot-update. Fragments it wrote earlier (first line ending in
+"(os-prober)") are replaced; hand-written ones are left alone. Other ESPs
+are mounted read-only for a moment. --print shows the result, writes nothing.
+Same detection code as the installer (glue_installer.osdetect/espdetect).
+"""
+import os
+import subprocess
+import sys
+from types import SimpleNamespace
+
+sys.path.insert(0, "/usr/lib/glue-boot")
+from glue_installer.osdetect import BOOT_D, boot_d_files, detect_other_os, summary_lines  # noqa: E402
+
+GENERATED = "(os-prober)"
+
+
+def capture(argv):
+    try:
+        r = subprocess.run(list(argv), capture_output=True, text=True, timeout=120)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise OSError(str(exc)) from exc
+    if r.returncode != 0:
+        raise OSError(f"{argv[0]} exited {r.returncode}")
+    return r.stdout
+
+
+def source_of(mountpoint):
+    try:
+        out = capture(["findmnt", "-no", "SOURCE", mountpoint]).strip()
+    except OSError:
+        return None
+    return out.split("\n")[0].split("[")[0] or None
+
+
+def main(argv):
+    show_only = "--print" in argv
+    if any(a not in ("--print",) for a in argv):
+        print(__doc__.strip(), file=sys.stderr)
+        return 2
+    if not show_only and os.geteuid() != 0:
+        print("glue-boot-detect: run it as root (sudo glue-boot-detect)", file=sys.stderr)
+        return 1
+    root, boot = source_of("/"), source_of("/boot")
+    plan = SimpleNamespace(
+        firmware="uefi" if os.path.isdir("/sys/firmware/efi") else "bios",
+        mode="manual", device_path="",
+        partitions=[SimpleNamespace(path=root, mountpoint="/"),
+                    SimpleNamespace(path=boot, mountpoint="/boot")])
+    result, warnings = detect_other_os(plan, env=os.environ, capture=capture)
+    files = boot_d_files(result)
+    for line in warnings + summary_lines(result):
+        print(line)
+    if show_only:
+        for name, text in files:
+            print(f"\n{BOOT_D}/{name}\n{text}", end="")
+        return 0
+    os.makedirs(BOOT_D, exist_ok=True)
+    for name in sorted(os.listdir(BOOT_D)):
+        path = os.path.join(BOOT_D, name)
+        try:
+            with open(path, encoding="utf-8", errors="replace") as fh:
+                first = fh.readline().rstrip()
+        except OSError:
+            continue
+        if name.endswith(".conf") and first.endswith(GENERATED):
+            os.remove(path)
+    for name, text in files:
+        with open(os.path.join(BOOT_D, name), "w", encoding="utf-8") as fh:
+            fh.write(text)
+    return subprocess.call(["glue-boot-update"])
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

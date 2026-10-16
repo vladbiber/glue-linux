@@ -29,8 +29,22 @@ from typing import Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 # lsblk columns verified with `lsblk --list-columns` (util-linux).
 LSBLK_ARGV: Tuple[str, ...] = (
     "lsblk", "--json", "-o",
-    "PATH,TYPE,RM,HOTPLUG,PKNAME,UUID,PARTUUID,PTTYPE,PTUUID,PARTN",
+    "PATH,TYPE,RM,HOTPLUG,PKNAME,UUID,PARTUUID,PTTYPE,PTUUID,PARTN,PARTTYPE",
 )
+ESP_PARTTYPE = "c12a7328-f81f-11d2-ba4b-00a0c93ec93b"
+# Lists the EFI loaders of one ESP, mounted read-only on a scratch directory,
+# then `TITLE:<name>` per top-level entry of its limine.conf (`/Name`,
+# `/+Name`) and per systemd-boot entry title: names when os-prober has none.
+ESP_LIST_SCRIPT = (
+    'd=$(mktemp -d) || exit 1; '
+    'if mount -o ro "$1" "$d"; then '
+    'cd "$d" && find . -maxdepth 4 -type f -iname "*.efi"; r=$?; '
+    'for f in limine.conf limine/limine.conf EFI/limine/limine.conf boot/limine/limine.conf; do '
+    '[ -f "$f" ] && sed -n "s|^/+\\{0,1\\}\\([^/].*\\)$|TITLE:\\1|p" "$f"; done; '
+    'for f in loader/entries/*.conf; do '
+    '[ -f "$f" ] && sed -n "s/^title[[:space:]]\\{1,\\}/TITLE:/p" "$f"; done; '
+    'cd /; umount "$d"; '
+    'else r=1; fi; rmdir "$d"; exit $r')
 OS_PROBER_ARGV: Tuple[str, ...] = ("os-prober",)
 # Where the Artix live initramfs mounts the boot medium.
 LIVE_BOOTMNT = "/run/artix/bootmnt"
@@ -161,6 +175,7 @@ def block_devices(lsblk_json: str) -> Dict[str, dict]:
                 "pttype": _str(node.get("pttype")).lower(),
                 "ptuuid": _str(node.get("ptuuid")).lower(),
                 "partn": partn,
+                "parttype": _str(node.get("parttype")).lower(),
             }
             walk(node.get("children"), path.rsplit("/", 1)[-1])
 
@@ -318,7 +333,7 @@ def boot_d_files(result: DetectResult) -> List[Tuple[str, str]]:
         nn = _PRIORITY_WINDOWS if windows else (
             _PRIORITY_EFI if os_.kind == "efi" else _PRIORITY_BIOS)
         hexpart = re.sub(r"[^0-9a-f]", "", os_.partuuid)[:_HEX8]
-        base = f"{nn}-{_slug(os_.title)}-{hexpart}"
+        base = f"{nn}-{_slug(os_.title)[:40].rstrip('-')}-{hexpart}"
         name, n = base, 1
         while name in used:
             n += 1
@@ -347,20 +362,24 @@ def summary_lines(result: DetectResult) -> List[str]:
 # ---------------------------------------------------------------------------
 
 def detect_other_os(disk_plan, *, env: Mapping[str, str],
-                    capture: Callable[[Sequence[str]], str]):
+                    capture: Callable[[Sequence[str]], str],
+                    list_esp: Optional[Callable[[str], List[str]]] = None):
     """Driver for __main__: os-prober + lsblk + findmnt on the live side via
     the injected `capture(argv) -> stdout` (raises OSError on failure);
     GLUE_OSPROBER_OUTPUT / GLUE_LSBLK_JSON / GLUE_LIVE_DISK in `env` replace
     the commands. Never fails the install: a missing os-prober gives an empty
-    result + a warning. Returns (DetectResult, warnings)."""
+    result + a warning. On UEFI every other ESP is listed too (esp_entries):
+    `list_esp(device) -> [relative .efi paths]`, default = mount it read-only
+    through `capture` (GLUE_ESP_LISTING, JSON {device: [paths]}, replaces it).
+    Returns (DetectResult, warnings)."""
     warnings = []
     probe, lsblk = env.get("GLUE_OSPROBER_OUTPUT"), env.get("GLUE_LSBLK_JSON")
     try:
         if probe is None:
             probe = capture(OS_PROBER_ARGV)
     except (OSError, ValueError) as exc:
-        warnings.append(f"os-prober unavailable ({exc}); other operating "
-                        "systems are not added to the boot menu")
+        warnings.append(f"os-prober unavailable ({exc}); only the loaders "
+                        "on other EFI partitions are added to the boot menu")
         probe = ""
     try:
         if lsblk is None:
@@ -372,8 +391,24 @@ def detect_other_os(disk_plan, *, env: Mapping[str, str],
         live = env.get("GLUE_LIVE_DISK")
     root = next((p.path for p in disk_plan.partitions if p.mountpoint == "/"), None)
     boot = next((p.path for p in disk_plan.partitions if p.mountpoint == "/boot"), None)
+    erased = disk_plan.device_path if disk_plan.mode == "erase" else None
     result = foreign_entries(
         probe, lsblk, firmware=disk_plan.firmware, live_disk=live,
-        target_root=root, target_boot=boot,
-        erased_disk=disk_plan.device_path if disk_plan.mode == "erase" else None)
+        target_root=root, target_boot=boot, erased_disk=erased)
+    if disk_plan.firmware == "uefi":
+        if list_esp is None:
+            listing = env.get("GLUE_ESP_LISTING")
+            if listing is not None:
+                try:
+                    fixed = json.loads(listing)
+                except ValueError:
+                    fixed = {}
+                list_esp = lambda dev: list(fixed.get(dev, []))  # noqa: E731
+            else:
+                def list_esp(dev):
+                    return capture(["sh", "-c", ESP_LIST_SCRIPT, "sh", dev]).splitlines()
+        from glue_installer.espdetect import esp_entries, merge_esp_entries
+        merge_esp_entries(result, esp_entries(
+            probe, lsblk, list_esp, live_disk=live, target_root=root,
+            target_boot=boot, erased_disk=erased))
     return result, warnings

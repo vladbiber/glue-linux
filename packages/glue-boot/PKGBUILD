@@ -1,22 +1,35 @@
 # Maintainer: Glue Linux
 pkgname=glue-boot
 pkgver=1
-pkgrel=5
+pkgrel=6
 pkgdesc="Glue Linux boot menu maintenance: regenerates /boot/limine.conf from /etc/glue/boot.conf and redeploys Limine on kernel and bootloader updates"
 arch=('any')
 url="https://github.com/vladbiber/glue-linux"
 license=('GPL-3.0-or-later')
 # util-linux: findmnt, lsblk; coreutils: cp, mv, sort, ls
-depends=('limine' 'util-linux' 'coreutils')
-optdepends=('efibootmgr: register Glue Linux in the UEFI boot menu')
+depends=('limine' 'util-linux' 'coreutils' 'python')
+optdepends=('efibootmgr: register Glue Linux in the UEFI boot menu'
+            'os-prober: find Windows on BIOS installs and other disks'
+            'sbctl: Secure Boot (glue-secureboot)')
+install=glue-boot.install
 source=('glue-boot-update'
+        'glue-boot-detect'
+        'glue-secureboot'
         '95-glue-boot-update.hook')
-sha256sums=('SKIP' 'SKIP')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
     # drop-in Limine entries for other operating systems (installer)
     install -d "$pkgdir/etc/glue/boot.d"
     install -Dm755 "$srcdir/glue-boot-update" "$pkgdir/usr/bin/glue-boot-update"
+    # other OSes after the install: the installer's own detection code
+    install -Dm755 "$srcdir/glue-boot-detect" "$pkgdir/usr/bin/glue-boot-detect"
+    install -Dm755 "$srcdir/glue-secureboot" "$pkgdir/usr/bin/glue-secureboot"
+    local lib="$pkgdir/usr/lib/glue-boot/glue_installer"
+    install -d "$lib"
+    : > "$lib/__init__.py"
+    install -m644 "$startdir/../glue-installer/glue_installer/osdetect.py" \
+        "$startdir/../glue-installer/glue_installer/espdetect.py" "$lib/"
     # 95-: after mkinitcpio's 90-mkinitcpio-install, so the new initramfs exists
     install -Dm644 "$srcdir/95-glue-boot-update.hook" \
         "$pkgdir/usr/share/libalpm/hooks/95-glue-boot-update.hook"

@@ -78,5 +78,31 @@ var pages = {
         "points": []
       }
     ]
+  },
+  "gluesecureboot": {
+    "title": "Set up Secure Boot?",
+    "subtitle": "Secure Boot lets the computer start only a boot menu and kernel signed with your own keys. Most people can leave it off.",
+    "default": "no-secureboot",
+    "items": [
+      {
+        "id": "no-secureboot",
+        "name": "No, start normally",
+        "description": "Works on every computer. You can turn it on later with `sudo glue-secureboot enable`.",
+        "badge": "Recommended",
+        "points": []
+      },
+      {
+        "id": "secureboot",
+        "name": "Yes, set up Secure Boot",
+        "description": "Glue Linux creates its own keys and signs its boot menu and kernels.",
+        "badge": "",
+        "points": [
+          "Only for computers that start in UEFI mode",
+          "If Secure Boot is in Setup Mode, the keys are enrolled now together with Microsoft's, so Windows keeps starting",
+          "Otherwise: clear the Secure Boot keys in the firmware settings, then run `sudo glue-secureboot enable` once",
+          "Other Linux systems on this computer only start from the menu while Secure Boot is off, unless they are signed with these keys"
+        ]
+      }
+    ]
   }
 };

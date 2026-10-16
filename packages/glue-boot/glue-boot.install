@@ -1,0 +1,6 @@
+# existing installs got no entry for a Linux on another ESP: look once
+post_upgrade() {
+    if [ -d /sys/firmware/efi ] && [ -f /etc/glue/boot.conf ]; then
+        glue-boot-detect >/dev/null 2>&1 || true
+    fi
+}

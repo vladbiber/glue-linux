@@ -267,6 +267,8 @@ class TestGlueinstallModule(unittest.TestCase):
     def setUp(self):
         self.mod = _load_module()
         self.mod._root_bytes = lambda p: 100 * _GIB
+        # no os-prober / lsblk / mount of the test machine's own disks
+        self.mod._other_os = lambda gs, fw, root, boot: (None, [])
         import glue_installer.calamares_adapter as adapter
         self._orig = adapter.os.path.ismount
         adapter.os.path.ismount = lambda p: p == "/tmp/calamares-root"
@@ -281,9 +283,11 @@ class TestGlueinstallModule(unittest.TestCase):
         sys.modules["libcalamares"] = cala
         ran = []
 
-        def fake_execute(steps, *, dry_run, progress, output_path):
+        def fake_execute(steps, *, dry_run, progress, output_path, fraction=None):
             for i, s in enumerate(steps):
                 progress(i, len(steps), s.description)
+                if fraction is not None:
+                    fraction(i / len(steps), s.description)
                 ran.append(s)
             if fail:
                 raise fail
@@ -323,6 +327,8 @@ class TestGlueinstallModule(unittest.TestCase):
         self.assertEqual(ran[3].argv[0], "basestrap")
         self.assertIn("glue-boot-update --deploy", ran[-1].argv[-1])
         self.assertEqual(cala.job.progress[-1], 1.0)
+        self.assertEqual(cala.job.progress, sorted(cala.job.progress))
+        self.assertTrue(self.mod.pretty_status_message())
         self.assertEqual(cala.globalstorage.value("glue_swapfile_fstab_line"),
                          "/swapfile none swap defaults 0 0\n")
         blob = " ".join(" ".join(getattr(s, "argv", ())) + getattr(s, "content", "")

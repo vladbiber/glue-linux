@@ -43,7 +43,7 @@ SHELLS = {"glueqs": "glueqs", "noctalia": "noctalia", "noctalia-shell": "noctali
 # Selection keys this adaptor reads; anything else (users, passwords…) is
 # Calamares' business and is never touched or logged.
 SELECTION_KEYS = ("kernel", "init", "sessions", "shell", "gaming", "scheduler",
-                  "app_store", "bluetooth", "swap_mode", "hibernate")
+                  "app_store", "bluetooth", "swap_mode", "hibernate", "secure_boot")
 SWAPFILE = "/swapfile"
 # Calamares did the partitioning: bootloader_steps only checks the device is
 # set (glue-boot-update resolves the BIOS disk from the root's PKNAME).
@@ -124,6 +124,7 @@ def parse_selection(d: Mapping, catalog=None) -> Selection:
         support.append("bluetooth")
     swap_mode = _choice(d, "swap_mode", SWAP_MODES, "auto")
     hibernate = _bool(d, "hibernate", False)
+    secure_boot = _bool(d, "secure_boot", False)
 
     shell_choice = {}
     if catalog is not None:
@@ -155,7 +156,7 @@ def parse_selection(d: Mapping, catalog=None) -> Selection:
         kernel_id=kernel, init_id=init, session_ids=sessions,
         shell_choice=shell_choice, support_ids=support, gaming=gaming,
         minimal=not sessions and not gaming, scheduler=scheduler,
-        swap_mode=swap_mode, hibernate=hibernate,
+        swap_mode=swap_mode, hibernate=hibernate, secure_boot=secure_boot,
     )
 
 
@@ -323,13 +324,17 @@ def compile_adapter(
         kernel = next(k for k in catalog.kernels if k.id == selection.kernel_id)
         boot_spec = BootSpec(kernel=kernel_name(kernel.packages),
                              cmdline_extra=tuple(plan.cmdline_extra),
-                             resume=want_resume)
+                             resume=want_resume,
+                             secure_boot=selection.secure_boot and firmware == "uefi")
+    if selection.secure_boot and firmware != "uefi":
+        warnings.append("Secure Boot skipped: this computer started in BIOS mode")
 
-    packages = sorted(set(plan.packages) | set(bootloader_packages(disk_plan)))
+    boot_packages = bootloader_packages(disk_plan, secure_boot=boot_spec.secure_boot)
+    packages = sorted(set(plan.packages) | set(boot_packages))
     steps: List[Step] = []
     steps.extend(keyring_steps())
     steps.extend(bootstrap_steps(plan, target=t, pacman_conf=pacman_conf,
-                                 extra_packages=bootloader_packages(disk_plan)))
+                                 extra_packages=boot_packages))
     steps.extend(config_steps(plan, target=t, init_id=selection.init_id,
                               only_if_present=False))
     from glue_installer.hw_compat import microcode_hook_steps

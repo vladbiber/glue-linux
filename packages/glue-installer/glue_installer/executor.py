@@ -285,6 +285,7 @@ def execute(
     log: Callable[[str], None] = print,
     progress: Optional[Callable[[int, int, str], None]] = None,
     output_path: Optional[str] = None,
+    fraction: Optional[Callable[[float, str], None]] = None,
 ) -> None:
     """Execute steps in order.
 
@@ -299,8 +300,15 @@ def execute(
     output_path   - optional log file path; when set, each RunCommand's
                     stdout/stderr is appended there instead of inheriting the
                     console (so a progress bar isn't painted over).
+    fraction      - optional callback(0..1, status text) for a weighted bar:
+                    the package install weighs as much as everything else
+                    times PACKAGE_SHARE/(1-PACKAGE_SHARE) and moves with each
+                    package pacman downloads or installs (pkgprogress).
     """
     total = len(steps)
+    weights = step_weights(steps)
+    whole = sum(weights) or 1.0
+    done = 0.0
     out_fh = None
     if output_path is not None and not dry_run:
         out_fh = open(output_path, "a", encoding="utf-8", errors="replace")
@@ -311,17 +319,82 @@ def execute(
                 continue
             if progress is not None:
                 progress(i, total, step.description)
-            _run_step(step, out_fh)
+            on_line = None
+            if fraction is not None:
+                fraction(done / whole, step.description)
+                if _is_package_step(step):
+                    from glue_installer.pkgprogress import PacmanProgress
+                    tracker, base, share = PacmanProgress(), done / whole, weights[i] / whole
+
+                    def on_line(line, tracker=tracker, base=base, share=share):
+                        moved = tracker.feed(line)
+                        if moved is not None:
+                            fraction(base + share * moved[0], moved[1])
+            _run_step(step, out_fh, on_line)
+            done += weights[i]
         if progress is not None and not dry_run:
             progress(total, total, "Done")
+        if fraction is not None and not dry_run:
+            fraction(1.0, "Done")
     finally:
         if out_fh is not None:
             out_fh.close()
 
 
-def _run_step(step: Step, out_fh) -> None:
+# share of the whole run taken by the package install (basestrap downloads
+# and unpacks some 1500 packages; every other step together is a few minutes)
+PACKAGE_SHARE = 0.8
+
+
+def _is_package_step(step: Step) -> bool:
+    return isinstance(step, RunCommand) and bool(step.argv) and \
+        os.path.basename(step.argv[0]) in ("basestrap", "pacstrap")
+
+
+def step_weights(steps: List[Step]) -> List[float]:
+    """Relative duration of each step: a written file 0.1, a command 1, the
+    package install PACKAGE_SHARE of the total (split between several)."""
+    base = [0.1 if isinstance(s, WriteTargetFile) else 1.0 for s in steps]
+    pkg = [i for i, s in enumerate(steps) if _is_package_step(s)]
+    if not pkg:
+        return base
+    others = sum(w for i, w in enumerate(base) if i not in pkg) or 1.0
+    each = others * PACKAGE_SHARE / (1 - PACKAGE_SHARE) / len(pkg)
+    return [each if i in pkg else w for i, w in enumerate(base)]
+
+
+def _stream(argv: List[str], out_fh, on_line: Callable[[str], None]) -> int:
+    """Run argv with stdout+stderr piped through on_line (and into out_fh)."""
+    proc = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                            stdin=subprocess.DEVNULL, text=True, errors="replace",
+                            bufsize=1)
+    assert proc.stdout is not None
+    for line in proc.stdout:
+        if out_fh is not None:
+            out_fh.write(line)
+            out_fh.flush()
+        try:
+            on_line(line)
+        except Exception:  # noqa: BLE001 - the bar must never break the install
+            pass
+    return proc.wait()
+
+
+def _run_step(step: Step, out_fh, on_line: Optional[Callable[[str], None]] = None) -> None:
     """Run a single step (real run). Raises ExecutorError on failure."""
-    if isinstance(step, RunCommand):
+    if isinstance(step, RunCommand) and on_line is not None and step.stdin is None:
+        if out_fh is not None:
+            out_fh.write(f"\n=== {step.description} ===\n")
+            out_fh.flush()
+        try:
+            code = _stream(step.argv, out_fh, on_line)
+        except OSError as exc:
+            raise ExecutorError(
+                f"Command could not start ({exc}): {step.description}"
+            ) from exc
+        if code != 0:
+            raise ExecutorError(f"Command failed (exit {code}): {step.description}")
+    elif isinstance(step, RunCommand):
         kwargs = {}
         if step.stdin is not None:
             kwargs["input"] = step.stdin

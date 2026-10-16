@@ -28,8 +28,16 @@ _DEFAULT_SELECTION_FILE = "/etc/glue/selection.json"
 _DEFAULT_LOG = "/var/log/glue-install.log"
 
 
+_status = "Installing Glue Linux"
+
+
 def pretty_name():
     return "Installing Glue Linux"
+
+
+def pretty_status_message():
+    """Calamares shows this under the bar each time setprogress is called."""
+    return _status
 
 
 def _calamares():
@@ -103,14 +111,19 @@ def _host_facts():
 
 
 def _other_os(gs, firmware, root, boot):
-    """os-prober on the live side (never fatal), via osdetect's driver."""
+    """os-prober + other ESPs on the live side (never fatal), via osdetect."""
     import subprocess
     from glue_installer.calamares_adapter import _disk_plan
     from glue_installer.osdetect import detect_other_os
 
     def capture(argv):
-        return subprocess.run(list(argv), check=True, capture_output=True,
-                              text=True).stdout
+        # a non-zero exit (findmnt with no live mount, os-prober finding
+        # nothing) is an OSError for the driver: it skips that part only
+        try:
+            return subprocess.run(list(argv), check=True, capture_output=True,
+                                  text=True, timeout=120).stdout
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+            raise OSError(str(exc)) from exc
     try:
         return detect_other_os(_disk_plan(firmware, root, boot, None),
                                env=os.environ, capture=capture)
@@ -170,9 +183,9 @@ def run(execute_steps=execute, facts=None, online=_online):
         if firmware == "bios" and (problem := _bios_boot_problem(gs)):
             raise AdapterError(problem)
         root, boot, swap, fstype = _gs_partitions(gs)
-        other_os, os_warnings = (None, [])
-        if os.path.exists("/usr/bin/os-prober"):
-            other_os, os_warnings = _other_os(gs, firmware, root, boot)
+        # os-prober (Windows) + the loaders on other ESPs; without os-prober
+        # the ESP scan still runs and a warning says what is missing
+        other_os, os_warnings = _other_os(gs, firmware, root, boot)
         pacman_conf = config.get("pacman_conf")
         if pacman_conf and not os.path.exists(pacman_conf):
             pacman_conf = None
@@ -196,12 +209,16 @@ def run(execute_steps=execute, facts=None, online=_online):
 
     def progress(i, n, description):
         cala.utils.debug(f"glueinstall [{i}/{n}] {description}")
-        cala.job.setprogress(i / n if n else 1.0)
+
+    def fraction(value, text):
+        global _status
+        _status = text
+        cala.job.setprogress(min(1.0, max(0.0, value)))
 
     log_file = config.get("log_file", _DEFAULT_LOG)
     try:
         execute_steps(result.steps, dry_run=False, progress=progress,
-                      output_path=log_file)
+                      output_path=log_file, fraction=fraction)
     except ExecutorError as exc:
         tail = _log_tail(log_file)
         detail = f"{exc}\n\nLast lines of {log_file}:\n{tail}" if tail else str(exc)

@@ -66,6 +66,7 @@ class BootSpec:
     kernel: str                            # package name: linux-cachyos, linux
     cmdline_extra: Tuple[str, ...] = ()    # e.g. ('amd_pstate=active',)
     resume: bool = False                   # hibernation: resume= + hook
+    secure_boot: bool = False              # glue-secureboot (UEFI only)
 
 
 # ---------------------------------------------------------------------------
@@ -255,12 +256,15 @@ def resume_wanted(disk_plan: Optional[DiskPlan], hibernate: bool) -> bool:
 # Steps
 # ---------------------------------------------------------------------------
 
-def bootloader_packages(disk_plan: DiskPlan) -> List[str]:
+def bootloader_packages(disk_plan: DiskPlan, secure_boot: bool = False) -> List[str]:
     """Packages the bootloader needs in the basestrap set, sorted.
-    glue-boot brings glue-boot-update + the pacman hooks."""
+    glue-boot brings glue-boot-update + the pacman hooks; sbctl (Artix
+    world) signs Limine when Secure Boot is chosen."""
     packages = ["glue-boot", "limine"]
     if disk_plan.firmware == "uefi":
         packages.append("efibootmgr")
+        if secure_boot:
+            packages.append("sbctl")
     return sorted(packages)
 
 
@@ -295,7 +299,18 @@ def _writer_script(spec: BootSpec, firmware: str, swap_path: Optional[str]) -> s
     ]
     if resume:
         lines.append(f'sed -i "s|{_RESUME_PLACEHOLDER}|$RESUME_UUID|g" {_BOOT_CONF_PATH}')
-    lines.append("glue-boot-update --deploy")
+    if spec.secure_boot and firmware == "uefi":
+        # never fails the install: without Secure Boot it is the normal Limine
+        lines += [
+            "if glue-secureboot enable --no-update && glue-boot-update --deploy; then :; else",
+            '    echo "Secure Boot could not be set up; installing the normal boot menu '
+            '(run glue-secureboot enable later)" >&2',
+            f"    sed -i 's/^GLUE_BOOT_SECUREBOOT=.*/GLUE_BOOT_SECUREBOOT=0/' {_BOOT_CONF_PATH}",
+            "    glue-boot-update --deploy",
+            "fi",
+        ]
+    else:
+        lines.append("glue-boot-update --deploy")
     return "\n".join(lines) + "\n"
 
 

@@ -57,7 +57,7 @@ class TestSequence(unittest.TestCase):
                          + pages + ["summary"])
         self.assertEqual((NETWORK_STEP, DESKTOP_STEP),
                          ("notesqml@gluenetwork", "notesqml@gluedesktop"))
-        self.assertEqual(PAGE_IDS, ("gluekernel", "glueinit", "gluegaming"))
+        self.assertEqual(PAGE_IDS, ("gluekernel", "glueinit", "gluegaming", "gluesecureboot"))
         self.assertEqual([i["id"] for i in _SETTINGS["instances"]],
                          ["gluenetwork", "gluedesktop"] + list(PAGE_IDS))
         self.assertNotIn("packagechooser", sequence_modules(_SETTINGS))

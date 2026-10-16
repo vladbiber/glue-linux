@@ -29,6 +29,8 @@ class Selection:
     # Offline install: clone the live system with rsync instead
     # of basestrap; kernel_id/init_id are then the live ones (linux, runit).
     offline: bool = False
+    # Secure Boot page: sbctl keys + signed, config-enrolled Limine (UEFI)
+    secure_boot: bool = False
 
 
 @dataclass

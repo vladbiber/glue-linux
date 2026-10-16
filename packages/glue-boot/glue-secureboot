@@ -1,0 +1,122 @@
+#!/bin/sh
+# glue-secureboot - Secure Boot for Glue Linux's Limine, with sbctl.
+#
+#   glue-secureboot status
+#   glue-secureboot enable [--no-update]
+#   glue-secureboot disable
+#
+# enable: creates the sbctl keys (once); when the firmware is in Setup Mode
+# enrolls them together with Microsoft's (-m: Windows, GPU option ROMs and
+# firmware drivers keep working); sets GLUE_BOOT_SECUREBOOT=1 in
+# /etc/glue/boot.conf and runs glue-boot-update, which hashes the kernels into
+# limine.conf, enrolls the config hash into Limine and signs it. Outside Setup
+# Mode it says how to get there and can simply be run again afterwards.
+# --no-update leaves the glue-boot-update run to the caller (installer).
+# disable: only with Secure Boot off in the firmware (an unsigned Limine
+# would not start otherwise); clears the flag and puts back the plain Limine.
+# Keys stay in /var/lib/sbctl.
+set -eu
+ME=glue-secureboot
+CONF=${GLUE_BOOT_CONF:-/etc/glue/boot.conf}
+EFIVARS=${GLUE_EFIVARS:-/sys/firmware/efi/efivars}
+GLOBAL=8be4df61-93ca-11d2-aa0d-00e098032b8c
+
+log() { printf '%s: %s\n' "$ME" "$*"; }
+die() { printf '%s: error: %s\n' "$ME" "$*" >&2; exit 1; }
+
+# 1 or 0 from a global UEFI variable (first data byte after 4 attribute bytes)
+efivar() {
+    f="$EFIVARS/$1-$GLOBAL"
+    [ -r "$f" ] || { echo 0; return; }
+    v=$(od -An -t u1 -j 4 -N 1 "$f" | tr -d ' ')
+    echo "${v:-0}"
+}
+
+have_keys() {
+    [ -e /var/lib/sbctl/keys/db/db.key ] || [ -e /usr/share/secureboot/keys/db/db.key ]
+}
+
+set_flag() {
+    [ -f "$CONF" ] || die "$CONF not found (Limine is not managed by glue-boot here)"
+    if grep -q '^GLUE_BOOT_SECUREBOOT=' "$CONF"; then
+        sed -i "s/^GLUE_BOOT_SECUREBOOT=.*/GLUE_BOOT_SECUREBOOT=$1/" "$CONF"
+    else
+        printf 'GLUE_BOOT_SECUREBOOT=%s\n' "$1" >> "$CONF"
+    fi
+}
+
+flag() {
+    [ -f "$CONF" ] && sed -n 's/^GLUE_BOOT_SECUREBOOT=//p' "$CONF" | tail -n 1
+}
+
+status() {
+    printf 'Secure Boot in firmware: %s\n' "$( [ "$(efivar SecureBoot)" = 1 ] && echo on || echo off)"
+    printf 'Setup Mode (keys can be enrolled): %s\n' "$( [ "$(efivar SetupMode)" = 1 ] && echo yes || echo no)"
+    printf 'Glue signing keys: %s\n' "$(have_keys && echo created || echo none)"
+    printf 'Glue Secure Boot setting: %s\n' "$( [ "$(flag)" = 1 ] && echo on || echo off)"
+}
+
+setup_mode_help() {
+    cat <<HELP
+
+The firmware is not in Setup Mode, so Glue's keys could not be enrolled yet.
+  1. Restart and open the firmware settings (often F2, Del or Esc at power on).
+  2. Under Security / Secure Boot choose "Reset to Setup Mode", "Clear Secure
+     Boot keys" or "Delete all keys" (the wording differs per maker).
+  3. Leave Secure Boot OFF, save and start Glue Linux again.
+  4. Run:  sudo glue-secureboot enable
+  5. Then turn Secure Boot ON in the firmware settings.
+Glue Linux keeps starting normally in the meantime.
+HELP
+}
+
+[ -d /sys/firmware/efi ] || [ "${1:-}" = status ] || die "this computer did not start in UEFI mode; Secure Boot needs UEFI"
+cmd=${1:-status}
+[ $# -eq 0 ] || shift
+case $cmd in
+    status) status; exit 0 ;;
+    enable|disable) ;;
+    -h|--help) sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *) die "unknown command: $cmd (status, enable, disable)" ;;
+esac
+[ "$(id -u)" -eq 0 ] || die "run it as root: sudo $ME $cmd"
+
+if [ "$cmd" = disable ]; then
+    [ "$(efivar SecureBoot)" = 1 ] &&
+        die "Secure Boot is still on in the firmware: turn it off there first, otherwise the computer cannot start the unsigned Limine"
+    set_flag 0
+    glue-boot-update --deploy
+    log "Secure Boot setup removed; Limine is the plain one again (keys kept in /var/lib/sbctl)"
+    exit 0
+fi
+
+update=1
+[ "${1:-}" = --no-update ] && update=0
+command -v sbctl >/dev/null 2>&1 || die "sbctl is not installed: sudo pacman -S sbctl"
+if have_keys; then
+    log "signing keys already exist"
+else
+    sbctl create-keys
+fi
+enrolled=0
+if [ "$(efivar SetupMode)" = 1 ]; then
+    # some kernels mark the key variables immutable; sbctl then refuses
+    for v in PK KEK db dbx; do
+        for f in "$EFIVARS/$v"-*; do [ -e "$f" ] && chattr -i "$f" 2>/dev/null; done
+    done
+    if sbctl enroll-keys --microsoft; then
+        enrolled=1
+        log "keys enrolled in the firmware (with Microsoft's)"
+    else
+        log "sbctl could not enroll the keys; Glue keeps booting without Secure Boot"
+    fi
+fi
+set_flag 1
+[ "$update" -eq 0 ] || glue-boot-update --deploy
+if [ "$enrolled" -eq 1 ]; then
+    log "done: turn Secure Boot ON in the firmware settings at the next restart"
+elif [ "$(efivar SecureBoot)" = 1 ] && [ "$(efivar SetupMode)" = 0 ]; then
+    log "Secure Boot is on and Limine is signed with Glue's keys"
+else
+    setup_mode_help
+fi

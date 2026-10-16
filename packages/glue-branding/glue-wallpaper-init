@@ -1,7 +1,8 @@
 #!/bin/sh
-# Apply Glue's packaged wallpaper once for a newly-created user.  The marker
-# comes from /etc/skel; removing it after success means later user choices are
-# never overwritten at login.
+# Apply Glue's packaged wallpaper once per desktop for a newly-created user.
+# The marker comes from /etc/skel and stays; every session/shell pair that got
+# the default is listed in wallpaper-done, so each desktop gets it on its first
+# login and later user choices are never overwritten.
 set -u
 
 session=${1:-}
@@ -13,9 +14,12 @@ esac
 wallpaper=${GLUE_WALLPAPER_PATH:-$default}
 state_dir=${XDG_STATE_HOME:-"$HOME/.local/state"}/glue
 marker=$state_dir/wallpaper-pending
+done_list=$state_dir/wallpaper-done
+key="$session:$shell"
 retries=${GLUE_WALLPAPER_RETRIES:-150}
 
 [ -f "$marker" ] || exit 0
+grep -qxF "$key" "$done_list" 2>/dev/null && exit 0
 [ -r "$wallpaper" ] || exit 1
 
 run_until_ok() {
@@ -101,7 +105,7 @@ case "$session:$shell" in
 esac
 
 if [ "$ok" -eq 1 ]; then
-    rm -f "$marker"
+    printf '%s\n' "$key" >> "$done_list"
     exit 0
 fi
 exit 1

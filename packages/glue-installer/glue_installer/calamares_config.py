@@ -36,6 +36,8 @@ GS_PREFIX = "packagechooser_"
 # relative to the catalog directory).
 GAMING_ON = "gaming"
 GAMING_OFF = "no-gaming"
+SECUREBOOT_ON = "secureboot"
+SECUREBOOT_OFF = "no-secureboot"
 # QML pages run as instances of the stock notesqml view module; the QML file
 # is looked up in the branding directory (qmlSearch: branding)
 NETWORK_STEP = "notesqml@gluenetwork"
@@ -46,7 +48,7 @@ QML_PAGES = (("gluenetwork", "gluenetwork", "Network"),
 SESSIONS_KEY = GS_PREFIX + "gluesessions"
 
 # one-choice QML pages (ChoicePage.qml) in the order the user sees them
-PAGE_IDS = ("gluekernel", "glueinit", "gluegaming")
+PAGE_IDS = ("gluekernel", "glueinit", "gluegaming", "gluesecureboot")
 SHOW_BEFORE = ("welcome", NETWORK_STEP, "locale", "keyboard", "partition", "users",
                DESKTOP_STEP)
 SHOW_AFTER = ("summary",)
@@ -158,7 +160,28 @@ def build_pages(catalog) -> List[Page]:
         "A smaller, lighter system. You can still install Steam or other "
         "launchers later from Glue Apps."))
     gaming.default = GAMING_OFF
-    pages = [kernel, init, gaming]
+
+    secure = Page("gluesecureboot", "Secure Boot", "required",
+                  title="Set up Secure Boot?",
+                  subtitle="Secure Boot lets the computer start only a boot "
+                           "menu and kernel signed with your own keys. Most "
+                           "people can leave it off.")
+    secure.items.append(Item(
+        SECUREBOOT_OFF, "No, start normally",
+        "Works on every computer. You can turn it on later with "
+        "`sudo glue-secureboot enable`.", badge="Recommended"))
+    secure.items.append(Item(
+        SECUREBOOT_ON, "Yes, set up Secure Boot",
+        "Glue Linux creates its own keys and signs its boot menu and kernels.",
+        points=["Only for computers that start in UEFI mode",
+                "If Secure Boot is in Setup Mode, the keys are enrolled now "
+                "together with Microsoft's, so Windows keeps starting",
+                "Otherwise: clear the Secure Boot keys in the firmware settings, "
+                "then run `sudo glue-secureboot enable` once",
+                "Other Linux systems on this computer only start from the menu "
+                "while Secure Boot is off, unless they are signed with these keys"]))
+    secure.default = SECUREBOOT_OFF
+    pages = [kernel, init, gaming, secure]
     assert tuple(p.id for p in pages) == PAGE_IDS
     return pages
 
@@ -218,6 +241,9 @@ def selection_from_globalstorage(gs: Mapping, catalog) -> Dict[str, object]:
     gaming = _picked(gs, pages["gluegaming"])
     if gaming:
         sel["gaming"] = gaming[0] == GAMING_ON
+    secure = _picked(gs, pages["gluesecureboot"])
+    if secure:
+        sel["secure_boot"] = secure[0] == SECUREBOOT_ON
     return sel
 
 

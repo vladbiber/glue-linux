@@ -524,7 +524,7 @@ class DefaultWallpaperTest(unittest.TestCase):
         result = subprocess.run(["sh", "-n", str(self.script)], capture_output=True)
         self.assertEqual(result.returncode, 0, result.stderr.decode())
 
-    def test_gnome_applies_default_and_consumes_marker_once(self):
+    def test_gnome_applies_default_once(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             state = root / "state"
@@ -548,7 +548,9 @@ class DefaultWallpaperTest(unittest.TestCase):
             result = subprocess.run([str(self.script), "gnome"], env=env,
                                     capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertFalse(marker.exists())
+            self.assertTrue(marker.exists())
+            self.assertEqual((state / "glue/wallpaper-done").read_text(), "gnome:none\n")
+            subprocess.run([str(self.script), "gnome"], env=env, check=True)
             calls = log.read_text().splitlines()
             self.assertEqual(len(calls), 3)
             self.assertIn("picture-uri file://", calls[0])
@@ -584,7 +586,7 @@ class DefaultWallpaperTest(unittest.TestCase):
         result, marker, calls = self._run_fake_qs(
             "gluemac", "gluemac-shell", str(_BRANDING_ROOT / "glue-mac.jpg"))
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertFalse(marker.exists())
+        self.assertTrue(marker.exists())
         self.assertEqual(calls, ["-c gluemac-shell ipc call wallpaper change "
                                  + str(_BRANDING_ROOT / "glue-mac.jpg")])
 
@@ -611,9 +613,34 @@ class DefaultWallpaperTest(unittest.TestCase):
         result = subprocess.run([str(self.script), "hyprland-caelestia", "caelestia"],
                                 env=env, capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertFalse(marker.exists())
         self.assertEqual(log.read_text().splitlines(),
                          ["wallpaper -f " + str(_BRANDING_ROOT / "wallpaper.png")])
+
+    def test_each_desktop_gets_the_default_on_its_first_login(self):
+        # Hyprland first must not leave gluewc without a wallpaper
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        root = Path(temp.name)
+        marker = root / "state/glue/wallpaper-pending"
+        marker.parent.mkdir(parents=True)
+        marker.touch()
+        bindir = root / "bin"
+        bindir.mkdir()
+        log = root / "calls.log"
+        for tool in ("caelestia", "qs"):
+            (bindir / tool).write_text('#!/bin/sh\nprintf "%s %s\\n" "${0##*/}" "$*" >> "$CALLS"\n')
+            (bindir / tool).chmod(0o755)
+        env = os.environ.copy()
+        env.update({"HOME": str(root), "XDG_STATE_HOME": str(root / "state"),
+                    "PATH": f"{bindir}:{env['PATH']}", "CALLS": str(log),
+                    "GLUE_WALLPAPER_PATH": str(_BRANDING_ROOT / "wallpaper.png")})
+        for args in (["hyprland-caelestia", "caelestia"], ["gluewc", "glueqs"],
+                     ["gluewc", "glueqs"]):
+            subprocess.run([str(self.script), *args], env=env, check=True)
+        calls = log.read_text().splitlines()
+        self.assertEqual(len(calls), 2)
+        self.assertTrue(calls[0].startswith("caelestia wallpaper -f"))
+        self.assertTrue(calls[1].startswith("qs -c glueqs ipc call glueqs setwallpaper"))
 
     def test_gluemac_default_is_the_mac_wallpaper_not_stillwater(self):
         text = self.script.read_text()
