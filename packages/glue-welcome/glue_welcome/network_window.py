@@ -14,6 +14,7 @@ gi.require_version("Adw", "1")
 from gi.repository import Adw, Gio, GLib, Gtk, Pango  # noqa: E402
 
 from . import network  # noqa: E402
+from glue_apps.shell import title_buttons  # noqa: E402
 
 POLL_SECONDS = 3
 CLOSE_DELAY_MS = 1500
@@ -103,6 +104,9 @@ class NetworkWindow(Adw.ApplicationWindow):
             self.get_display(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
         header = Adw.HeaderBar()
+        layout = title_buttons()
+        if layout is not None:
+            header.set_decoration_layout(layout)
         self.refresh_button = Gtk.Button(icon_name="view-refresh-symbolic",
                                          tooltip_text="Refresh")
         self.refresh_button.connect("clicked", lambda _b: self.refresh(rescan=True))
