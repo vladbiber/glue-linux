@@ -2,8 +2,8 @@
 # gluewc: the default Glue session. Built against the distribution's
 # wlroots0.20 and scenefx0.5, not the copies install.sh would compile.
 pkgname=gluewc
-pkgver=0.3.0.r31.94acc30
-pkgrel=3
+pkgver=0.3.0.r35.d824fe8
+pkgrel=2
 pkgdesc="Animated Wayland compositor with BSP, scrolling and infinite-canvas layouts"
 arch=('x86_64')
 url="https://github.com/vladbiber/gluewc"
