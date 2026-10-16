@@ -48,6 +48,27 @@ var entries = [
     "checked": false
   },
   {
+    "id": "gluewc-caelestia",
+    "name": "gluewc + Caelestia",
+    "kind": "Tiling",
+    "description": "The gluewc tiling desktop with the Caelestia shell: a bar down the side, a launcher, a dashboard with media, weather and calendar, notifications and colours taken from your wallpaper. Glue runs Caelestia on gluewc instead of Hyprland, so it is lighter than the Hyprland sessions; the open edges of the screen pull out its panels.",
+    "lightness": 3,
+    "weight": "Medium",
+    "ease": 3,
+    "ram": "about 350 MB",
+    "disk": "about 900 MB",
+    "wayland": true,
+    "images": [
+      "file:///usr/share/glue-installer/catalog/screenshots/gluewc-caelestia-bar.png",
+      "file:///usr/share/glue-installer/catalog/screenshots/gluewc-caelestia-overview.png",
+      "file:///usr/share/glue-installer/catalog/screenshots/gluewc-caelestia-launcher.png",
+      "file:///usr/share/glue-installer/catalog/screenshots/gluewc-caelestia-dashboard.png",
+      "file:///usr/share/glue-installer/catalog/screenshots/gluewc-caelestia-sidebar.png",
+      "file:///usr/share/glue-installer/catalog/screenshots/gluewc-caelestia-session.png"
+    ],
+    "checked": false
+  },
+  {
     "id": "gluemac",
     "name": "Glue Mac (gluemac)",
     "kind": "Floating",
@@ -65,26 +86,6 @@ var entries = [
       "file:///usr/share/glue-installer/catalog/screenshots/gluemac-launchpad.png",
       "file:///usr/share/glue-installer/catalog/screenshots/gluemac-control-center.png",
       "file:///usr/share/glue-installer/catalog/screenshots/gluemac-mission-control.png"
-    ],
-    "checked": false
-  },
-  {
-    "id": "hyprland-caelestia",
-    "name": "Hyprland + Caelestia",
-    "kind": "Tiling",
-    "description": "The Hyprland tiling compositor with the Caelestia shell: a bar down the side, a launcher, a dashboard with media, weather and calendar, notifications and colours taken from your wallpaper. Big animations and blur: heavier than the gluewc sessions and needs a decent GPU.",
-    "lightness": 2,
-    "weight": "Heavier",
-    "ease": 3,
-    "ram": "about 400 MB",
-    "disk": "about 1.2 GB",
-    "wayland": true,
-    "images": [
-      "file:///usr/share/glue-installer/catalog/screenshots/hyprland-caelestia-desktop.png",
-      "file:///usr/share/glue-installer/catalog/screenshots/hyprland-caelestia-launcher.png",
-      "file:///usr/share/glue-installer/catalog/screenshots/hyprland-caelestia-dashboard.png",
-      "file:///usr/share/glue-installer/catalog/screenshots/hyprland-caelestia-sidebar.png",
-      "file:///usr/share/glue-installer/catalog/screenshots/hyprland-caelestia-session.png"
     ],
     "checked": false
   },

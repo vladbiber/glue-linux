@@ -69,8 +69,52 @@
           "action": "Open application launcher"
         },
         {
-          "keys": "Super+c",
+          "keys": "Super+Q",
           "action": "Close focused window"
+        },
+        {
+          "keys": "Super+F",
+          "action": "Toggle fullscreen"
+        },
+        {
+          "keys": "Super+V",
+          "action": "Toggle floating"
+        },
+        {
+          "keys": "Super+E",
+          "action": "Open file manager"
+        },
+        {
+          "keys": "Super+B",
+          "action": "Open web browser"
+        },
+        {
+          "keys": "Super+1-9",
+          "action": "Switch to workspace 1-9"
+        },
+        {
+          "keys": "Super+Shift+1-9",
+          "action": "Move window to workspace 1-9"
+        },
+        {
+          "keys": "Super+L",
+          "action": "Lock the screen"
+        },
+        {
+          "keys": "Super+Shift+S",
+          "action": "Screenshot a region to the clipboard"
+        },
+        {
+          "keys": "Print",
+          "action": "Screenshot"
+        },
+        {
+          "keys": "Ctrl+Alt+Delete",
+          "action": "Session menu (lock, log out, restart, shut down)"
+        },
+        {
+          "keys": "Super+Shift+F1",
+          "action": "Show Welcome and shortcuts"
         },
         {
           "keys": "Super",
@@ -85,28 +129,12 @@
           "action": "Swap window left/down/up/right"
         },
         {
-          "keys": "Super+f",
-          "action": "Toggle fullscreen"
+          "keys": "Super+Ctrl+1-9",
+          "action": "Move window to workspace 1-9 and follow it"
         },
         {
-          "keys": "Super+v",
-          "action": "Toggle floating (centered)"
-        },
-        {
-          "keys": "Super+n",
+          "keys": "Super+N",
           "action": "Cycle layout (bsp / scroll / drift)"
-        },
-        {
-          "keys": "Super+1-9",
-          "action": "Switch to workspace 1-9"
-        },
-        {
-          "keys": "Super+Shift+s",
-          "action": "Screenshot a region to the clipboard"
-        },
-        {
-          "keys": "Super+Shift+F1",
-          "action": "Show Welcome and shortcuts"
         }
       ],
       "screenshots": [
@@ -153,8 +181,52 @@
           "action": "Open application launcher"
         },
         {
-          "keys": "Super+c",
+          "keys": "Super+Q",
           "action": "Close focused window"
+        },
+        {
+          "keys": "Super+F",
+          "action": "Toggle fullscreen"
+        },
+        {
+          "keys": "Super+V",
+          "action": "Toggle floating"
+        },
+        {
+          "keys": "Super+E",
+          "action": "Open file manager"
+        },
+        {
+          "keys": "Super+B",
+          "action": "Open web browser"
+        },
+        {
+          "keys": "Super+1-9",
+          "action": "Switch to workspace 1-9"
+        },
+        {
+          "keys": "Super+Shift+1-9",
+          "action": "Move window to workspace 1-9"
+        },
+        {
+          "keys": "Super+L",
+          "action": "Lock the screen"
+        },
+        {
+          "keys": "Super+Shift+S",
+          "action": "Screenshot a region to the clipboard"
+        },
+        {
+          "keys": "Print",
+          "action": "Screenshot"
+        },
+        {
+          "keys": "Ctrl+Alt+Delete",
+          "action": "Session menu (lock, log out, restart, shut down)"
+        },
+        {
+          "keys": "Super+Shift+F1",
+          "action": "Show Welcome and shortcuts"
         },
         {
           "keys": "Super",
@@ -169,28 +241,12 @@
           "action": "Swap window left/down/up/right"
         },
         {
-          "keys": "Super+f",
-          "action": "Toggle fullscreen"
+          "keys": "Super+Ctrl+1-9",
+          "action": "Move window to workspace 1-9 and follow it"
         },
         {
-          "keys": "Super+v",
-          "action": "Toggle floating (centered)"
-        },
-        {
-          "keys": "Super+n",
+          "keys": "Super+N",
           "action": "Cycle layout (bsp / scroll / drift)"
-        },
-        {
-          "keys": "Super+1-9",
-          "action": "Switch to workspace 1-9"
-        },
-        {
-          "keys": "Super+Shift+s",
-          "action": "Screenshot a region to the clipboard"
-        },
-        {
-          "keys": "Super+Shift+F1",
-          "action": "Show Welcome and shortcuts"
         }
       ],
       "screenshots": [
@@ -220,6 +276,121 @@
       "desktop": "gluewc",
       "idle_ram": "about 150 MB",
       "disk": "about 550 MB"
+    },
+    {
+      "id": "gluewc-caelestia",
+      "name": "gluewc + Caelestia",
+      "kind": "wm",
+      "description": "The gluewc tiling desktop with the Caelestia shell: a bar down the side, a launcher, a dashboard with media, weather and calendar, notifications and colours taken from your wallpaper. Glue runs Caelestia on gluewc instead of Hyprland, so it is lighter than the Hyprland sessions; the open edges of the screen pull out its panels.",
+      "ease": 3,
+      "lightness": 3,
+      "keybindings": [
+        {
+          "keys": "Super+Return",
+          "action": "Open terminal (alacritty)"
+        },
+        {
+          "keys": "Super+Space",
+          "action": "Open application launcher"
+        },
+        {
+          "keys": "Super+Q",
+          "action": "Close focused window"
+        },
+        {
+          "keys": "Super+F",
+          "action": "Toggle fullscreen"
+        },
+        {
+          "keys": "Super+V",
+          "action": "Toggle floating"
+        },
+        {
+          "keys": "Super+E",
+          "action": "Open file manager"
+        },
+        {
+          "keys": "Super+B",
+          "action": "Open web browser"
+        },
+        {
+          "keys": "Super+1-9",
+          "action": "Switch to workspace 1-9"
+        },
+        {
+          "keys": "Super+Shift+1-9",
+          "action": "Move window to workspace 1-9"
+        },
+        {
+          "keys": "Super+L",
+          "action": "Lock the screen"
+        },
+        {
+          "keys": "Super+Shift+S",
+          "action": "Screenshot a region to the clipboard"
+        },
+        {
+          "keys": "Print",
+          "action": "Screenshot"
+        },
+        {
+          "keys": "Ctrl+Alt+Delete",
+          "action": "Session menu (lock, log out, restart, shut down)"
+        },
+        {
+          "keys": "Super+Shift+F1",
+          "action": "Show Welcome and shortcuts"
+        },
+        {
+          "keys": "Super",
+          "action": "Open the overview (tap Super alone)"
+        },
+        {
+          "keys": "Super+←↑↓→",
+          "action": "Move focus left/down/up/right"
+        },
+        {
+          "keys": "Super+Shift+←↑↓→",
+          "action": "Swap window left/down/up/right"
+        },
+        {
+          "keys": "Super+Ctrl+1-9",
+          "action": "Move window to workspace 1-9 and follow it"
+        },
+        {
+          "keys": "Super+N",
+          "action": "Cycle layout (bsp / scroll / drift)"
+        }
+      ],
+      "screenshots": [
+        "screenshots/gluewc-caelestia-bar.png",
+        "screenshots/gluewc-caelestia-overview.png",
+        "screenshots/gluewc-caelestia-launcher.png",
+        "screenshots/gluewc-caelestia-dashboard.png",
+        "screenshots/gluewc-caelestia-sidebar.png",
+        "screenshots/gluewc-caelestia-session.png"
+      ],
+      "packages": [
+        "gluewc",
+        "caelestia-shell",
+        "rofi",
+        "polkit-gnome",
+        "nautilus",
+        "loupe",
+        "celluloid",
+        "papers",
+        "pavucontrol",
+        "firefox"
+      ],
+      "services": [],
+      "shell_choices": [
+        "caelestia"
+      ],
+      "session_type": "wayland",
+      "exec": "gluewc-session",
+      "desktop": "gluewc",
+      "idle_ram": "about 350 MB",
+      "disk": "about 900 MB"
     },
     {
       "id": "gluemac",
@@ -308,99 +479,6 @@
       "disk": "about 800 MB"
     },
     {
-      "id": "hyprland-caelestia",
-      "name": "Hyprland + Caelestia",
-      "kind": "wm",
-      "description": "The Hyprland tiling compositor with the Caelestia shell: a bar down the side, a launcher, a dashboard with media, weather and calendar, notifications and colours taken from your wallpaper. Big animations and blur: heavier than the gluewc sessions and needs a decent GPU.",
-      "ease": 3,
-      "lightness": 2,
-      "keybindings": [
-        {
-          "keys": "Super",
-          "action": "Open the launcher (tap Super alone)"
-        },
-        {
-          "keys": "Super+T",
-          "action": "Open terminal (alacritty)"
-        },
-        {
-          "keys": "Super+W / Super+E",
-          "action": "Open browser / file manager"
-        },
-        {
-          "keys": "Super+Q",
-          "action": "Close focused window"
-        },
-        {
-          "keys": "Super+←↑↓→",
-          "action": "Move focus"
-        },
-        {
-          "keys": "Super+1-9",
-          "action": "Switch to workspace 1-9"
-        },
-        {
-          "keys": "Super+Alt+1-9",
-          "action": "Move window to workspace 1-9"
-        },
-        {
-          "keys": "Super+F",
-          "action": "Toggle fullscreen"
-        },
-        {
-          "keys": "Super+Alt+Space",
-          "action": "Toggle floating"
-        },
-        {
-          "keys": "Super+N",
-          "action": "Open the sidebar (notifications)"
-        },
-        {
-          "keys": "Super+Shift+S",
-          "action": "Screenshot a region"
-        },
-        {
-          "keys": "Super+V",
-          "action": "Clipboard history"
-        },
-        {
-          "keys": "Super+L",
-          "action": "Lock the screen"
-        },
-        {
-          "keys": "Ctrl+Alt+Delete",
-          "action": "Session menu (log out, restart, shut down)"
-        }
-      ],
-      "screenshots": [
-        "screenshots/hyprland-caelestia-desktop.png",
-        "screenshots/hyprland-caelestia-launcher.png",
-        "screenshots/hyprland-caelestia-dashboard.png",
-        "screenshots/hyprland-caelestia-sidebar.png",
-        "screenshots/hyprland-caelestia-session.png"
-      ],
-      "packages": [
-        "glue-hyprland",
-        "caelestia-shell",
-        "polkit-gnome",
-        "nautilus",
-        "loupe",
-        "celluloid",
-        "papers",
-        "pavucontrol",
-        "firefox"
-      ],
-      "services": [],
-      "shell_choices": [
-        "caelestia"
-      ],
-      "session_type": "wayland",
-      "exec": "glue-hyprland caelestia",
-      "desktop": "hyprland",
-      "idle_ram": "about 400 MB",
-      "disk": "about 1.2 GB"
-    },
-    {
       "id": "hyprland-ii",
       "name": "Hyprland + ii",
       "kind": "wm",
@@ -408,6 +486,62 @@
       "ease": 3,
       "lightness": 1,
       "keybindings": [
+        {
+          "keys": "Super+Return",
+          "action": "Open terminal (alacritty)"
+        },
+        {
+          "keys": "Super+Space",
+          "action": "Open application launcher"
+        },
+        {
+          "keys": "Super+Q",
+          "action": "Close focused window"
+        },
+        {
+          "keys": "Super+F",
+          "action": "Toggle fullscreen"
+        },
+        {
+          "keys": "Super+V",
+          "action": "Toggle floating"
+        },
+        {
+          "keys": "Super+E",
+          "action": "Open file manager"
+        },
+        {
+          "keys": "Super+B",
+          "action": "Open web browser"
+        },
+        {
+          "keys": "Super+1-9",
+          "action": "Switch to workspace 1-9"
+        },
+        {
+          "keys": "Super+Shift+1-9",
+          "action": "Move window to workspace 1-9"
+        },
+        {
+          "keys": "Super+L",
+          "action": "Lock the screen"
+        },
+        {
+          "keys": "Super+Shift+S",
+          "action": "Screenshot a region to the clipboard"
+        },
+        {
+          "keys": "Print",
+          "action": "Screenshot"
+        },
+        {
+          "keys": "Ctrl+Alt+Delete",
+          "action": "Session menu (lock, log out, restart, shut down)"
+        },
+        {
+          "keys": "Super+Shift+F1",
+          "action": "Show Welcome and shortcuts"
+        },
         {
           "keys": "Super",
           "action": "Search apps, files and commands (tap Super alone)"
@@ -417,44 +551,20 @@
           "action": "Overview of workspaces and windows"
         },
         {
-          "keys": "Super+Return",
-          "action": "Open terminal"
-        },
-        {
-          "keys": "Super+W / Super+E",
-          "action": "Open browser / file manager"
-        },
-        {
-          "keys": "Super+Q",
-          "action": "Close focused window"
-        },
-        {
-          "keys": "Super+1-9",
-          "action": "Switch to workspace 1-9"
-        },
-        {
           "keys": "Super+A / Super+N",
           "action": "Left sidebar / right sidebar"
         },
         {
-          "keys": "Super+Alt+Space",
-          "action": "Toggle floating"
+          "keys": "Super+Alt+V",
+          "action": "Clipboard history"
         },
         {
-          "keys": "Super+Shift+S",
-          "action": "Screenshot a region"
+          "keys": "Super+Ctrl+Space",
+          "action": "Next keyboard layout"
         },
         {
           "keys": "Super+/",
           "action": "Show all shortcuts"
-        },
-        {
-          "keys": "Super+L",
-          "action": "Lock the screen"
-        },
-        {
-          "keys": "Ctrl+Alt+Delete",
-          "action": "Session menu (log out, restart, shut down)"
         }
       ],
       "screenshots": [
@@ -482,7 +592,7 @@
       ],
       "session_type": "wayland",
       "exec": "glue-hyprland ii",
-      "desktop": "hyprland",
+      "desktop": "Hyprland",
       "idle_ram": "about 700 MB",
       "disk": "about 2.2 GB"
     },
@@ -496,35 +606,75 @@
       "keybindings": [
         {
           "keys": "Super+Return",
-          "action": "Open terminal"
+          "action": "Open terminal (alacritty)"
         },
         {
-          "keys": "Super+d",
+          "keys": "Super+Space",
           "action": "Open application launcher"
         },
         {
-          "keys": "Super+q",
+          "keys": "Super+Q",
           "action": "Close focused window"
         },
         {
-          "keys": "Super+←↑↓→",
-          "action": "Focus window left/down/up/right"
-        },
-        {
-          "keys": "Super+Shift+←↑↓→",
-          "action": "Swap window left/down/up/right"
-        },
-        {
-          "keys": "Super+f",
+          "keys": "Super+F",
           "action": "Toggle fullscreen"
+        },
+        {
+          "keys": "Super+V",
+          "action": "Toggle floating"
+        },
+        {
+          "keys": "Super+E",
+          "action": "Open file manager"
+        },
+        {
+          "keys": "Super+B",
+          "action": "Open web browser"
         },
         {
           "keys": "Super+1-9",
           "action": "Switch to workspace 1-9"
         },
         {
+          "keys": "Super+Shift+1-9",
+          "action": "Move window to workspace 1-9"
+        },
+        {
+          "keys": "Super+L",
+          "action": "Lock the screen"
+        },
+        {
+          "keys": "Super+Shift+S",
+          "action": "Screenshot a region to the clipboard"
+        },
+        {
+          "keys": "Print",
+          "action": "Screenshot"
+        },
+        {
+          "keys": "Ctrl+Alt+Delete",
+          "action": "Session menu (lock, log out, restart, shut down)"
+        },
+        {
           "keys": "Super+Shift+F1",
           "action": "Show Welcome and shortcuts"
+        },
+        {
+          "keys": "Super+←↑↓→",
+          "action": "Move focus left/down/up/right"
+        },
+        {
+          "keys": "Super+Shift+←↑↓→",
+          "action": "Swap window left/down/up/right"
+        },
+        {
+          "keys": "Super+Ctrl+1-9",
+          "action": "Move window to workspace 1-9 and follow it"
+        },
+        {
+          "keys": "Super+Z",
+          "action": "Overview of the workspaces"
         }
       ],
       "screenshots": [
@@ -539,7 +689,10 @@
         "nautilus",
         "loupe",
         "celluloid",
-        "papers"
+        "papers",
+        "i3lock",
+        "maim",
+        "xclip"
       ],
       "services": [],
       "shell_choices": [],
@@ -829,20 +982,22 @@
     {
       "id": "caelestia",
       "name": "Caelestia",
-      "description": "Caelestia shell for Hyprland, from the caelestia-dots project. Hyprland starts it itself.",
+      "description": "Caelestia shell from the caelestia-dots project, made to run on gluewc: Glue swaps its Hyprland service for one that reads gluewc's workspaces.",
       "ease": 4,
       "lightness": 2,
       "keybindings": [],
       "screenshots": [
-        "screenshots/hyprland-caelestia-desktop.png",
-        "screenshots/hyprland-caelestia-launcher.png",
-        "screenshots/hyprland-caelestia-dashboard.png",
-        "screenshots/hyprland-caelestia-sidebar.png",
-        "screenshots/hyprland-caelestia-session.png"
+        "screenshots/gluewc-caelestia-bar.png",
+        "screenshots/gluewc-caelestia-overview.png",
+        "screenshots/gluewc-caelestia-launcher.png",
+        "screenshots/gluewc-caelestia-dashboard.png",
+        "screenshots/gluewc-caelestia-sidebar.png",
+        "screenshots/gluewc-caelestia-session.png"
       ],
       "packages": [
         "caelestia-shell"
-      ]
+      ],
+      "exec": "caelestia shell"
     },
     {
       "id": "ii",

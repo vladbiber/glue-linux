@@ -707,14 +707,14 @@ class TestGreeterProfile(unittest.TestCase):
 
     def test_real_catalog_sessions_have_exec_and_type(self):
         catalog = load_catalog(_CATALOG_PATH)
-        wayland = {"gluewc", "gluewc-noctalia", "gluemac", "hyprland-caelestia",
+        wayland = {"gluewc", "gluewc-noctalia", "gluewc-caelestia", "gluemac",
                    "hyprland-ii", "gnome"}
         for session in catalog.sessions:
             self.assertIsNotNone(session.exec, session.id)
             expected = "wayland" if session.id in wayland else "x11"
             self.assertEqual(session.session_type, expected, session.id)
         for shell in catalog.shells:
-            if shell.id in ("gluemac-shell", "caelestia", "ii"):
+            if shell.id in ("gluemac-shell", "ii"):
                 # their compositor config starts them; a second copy draws twice
                 self.assertIsNone(shell.exec)
                 continue

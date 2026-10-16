@@ -1,8 +1,9 @@
 #!/bin/bash
-# screenshots-hyprland.sh - real 1920x1080 catalog screenshots of the two
-# Hyprland sessions (caelestia, ii), taken headless inside the build container.
+# screenshots-hyprland.sh - real 1920x1080 catalog screenshots of the
+# Hyprland session (ii), taken headless inside the build container. Caelestia
+# runs on gluewc: scripts/screenshots-headless.sh caelestia.
 #
-#   sh scripts/screenshots-hyprland.sh [caelestia|ii|all]
+#   sh scripts/screenshots-hyprland.sh [ii|all]
 #
 # Host side: one `docker run --rm --privileged` of glue-build per target, the
 # repo on /glue. Packages come from .glue-repo (the last build) or, when
@@ -30,13 +31,10 @@ die() { log "ERROR: $*"; exit 1; }
 
 files_for() {
     case "$1" in
-        caelestia) echo hyprland-caelestia-desktop.png hyprland-caelestia-launcher.png \
-                        hyprland-caelestia-dashboard.png hyprland-caelestia-sidebar.png \
-                        hyprland-caelestia-session.png ;;
         ii)        echo hyprland-ii-desktop.png hyprland-ii-search.png hyprland-ii-overview.png \
                         hyprland-ii-sidebar-left.png hyprland-ii-sidebar-right.png \
                         hyprland-ii-cheatsheet.png ;;
-        *) die "unknown target '$1' (caelestia|ii|all)" ;;
+        *) die "unknown target '$1' (ii|all)" ;;
     esac
 }
 
@@ -57,7 +55,7 @@ host_main() {
     command -v docker >/dev/null || die "docker not found"
     command -v magick >/dev/null || die "imagemagick (magick) not found on the host"
     [ -e /dev/dri/renderD128 ] || die "/dev/dri/renderD128 missing"
-    case "$target" in all) targets="caelestia ii" ;; *) files_for "$target" >/dev/null; targets=$target ;; esac
+    case "$target" in all) targets="ii" ;; *) files_for "$target" >/dev/null; targets=$target ;; esac
     [ -n "${GLUE_HYPR_PKGS:-}" ] && pkgs="-v $(cd "$GLUE_HYPR_PKGS" && pwd):/hypr-pkgs:ro"
     for t in $targets; do
         log "=== $t"
@@ -83,10 +81,7 @@ inside_main() {
         awk -F: '/^fpr/{print $10; exit}')" >/dev/null 2>&1
     pacman -Sy --noconfirm >/dev/null
     names="gluewc glue-branding glue-hyprland ttf-material-symbols-variable ttf-rubik-vf swappy matugen"
-    case "$target" in
-        caelestia) names="$names libcava qt6-m3shapes python-materialyoucolor caelestia-cli caelestia-shell" ;;
-        ii) names="$names ttf-google-sans-flex ttf-readex-pro otf-space-grotesk wlogout ii-vynx" ;;
-    esac
+    names="$names ttf-google-sans-flex ttf-readex-pro otf-space-grotesk wlogout ii-vynx"
     for n in $names; do
         f=$(pkg_file "$n"); [ -n "$f" ] || die "no package file for $n"
         list="$list $f"
@@ -148,10 +143,7 @@ session_main() {
     # the shell came up before the output: start it again on it
     for p in $(pgrep -u "$(id -u)" -x qs); do kill "$p"; done
     sleep 1
-    case "$target" in
-        caelestia) caelestia_session ;;
-        ii) ii_session ;;
-    esac
+    ii_session
 }
 
 launch_clients() {
@@ -188,31 +180,6 @@ EOF
 <p>Welcome to your new desktop.</p>
 </body></html>
 EOF
-}
-
-caelestia_session() {
-    local q="qs -c caelestia ipc call"
-    caelestia shell -d >"$HOME/log/shell.log" 2>&1
-    poll 60 "caelestia IPC" qs -c caelestia ipc show
-    caelestia wallpaper -f "$WALLPAPER"
-    sleep 6
-    write_firefox_profile
-    launch_clients
-    poll 90 "two windows" sh -c '[ "$(hyprctl -j clients | grep -c "\"class\"")" -ge 2 ]'
-    shot hyprland-caelestia-desktop.png 10
-    $q drawers toggle launcher; sleep 1; wtype fi 2>/dev/null || true
-    shot hyprland-caelestia-launcher.png 3
-    $q drawers toggle launcher
-    $q drawers toggle dashboard
-    shot hyprland-caelestia-dashboard.png 3
-    $q drawers toggle dashboard
-    notify-send -a Glue "Welcome to Glue" "Your Hyprland desktop with Caelestia is ready." || true
-    $q drawers toggle sidebar
-    shot hyprland-caelestia-sidebar.png 3
-    $q drawers toggle sidebar
-    $q drawers toggle session
-    shot hyprland-caelestia-session.png 3
-    $q drawers toggle session
 }
 
 ii_session() {

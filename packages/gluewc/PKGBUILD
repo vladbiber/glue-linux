@@ -3,13 +3,14 @@
 # wlroots0.20 and scenefx0.5, not the copies install.sh would compile.
 pkgname=gluewc
 pkgver=0.3.0.r31.94acc30
-pkgrel=2
+pkgrel=3
 pkgdesc="Animated Wayland compositor with BSP, scrolling and infinite-canvas layouts"
 arch=('x86_64')
 url="https://github.com/vladbiber/gluewc"
 license=('GPL-3.0-only')
 depends=('wlroots0.20' 'scenefx0.5' 'wayland' 'libinput' 'libxkbcommon' 'pixman'
-         'libdrm' 'libxcb' 'xcb-util-wm' 'mesa' 'dbus' 'xorg-xwayland')
+         'libdrm' 'libxcb' 'xcb-util-wm' 'mesa' 'dbus' 'xorg-xwayland'
+         'swaylock')  # Super+L locks through glue-action when the shell has no lock
 makedepends=('git' 'wayland-protocols')
 optdepends=('glueqs: the shell gluewc is developed against'
             'noctalia-shell: alternative shell'
@@ -43,6 +44,50 @@ prepare() {
     grep -q '^bind_insert = mod+F1 = spawn:playerctl play-pause$' config.def.conf &&
         grep -q '^bind_insert = mod+shift+F1 = spawn:glue-welcome$' config.def.conf || {
         echo "ERROR: Glue Welcome keybind patch failed" >&2; exit 1; }
+    # Glue's shared keybindings (catalog/keybindings.json, ADR-026): the same
+    # keys on every Glue window manager; glue-action does them the way the
+    # session's shell does (launcher, lock, session menu, files, browser)
+    sed -i -e 's/^bind_insert = mod+q = spawn:alacritty$/bind_insert = mod+q = wm:kill/' \
+        -e 's/^bind_insert = mod+space = spawn:rofi -show drun$/bind_insert = mod+space = spawn:glue-action launcher/' \
+        -e '/^bind_insert = mod+m = wm:quit$/d' \
+        -e 's/^bind_insert = mod+l = wm:focus_right$/bind_insert = mod+l = spawn:glue-action lock/' \
+        -e 's/^bind_insert = mod+b = wm:toggle_decorations$/bind_insert = mod+shift+b = wm:toggle_decorations/' \
+        config.def.conf
+    sed -i '/^bind_insert = mod+ctrl+9 = wm:move_to_workspace_follow:9$/r /dev/stdin' config.def.conf <<'EOF'
+bind_insert = mod+shift+1 = wm:move_to_workspace:1
+bind_insert = mod+shift+2 = wm:move_to_workspace:2
+bind_insert = mod+shift+3 = wm:move_to_workspace:3
+bind_insert = mod+shift+4 = wm:move_to_workspace:4
+bind_insert = mod+shift+5 = wm:move_to_workspace:5
+bind_insert = mod+shift+6 = wm:move_to_workspace:6
+bind_insert = mod+shift+7 = wm:move_to_workspace:7
+bind_insert = mod+shift+8 = wm:move_to_workspace:8
+bind_insert = mod+shift+9 = wm:move_to_workspace:9
+bind_insert = mod+e = spawn:glue-action files
+bind_insert = mod+b = spawn:glue-action browser
+bind_insert = ctrl+alt+Delete = spawn:glue-action session
+EOF
+    # every line of the shared table must be in the config as built
+    for b in 'mod+Return = spawn:alacritty' \
+             'mod+space = spawn:glue-action launcher' \
+             'mod+q = wm:kill' \
+             'mod+f = wm:toggle_fullscreen' \
+             'mod+v = wm:toggle_float_centered' \
+             'mod+e = spawn:glue-action files' \
+             'mod+b = spawn:glue-action browser' \
+             'mod+9 = wm:workspace:9' \
+             'mod+shift+9 = wm:move_to_workspace:9' \
+             'mod+l = spawn:glue-action lock' \
+             'mod+shift+s = spawn:box=$(slurp) || exit 0; grim -g "$box" - | wl-copy' \
+             'Print = spawn:mkdir -p "${XDG_PICTURES_DIR:-$HOME/Pictures}/Screenshots" && grim "${XDG_PICTURES_DIR:-$HOME/Pictures}/Screenshots/gluewc-$(date +%Y%m%d-%H%M%S).png"' \
+             'ctrl+alt+Delete = spawn:glue-action session' \
+             'mod+shift+F1 = spawn:glue-welcome' \
+             'mod+shift+b = wm:toggle_decorations'; do
+        grep -qxF "bind_insert = $b" config.def.conf || {
+            echo "ERROR: shared keybinding '$b' not in config.def.conf" >&2; exit 1; }
+    done
+    ! grep -q '^bind_insert = mod+m = wm:quit$' config.def.conf || {
+        echo "ERROR: mod+m still logs out" >&2; exit 1; }
     # adaptive_sync per output (default off) and alacritty default live upstream; fail loudly if a bump drops them
     grep -q 'adaptive_sync' config.def.conf &&
         grep -q 'wlr_output_state_set_adaptive_sync_enabled' gluewc.c || {

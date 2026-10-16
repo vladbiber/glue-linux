@@ -301,7 +301,7 @@ def _portal_file(session: Session) -> Optional[PlannedFile]:
         return None
     desktop = session.desktop or session.id
     # xdg-desktop-portal-hyprland ships hyprland-portals.conf itself
-    if desktop in _OWN_PORTAL_CONF:
+    if desktop.lower() in _OWN_PORTAL_CONF:
         return None
     if desktop != desktop.lower():
         raise ValueError(

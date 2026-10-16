@@ -1,0 +1,96 @@
+--- a/dots/.config/quickshell/ii/services/Weather.qml	2026-10-16 22:25:46.901111470 +0300
++++ b/dots/.config/quickshell/ii/services/Weather.qml	2026-10-16 22:26:50.607746885 +0300
+@@ -535,43 +535,61 @@
+         }
+     }
+ 
+-    PositionSource {
+-        id: positionSource
+-        updateInterval: root.fetchInterval
++    // Glue: QtPositioning talks to GeoClue on the system bus, and a GeoClue
++    // still starting at login held the whole shell for the 25 s D-Bus timeout.
++    // The source only exists while GPS is on; the calls above reach a stub
++    // until it does.
++    property QtObject positionSource: gpsLoader.item ?? gpsStub
++    QtObject {
++        id: gpsStub
++        property bool valid: true
++        function start() {}
++        function stop() {}
++    }
++    LazyLoader {
++        id: gpsLoader
++        active: root.gpsActive
++        onItemChanged: if (item && root.gpsActive) { item.start(); fallbackTimer.restart(); }
++        component: Component {
++            PositionSource {
++                id: gps
++                updateInterval: root.fetchInterval
+ 
+-        onPositionChanged: {
+-            if (position.latitudeValid && position.longitudeValid) {
+-                fallbackTimer.stop();
+-                const newLat = position.coordinate.latitude;
+-                const newLon = position.coordinate.longitude;
+-                const coordsChanged = Math.abs(root.location.lat - newLat) > 0.05 || Math.abs(root.location.lon - newLon) > 0.05;
++                onPositionChanged: {
++                    if (position.latitudeValid && position.longitudeValid) {
++                        fallbackTimer.stop();
++                        const newLat = position.coordinate.latitude;
++                        const newLon = position.coordinate.longitude;
++                        const coordsChanged = Math.abs(root.location.lat - newLat) > 0.05 || Math.abs(root.location.lon - newLon) > 0.05;
+ 
+-                root.location.lat = newLat;
+-                root.location.lon = newLon;
+-                root.location.long = newLon;
+-                root.location.valid = true;
++                        root.location.lat = newLat;
++                        root.location.lon = newLon;
++                        root.location.long = newLon;
++                        root.location.valid = true;
+ 
+-                if (coordsChanged || !root.location.city || root.location.city === "" || root.location.city === "Current Location" || root.location.city === "City") {
+-                    reverseGeocode(newLat, newLon, cityName => {
+-                        const resolvedCity = cityName || "Current Location";
+-                        root.location.city = resolvedCity;
+-                        fetchWeather(newLat, newLon, resolvedCity);
+-                    });
+-                } else {
+-                    root.getData();
++                        if (coordsChanged || !root.location.city || root.location.city === "" || root.location.city === "Current Location" || root.location.city === "City") {
++                            reverseGeocode(newLat, newLon, cityName => {
++                                const resolvedCity = cityName || "Current Location";
++                                root.location.city = resolvedCity;
++                                fetchWeather(newLat, newLon, resolvedCity);
++                            });
++                        } else {
++                            root.getData();
++                        }
++                    } else {
++                        console.error("[WeatherService] Failed to get the GPS location.");
++                    }
+                 }
+-            } else {
+-                console.error("[WeatherService] Failed to get the GPS location.");
+-            }
+-        }
+ 
+-        onValidityChanged: {
+-            if (!positionSource.valid) {
+-                positionSource.stop();
+-                fallbackTimer.stop();
+-                Quickshell.execDetached(["notify-send", Translation.tr("Weather Service"), Translation.tr("Cannot find a GPS service. Using the fallback method instead."), "-a", "Shell"]);
+-                console.error("[WeatherService] Could not aquire a valid backend plugin.");
+-                fetchIpLocation();
++                onValidityChanged: {
++                    if (!gps.valid) {
++                        gps.stop();
++                        fallbackTimer.stop();
++                        Quickshell.execDetached(["notify-send", Translation.tr("Weather Service"), Translation.tr("Cannot find a GPS service. Using the fallback method instead."), "-a", "Shell"]);
++                        console.error("[WeatherService] Could not aquire a valid backend plugin.");
++                        fetchIpLocation();
++                    }
++                }
+             }
+         }
+     }

@@ -1,0 +1,114 @@
+#!/bin/sh
+# glue-action ACTION - what Glue's shared keybindings run, done the way the
+# running desktop does it. The session comes from GLUE_SESSION (set by the
+# login wrapper), its shell from /etc/glue/session.conf (shell.<session>=<id>).
+#
+#   launcher           Super+Space   the shell's launcher, rofi otherwise
+#   lock               Super+L       the shell's lock screen, swaylock / i3lock otherwise
+#   session            Ctrl+Alt+Del  lock / log out / suspend / restart / shut down
+#   files              Super+E       the file manager
+#   browser            Super+B       the default web browser (Glue Apps when there is none)
+#   terminal           Super+Return  alacritty, or the first terminal found
+#   screenshot         Print         the whole screen into ~/Pictures/Screenshots
+#   screenshot-region  Super+Shift+S a region to the clipboard
+set -u
+
+action=${1:-}
+session=${GLUE_SESSION:-}
+shell=
+[ -n "$session" ] && shell=$(sed -n "s/^shell\.$session=//p" "${GLUE_SESSION_CONF:-/etc/glue/session.conf}" 2>/dev/null | head -n1)
+uid=$(id -u)
+
+have() { command -v "$1" >/dev/null 2>&1; }
+wayland() { [ -n "${WAYLAND_DISPLAY:-}" ]; }
+shots() {
+    dir=${XDG_PICTURES_DIR:-$HOME/Pictures}/Screenshots
+    mkdir -p "$dir" && printf '%s/%s.png' "$dir" "$(date +%Y%m%d-%H%M%S)"
+}
+first() { # run the first command of the list that exists
+    for c in "$@"; do have "$c" && exec "$c"; done
+    return 1
+}
+
+lock() {
+    case "$shell" in
+        caelestia) exec qs -c caelestia ipc call lock lock ;;
+        noctalia) exec noctalia msg session lock ;;
+    esac
+    if wayland; then
+        have swaylock && exec swaylock -f -c 2B2F33
+    else
+        have i3lock && exec i3lock -c 2B2F33
+    fi
+    exec loginctl lock-session
+}
+
+logout() {
+    case "$session" in
+        gluewc*) exec gluewc-msg quit ;;
+        nvwm) pkill -u "$uid" -x nvwm; exit 0 ;;
+    esac
+    exec loginctl terminate-session "${XDG_SESSION_ID:-}"
+}
+
+case "$action" in
+launcher)
+    case "$shell" in
+        caelestia) exec qs -c caelestia ipc call drawers toggle launcher ;;
+        noctalia) exec noctalia msg panel-toggle launcher ;;
+    esac
+    # a second press closes it
+    pkill -u "$uid" -x rofi && exit 0
+    exec rofi -show drun
+    ;;
+lock)
+    lock
+    ;;
+session)
+    case "$shell" in
+        caelestia) exec qs -c caelestia ipc call drawers toggle session ;;
+        noctalia) exec noctalia msg panel-toggle session ;;
+    esac
+    pkill -u "$uid" -x rofi && exit 0
+    choice=$(printf 'Lock\nLog out\nSuspend\nRestart\nShut down\n' |
+        rofi -dmenu -i -p Session) || exit 0
+    case "$choice" in
+        Lock) lock ;;
+        "Log out") logout ;;
+        Suspend) exec loginctl suspend ;;
+        Restart) exec loginctl reboot ;;
+        "Shut down") exec loginctl poweroff ;;
+    esac
+    ;;
+files)
+    have nautilus && exec nautilus --new-window
+    exec xdg-open "$HOME"
+    ;;
+browser)
+    desktop=$(xdg-settings get default-web-browser 2>/dev/null)
+    [ -n "$desktop" ] && gtk-launch "${desktop%.desktop}" 2>/dev/null && exit 0
+    first firefox chromium brave librewolf google-chrome-stable epiphany
+    have notify-send && notify-send -a Glue "No web browser yet" "Pick one in Glue Apps."
+    exec glue-apps
+    ;;
+terminal)
+    first alacritty foot kitty st-glue xterm
+    ;;
+screenshot)
+    file=$(shots) || exit 1
+    if wayland; then grim "$file"; else maim "$file"; fi &&
+        have notify-send && notify-send -a Glue -i "$file" "Screenshot saved" "$file"
+    ;;
+screenshot-region)
+    if wayland; then
+        box=$(slurp) || exit 0
+        grim -g "$box" - | wl-copy -t image/png
+    else
+        maim -s | xclip -selection clipboard -t image/png
+    fi
+    ;;
+*)
+    sed -n '2,15s/^# \{0,1\}//p' "$0" >&2
+    exit 2
+    ;;
+esac

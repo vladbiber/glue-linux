@@ -65,13 +65,13 @@ class TestPositive(unittest.TestCase):
     def test_expected_session_ids_in_exact_order(self):
         """Exactly 10 sessions, gluewc first (the default), its Noctalia twin next."""
         ids = [s.id for s in self.catalog.sessions]
-        self.assertEqual(ids, ["gluewc", "gluewc-noctalia", "gluemac", "hyprland-caelestia",
+        self.assertEqual(ids, ["gluewc", "gluewc-noctalia", "gluewc-caelestia", "gluemac",
                                "hyprland-ii", "nvwm", "kde-plasma", "xfce", "gnome", "cinnamon"])
 
     def test_session_kinds(self):
         wms = {s.id for s in self.catalog.sessions if s.kind == "wm"}
         des = {s.id for s in self.catalog.sessions if s.kind == "de"}
-        self.assertEqual(wms, {"gluewc", "gluewc-noctalia", "gluemac", "hyprland-caelestia",
+        self.assertEqual(wms, {"gluewc", "gluewc-noctalia", "gluewc-caelestia", "gluemac",
                                "hyprland-ii", "nvwm"})
         self.assertEqual(des, {"kde-plasma", "xfce", "gnome", "cinnamon"})
 
@@ -81,7 +81,7 @@ class TestPositive(unittest.TestCase):
         self.assertEqual([s.id for s in self.catalog.shells],
                          ["glueqs", "noctalia", "gluemac-shell", "caelestia", "ii"])
         fixed = {"gluewc": ["glueqs"], "gluewc-noctalia": ["noctalia"],
-                 "gluemac": ["gluemac-shell"], "hyprland-caelestia": ["caelestia"],
+                 "gluemac": ["gluemac-shell"], "gluewc-caelestia": ["caelestia"],
                  "hyprland-ii": ["ii"]}
         for s in self.catalog.sessions:
             self.assertEqual(s.shell_choices, fixed.get(s.id, []), s.id)
@@ -129,19 +129,29 @@ class TestPositive(unittest.TestCase):
 
     def test_sessions_that_pin_or_bind_a_browser_install_firefox(self):
         # the gluemac dock pins it, Hyprland's Super+W opens it
-        for sid in ("gluemac", "hyprland-caelestia", "hyprland-ii"):
+        for sid in ("gluemac", "gluewc-caelestia", "hyprland-ii"):
             s = next(x for x in self.catalog.sessions if x.id == sid)
             self.assertIn("firefox", s.packages, sid)
 
-    def test_hyprland_sessions_share_the_launcher_and_say_they_are_heavier(self):
-        for sid, shell, pkg in (("hyprland-caelestia", "caelestia", "caelestia-shell"),
-                                ("hyprland-ii", "ii", "ii-vynx")):
-            s = next(x for x in self.catalog.sessions if x.id == sid)
-            self.assertEqual((s.kind, s.session_type, s.exec, s.desktop),
-                             ("wm", "wayland", f"glue-hyprland {shell}", "hyprland"))
-            self.assertEqual(s.packages[:2], ["glue-hyprland", pkg])
-            self.assertLessEqual(s.lightness, 2, sid)
-            self.assertIn("heav", s.description.lower(), sid)
+    def test_hyprland_session_starts_ii_and_says_it_is_heavier(self):
+        s = next(x for x in self.catalog.sessions if x.id == "hyprland-ii")
+        self.assertEqual((s.kind, s.session_type, s.exec, s.desktop),
+                         ("wm", "wayland", "glue-hyprland ii", "Hyprland"))
+        self.assertEqual(s.packages[:2], ["glue-hyprland", "ii-vynx"])
+        self.assertLessEqual(s.lightness, 2)
+        self.assertIn("heav", s.description.lower())
+        self.assertNotIn("hyprland-caelestia", [x.id for x in self.catalog.sessions])
+
+    def test_caelestia_runs_on_gluewc(self):
+        s = next(x for x in self.catalog.sessions if x.id == "gluewc-caelestia")
+        self.assertEqual((s.kind, s.session_type, s.exec, s.desktop),
+                         ("wm", "wayland", "gluewc-session", "gluewc"))
+        self.assertEqual(s.packages[:2], ["gluewc", "caelestia-shell"])
+        self.assertNotIn("glue-hyprland", s.packages)
+        shell = next(x for x in self.catalog.shells if x.id == "caelestia")
+        # the session wrapper keeps it running: gluewc has no exec-once
+        self.assertEqual(shell.exec, "caelestia shell")
+        self.assertNotIn("Hyprland starts it", shell.description)
 
     def test_cinnamon_entry_exact_packages(self):
         cinnamon = next(s for s in self.catalog.sessions
@@ -172,7 +182,7 @@ class TestPositive(unittest.TestCase):
         expected = {"gluewc": "screenshots/gluewc-glueqs-bar.png",
                     "gluewc-noctalia": "screenshots/gluewc-noctalia-bar.png",
                     "gluemac": "screenshots/gluemac-desktop.png",
-                    "hyprland-caelestia": "screenshots/hyprland-caelestia-desktop.png",
+                    "gluewc-caelestia": "screenshots/gluewc-caelestia-bar.png",
                     "hyprland-ii": "screenshots/hyprland-ii-desktop.png",
                     "nvwm": "screenshots/nvwm.png",
                     "kde-plasma": "screenshots/kde-plasma.png",
@@ -485,8 +495,8 @@ class ScreenshotFilesTest(unittest.TestCase):
                | {f"gluemac-{n}.png" for n in (
                    "desktop", "menu", "spotlight", "launchpad", "control-center",
                    "mission-control")}
-               | {f"hyprland-caelestia-{n}.png" for n in (
-                   "desktop", "launcher", "dashboard", "sidebar", "session")}
+               | {f"gluewc-caelestia-{n}.png" for n in (
+                   "bar", "overview", "launcher", "dashboard", "sidebar", "session")}
                | {f"hyprland-ii-{n}.png" for n in (
                    "desktop", "search", "overview", "sidebar-right", "sidebar-left",
                    "cheatsheet")}

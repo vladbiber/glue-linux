@@ -2,7 +2,7 @@
 # screenshots-headless.sh - real 1920x1080 catalog screenshots of the Glue
 # sessions, taken headless inside the build container.
 #
-#   sh scripts/screenshots-headless.sh [glueqs|noctalia|nvwm|all]
+#   sh scripts/screenshots-headless.sh [glueqs|noctalia|caelestia|nvwm|all]
 #
 # Host side: one `docker run --rm --privileged -v /dev/dri:/dev/dri` of
 # glue-build (GLUE_SCREENSHOT_IMAGE, entrypoint overridden) PER TARGET, with
@@ -37,8 +37,11 @@
 # the compositor has no IPC for it) and then the shell's own menus and panels,
 # opened by clicks on the bar or the shell's IPC (glueqs_extras).
 #
+# Caelestia is the packaged caelestia-shell built from the tree (its gluewc
+# patch, packages/caelestia-shell/glue, is what the shots must show).
+#
 # Output: packages/glue-installer/catalog/screenshots/
-#   gluewc-glueqs-*.png  gluewc-noctalia-*.png  nvwm.png
+#   gluewc-glueqs-*.png  gluewc-noctalia-*.png  gluewc-caelestia-*.png  nvwm.png
 # Each is verified to be a 1920x1080 PNG with > 1000 unique colours.
 set -eu
 
@@ -48,7 +51,7 @@ MIN_COLORS=1000
 MAX_BYTES=$((3 * 1024 * 1024))
 TIMEOUT=60                       # seconds to wait for sockets / windows
 IMAGE="${GLUE_SCREENSHOT_IMAGE:-glue-build}"
-TARGETS_ALL="glueqs noctalia nvwm"
+TARGETS_ALL="glueqs noctalia caelestia nvwm"
 
 log() { printf '[screenshots] %s\n' "$*" >&2; }
 die() { log "ERROR: $*"; exit 1; }
@@ -66,8 +69,11 @@ files_for() {
                        gluewc-noctalia-launcher.png gluewc-noctalia-control-center.png \
                        gluewc-noctalia-notifications.png gluewc-noctalia-settings.png \
                        gluewc-noctalia-wallpapers.png ;;
+        caelestia) echo gluewc-caelestia-bar.png gluewc-caelestia-overview.png \
+                       gluewc-caelestia-launcher.png gluewc-caelestia-dashboard.png \
+                       gluewc-caelestia-sidebar.png gluewc-caelestia-session.png ;;
         nvwm)     echo nvwm.png ;;
-        *) die "unknown target '$1' (glueqs|noctalia|nvwm|all)" ;;
+        *) die "unknown target '$1' (glueqs|noctalia|caelestia|nvwm|all)" ;;
     esac
 }
 
@@ -191,6 +197,15 @@ inside_main() {
             install_local cage
             pacman -S --noconfirm --needed grim wlr-randr libnotify
             install_noctalia
+            build_injectors
+            ;;
+        caelestia)
+            install_local gluewc
+            install_local cage
+            pacman -S --noconfirm --needed grim wlr-randr libnotify
+            for f in swappy libcava qt6-m3shapes python-materialyoucolor caelestia-cli \
+                     ttf-material-symbols-variable ttf-rubik-vf; do install_local "$f"; done
+            GLUE_FROM_TREE=1 install_local caelestia-shell
             build_injectors
             ;;
         nvwm)
@@ -418,6 +433,26 @@ glueqs_extras() {
     $ipc close; sleep 1
 }
 
+# Caelestia's drawers through its quickshell IPC (what glue-action calls)
+caelestia_extras() {
+    local q="qs -c caelestia ipc call"
+    $q drawers toggle launcher
+    sleep 1
+    key f i r e
+    sleep 2; snap launcher
+    $q drawers toggle launcher; sleep 1
+    $q drawers toggle dashboard
+    sleep 3; snap dashboard
+    $q drawers toggle dashboard; sleep 1
+    notify-send -a "Glue Welcome" "Welcome to Glue Linux" "Caelestia on gluewc is ready."
+    $q drawers toggle sidebar
+    sleep 3; snap sidebar
+    $q drawers toggle sidebar; sleep 1
+    $q drawers toggle session
+    sleep 3; snap session
+    $q drawers toggle session; sleep 1
+}
+
 # Noctalia v5's own IPC (`noctalia msg`, docs/user/ipc in its sources)
 noctalia_extras() {
     local ipc="noctalia msg"
@@ -546,6 +581,7 @@ session_main() {
     case "$target" in
         glueqs)   shell_cmd="glueqs" ;;
         noctalia) shell_cmd="noctalia" ;;
+        caelestia) shell_cmd="caelestia shell" ;;
     esac
     shell_log=/tmp/shell.log
     $shell_cmd >"$shell_log" 2>&1 &
@@ -553,6 +589,8 @@ session_main() {
     log "shell ($shell_cmd) pid $SHELL_PID"
     if [ "$target" = glueqs ]; then
         poll "$TIMEOUT" "glueqs 'Configuration Loaded'" grep -q "Configuration Loaded" "$shell_log"
+    elif [ "$target" = caelestia ]; then
+        poll "$TIMEOUT" "caelestia IPC" qs -c caelestia ipc show
     else
         poll "$TIMEOUT" "noctalia IPC" noctalia msg status
     fi
@@ -563,6 +601,7 @@ session_main() {
     case "$target" in
         glueqs)   poll "$TIMEOUT" "glueqs setwallpaper" qs -c glueqs ipc call glueqs setwallpaper "$WALLDIR/stillwater.png" ;;
         noctalia) poll "$TIMEOUT" "noctalia wallpaper set" noctalia msg wallpaper-set "$WALLDIR/stillwater.png" ;;
+        caelestia) poll "$TIMEOUT" "caelestia wallpaper" caelestia wallpaper -f "$WALLPAPER" ;;
     esac
     sleep 4   # wallpaper decode + fade
     launch_clients wayland
@@ -579,6 +618,7 @@ session_main() {
     case "$target" in
         glueqs)   glueqs_extras ;;
         noctalia) noctalia_extras ;;
+        caelestia) caelestia_extras ;;
     esac
     tail -n 5 "$shell_log" >&2 || true
 }

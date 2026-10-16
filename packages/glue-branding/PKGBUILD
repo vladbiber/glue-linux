@@ -1,7 +1,7 @@
 # Maintainer: Glue Linux
 pkgname=glue-branding
 pkgver=1
-pkgrel=19
+pkgrel=20
 pkgdesc="Glue Linux branding, default wallpaper and boot theme"
 arch=('any')
 url="https://github.com/vladbiber/glue-linux"
@@ -20,11 +20,11 @@ source=('logo.txt' 'fastfetch.jsonc' 'term-neutral.sh'
         'wallpaper.png' 'glue-mac.jpg' 'WALLPAPER-CREDITS.md' 'glue-wallpaper-init'
         'alacritty.toml' 'termfont'
         'rofi.rasi' 'rofi-fullscreen-preview.rasi'
-        'glue-screencast-chooser' 'xdpw-config')
+        'glue-screencast-chooser' 'xdpw-config' 'glue-action')
 sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
             '29986d12aa6b234ed72eead6d7fcfb1740ac847dc9812e92b446bfd7fe5ca4ca'
             'd80a336a426e48f84c38f76f903d3fa4eeb0fa6a5e1278bc1aa6a5f507778c9c'
-            'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+            'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
     # ----- fastfetch logo + config -----
@@ -63,6 +63,8 @@ package() {
         "$pkgdir/usr/share/licenses/glue-branding/WALLPAPER-CREDITS.md"
     install -Dm755 "$srcdir/glue-wallpaper-init" \
         "$pkgdir/usr/bin/glue-wallpaper-init"
+    # the shared keybindings of every Glue window manager (Super+Space, Super+L...)
+    install -Dm755 "$srcdir/glue-action" "$pkgdir/usr/bin/glue-action"
     # useradd copies this marker; glue-wallpaper-init applies the default once
     # per desktop, so later wallpaper choices remain untouched.
     install -Dm644 /dev/null \

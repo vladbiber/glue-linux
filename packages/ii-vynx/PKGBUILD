@@ -5,7 +5,7 @@
 # a venv built here with uv's Python 3.12, as the upstream installer does.
 pkgname=ii-vynx
 pkgver=r0.78e333e
-pkgrel=2
+pkgrel=3
 _commit=78e333e9013647f71c6ad1d0e13f22f0fa6d64dd
 _shapes=e31ec4cb4ebf6a46b267f5c42eabf6874916fa16
 _pyver=3.12
@@ -32,8 +32,9 @@ makedepends=('git' 'uv' 'gcc' 'pkgconf' 'cairo' 'gobject-introspection' 'dbus' '
 options=('!strip' '!debug')
 source=("ii::git+$url.git#commit=$_commit"
         "shapes::git+https://github.com/end-4/rounded-polygon-qmljs.git#commit=$_shapes"
-        "ii-vynx-seed")
-sha256sums=('SKIP' 'SKIP' 'SKIP')
+        "ii-vynx-seed"
+        "glue-weather-gps.patch")
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 prepare() {
     cd ii
@@ -44,6 +45,57 @@ prepare() {
     sed -i 's|home_dir .. "/.local/state/quickshell/.venv"|"/usr/lib/ii-vynx/venv"|' \
         dots/.config/hypr/hyprland/env.lua
     grep -q '"/usr/lib/ii-vynx/venv"' dots/.config/hypr/hyprland/env.lua
+    # the bar waited ~25 s at login for GeoClue: weather goes by IP location
+    # unless GPS is turned on, and only then is the GeoClue source created
+    patch -Np1 -i "$srcdir/glue-weather-gps.patch"
+    sed -i 's|property bool enableGPS: true // gps based location|property bool enableGPS: false // gps based location|' \
+        dots/.config/quickshell/ii/modules/common/Config.qml
+    grep -q 'property bool enableGPS: false' dots/.config/quickshell/ii/modules/common/Config.qml
+    # Glue's shared keybindings (catalog/keybindings.json, ADR-026): Super+Space
+    # opens the search like on the other Glue desktops, Super+V floats, Super+B
+    # opens the browser; clipboard history moves to Super+Alt+V, the keyboard
+    # layout to Super+Ctrl+Space, the left sidebar stays on Super+A / Super+O
+    local kb=dots/.config/hypr/hyprland/keybinds.lua
+    sed -i -e 's/^hl\.bind("SUPER + V", hl\.dsp\.global("quickshell:overviewClipboardToggle"))$/hl.bind("SUPER + ALT + V", hl.dsp.global("quickshell:overviewClipboardToggle"))/' \
+        -e 's/^hl\.bind("SUPER + V", hl\.dsp\.exec_cmd($/hl.bind("SUPER + ALT + V", hl.dsp.exec_cmd(/' \
+        -e 's/^hl\.bind("SUPER + B", hl\.dsp\.global("quickshell:sidebarLeftToggle"))$/hl.bind("SUPER + B", hl.dsp.exec_cmd(browser), { description = "App: Browser" })/' \
+        -e 's/^hl\.bind("SUPER + Space", hl\.dsp\.exec_cmd("hyprctl switchxkblayout all next"), { description = "Switch keyboard layout" })$/hl.bind("SUPER + Space", hl.dsp.global("quickshell:searchToggle"), { description = "Shell: Toggle search" })\nhl.bind("SUPER + CTRL + Space", hl.dsp.exec_cmd("hyprctl switchxkblayout all next"), { description = "Switch keyboard layout" })/' \
+        "$kb"
+    cat >> "$kb" <<'EOF'
+
+--##! Glue
+--# The keys every Glue desktop shares
+hl.bind("SUPER + V", hl.dsp.window.float({ action = "toggle" }), { description = "Window: Float/Tile" })
+for i = 1, 9 do
+    hl.bind("SUPER + SHIFT + code:" .. (9 + i), function()
+        hl.dispatch(hl.dsp.window.move({ workspace = workspace_in_group(i), follow = false, silent = true }))
+    end, { description = i == 1 and "Window: Send to workspace (1, 2, 3,...)" or nil })
+end
+hl.bind("SUPER + SHIFT + F1", hl.dsp.exec_cmd("glue-welcome"), { description = "Glue: Welcome and shortcuts" })
+EOF
+    # every line of the shared table must be in the config as built, and
+    # Super+V only once (the clipboard binds moved to Super+Alt+V)
+    for b in 'hl.bind("SUPER + Return"' \
+             'hl.bind("SUPER + Space", hl.dsp.global("quickshell:searchToggle")' \
+             'hl.bind("SUPER + Q"' \
+             'hl.bind("SUPER + F"' \
+             'hl.bind("SUPER + V", hl.dsp.window.float(' \
+             'hl.bind("SUPER + E"' \
+             'hl.bind("SUPER + B", hl.dsp.exec_cmd(browser)' \
+             'hl.bind("SUPER + code:"' \
+             'hl.bind("SUPER + SHIFT + code:"' \
+             'hl.bind("SUPER + L"' \
+             'hl.bind("SUPER + SHIFT + S"' \
+             'hl.bind("Print"' \
+             'hl.bind("CTRL + ALT + Delete"' \
+             'hl.bind("SUPER + SHIFT + F1"'; do
+        awk -v b="$b" '{ sub(/^[ \t]+/, "") } index($0, b) == 1 { f = 1 } END { exit !f }' "$kb" || {
+            echo "ERROR: shared keybinding '$b' not in keybinds.lua" >&2; exit 1; }
+    done
+    [ "$(grep -c '^hl.bind("SUPER + V"' "$kb")" = 1 ] &&
+        grep -q '^hl.bind("SUPER + ALT + V", hl.dsp.global("quickshell:overviewClipboardToggle"))$' "$kb" &&
+        grep -q '^hl.bind("SUPER + ALT + V", hl.dsp.exec_cmd($' "$kb" || {
+        echo "ERROR: ii keybindings moved, the clipboard is still on Super+V" >&2; exit 1; }
 }
 
 build() {

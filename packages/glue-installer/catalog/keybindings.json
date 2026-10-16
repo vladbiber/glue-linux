@@ -1,0 +1,103 @@
+{
+  "about": "The keys every Glue desktop shares on a fresh install (ADR-026). Each entry names the config line that does it per window manager; tests/test_keybindings.py checks that the packaging enforces every line and that each session's catalog keybindings list the keys.",
+  "shared": [
+    {
+      "keys": "Super+Return",
+      "action": "Open terminal (alacritty)",
+      "gluewc": "mod+Return = spawn:alacritty",
+      "nvwm": "mod+Return = spawn:alacritty",
+      "ii": "hl.bind(\"SUPER + Return\""
+    },
+    {
+      "keys": "Super+Space",
+      "action": "Open application launcher",
+      "gluewc": "mod+space = spawn:glue-action launcher",
+      "nvwm": "mod+Space = spawn:glue-action launcher",
+      "ii": "hl.bind(\"SUPER + Space\", hl.dsp.global(\"quickshell:searchToggle\")"
+    },
+    {
+      "keys": "Super+Q",
+      "action": "Close focused window",
+      "gluewc": "mod+q = wm:kill",
+      "nvwm": "mod+q = wm:kill",
+      "ii": "hl.bind(\"SUPER + Q\""
+    },
+    {
+      "keys": "Super+F",
+      "action": "Toggle fullscreen",
+      "gluewc": "mod+f = wm:toggle_fullscreen",
+      "nvwm": "mod+f = wm:toggle_fullscreen",
+      "ii": "hl.bind(\"SUPER + F\""
+    },
+    {
+      "keys": "Super+V",
+      "action": "Toggle floating",
+      "gluewc": "mod+v = wm:toggle_float_centered",
+      "nvwm": "mod+v = wm:toggle_float_centered",
+      "ii": "hl.bind(\"SUPER + V\", hl.dsp.window.float("
+    },
+    {
+      "keys": "Super+E",
+      "action": "Open file manager",
+      "gluewc": "mod+e = spawn:glue-action files",
+      "nvwm": "mod+e = spawn:glue-action files",
+      "ii": "hl.bind(\"SUPER + E\""
+    },
+    {
+      "keys": "Super+B",
+      "action": "Open web browser",
+      "gluewc": "mod+b = spawn:glue-action browser",
+      "nvwm": "mod+b = spawn:glue-action browser",
+      "ii": "hl.bind(\"SUPER + B\", hl.dsp.exec_cmd(browser)"
+    },
+    {
+      "keys": "Super+1-9",
+      "action": "Switch to workspace 1-9",
+      "gluewc": "mod+9 = wm:workspace:9",
+      "nvwm": "mod+9 = wm:workspace:9",
+      "ii": "hl.bind(\"SUPER + code:\""
+    },
+    {
+      "keys": "Super+Shift+1-9",
+      "action": "Move window to workspace 1-9",
+      "gluewc": "mod+shift+9 = wm:move_to_workspace:9",
+      "nvwm": "mod+shift+9 = wm:move_to_workspace:9",
+      "ii": "hl.bind(\"SUPER + SHIFT + code:\""
+    },
+    {
+      "keys": "Super+L",
+      "action": "Lock the screen",
+      "gluewc": "mod+l = spawn:glue-action lock",
+      "nvwm": "mod+l = spawn:glue-action lock",
+      "ii": "hl.bind(\"SUPER + L\""
+    },
+    {
+      "keys": "Super+Shift+S",
+      "action": "Screenshot a region to the clipboard",
+      "gluewc": "mod+shift+s = spawn:box=$(slurp) || exit 0; grim -g \"$box\" - | wl-copy",
+      "nvwm": "mod+shift+s = spawn:glue-action screenshot-region",
+      "ii": "hl.bind(\"SUPER + SHIFT + S\""
+    },
+    {
+      "keys": "Print",
+      "action": "Screenshot",
+      "gluewc": "Print = spawn:mkdir -p \"${XDG_PICTURES_DIR:-$HOME/Pictures}/Screenshots\" && grim \"${XDG_PICTURES_DIR:-$HOME/Pictures}/Screenshots/gluewc-$(date +%Y%m%d-%H%M%S).png\"",
+      "nvwm": "Print = wm:screenshot",
+      "ii": "hl.bind(\"Print\""
+    },
+    {
+      "keys": "Ctrl+Alt+Delete",
+      "action": "Session menu (lock, log out, restart, shut down)",
+      "gluewc": "ctrl+alt+Delete = spawn:glue-action session",
+      "nvwm": "ctrl+alt+Delete = spawn:glue-action session",
+      "ii": "hl.bind(\"CTRL + ALT + Delete\""
+    },
+    {
+      "keys": "Super+Shift+F1",
+      "action": "Show Welcome and shortcuts",
+      "gluewc": "mod+shift+F1 = spawn:glue-welcome",
+      "nvwm": "mod+shift+F1 = spawn:glue-welcome",
+      "ii": "hl.bind(\"SUPER + SHIFT + F1\""
+    }
+  ]
+}

@@ -316,7 +316,7 @@ class TestNvwmPkgbuildTerminal(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Hyprland sessions: glue-hyprland, caelestia-shell, ii-vynx and their deps
+# Quickshell desktops: glue-hyprland, caelestia-shell (on gluewc), ii-vynx and their deps
 # ---------------------------------------------------------------------------
 
 class TestHyprlandPkgbuilds(unittest.TestCase):
@@ -352,25 +352,28 @@ class TestHyprlandPkgbuilds(unittest.TestCase):
             self.assertIn("'quickshell'", depends, pkg)
             self.assertNotIn("quickshell-git", depends, pkg)
 
-    def test_launcher_picks_the_shell_config(self):
+    def test_launcher_starts_ii_only(self):
         launcher = (self.PKGS / "glue-hyprland" / "glue-hyprland").read_text()
-        self.assertIn("conf=/usr/share/glue/hyprland/caelestia/hyprland.lua", launcher)
         self.assertIn("ii-vynx-seed", launcher)
         self.assertIn('exec start-hyprland -- -c "$conf"', launcher)
+        self.assertNotIn("caelestia", launcher)
+        self.assertNotIn("caelestia", self._read("glue-hyprland"))
+        self.assertFalse((self.PKGS / "glue-hyprland" / "caelestia").exists())
         self.assertIn("'adwaita-cursors'", self._depends("glue-hyprland"))
 
-    def test_caelestia_config_uses_the_normal_cursor_and_glue_apps(self):
-        conf = self.PKGS / "glue-hyprland" / "caelestia"
-        variables = (conf / "variables.lua").read_text()
-        self.assertIn('cursorTheme                = "Adwaita"', variables)
-        self.assertIn('terminal                   = "alacritty"', variables)
-        self.assertIn('fileExplorer               = "nautilus"', variables)
-        self.assertNotIn("sweet-cursors", variables)
-        main = (conf / "hyprland.lua").read_text()
-        self.assertIn('package.preload["scheme.current"]', main)
-        self.assertIn('maybe_copy(sysdir .. "/scheme/default.lua"', main)
-        # Glue's session wrapper starts the polkit agent
-        self.assertNotIn("polkit-gnome", (conf / "hyprland" / "execs.lua").read_text())
+    def test_caelestia_is_patched_for_gluewc(self):
+        text = self._read("caelestia-shell")
+        self.assertIn('sh "$startdir/glue/apply.sh" "$pkgdir/etc/xdg/quickshell/caelestia"', text)
+        glue = self.PKGS / "caelestia-shell" / "glue"
+        hypr = (glue / "services" / "Hypr.qml").read_text()
+        self.assertNotIn("import Quickshell.Hyprland", hypr)
+        self.assertIn("gluewc-msg", hypr)
+        self.assertIn('"/workspaces"', hypr)
+        apply = (glue / "apply.sh").read_text()
+        self.assertIn("set -eu", apply)
+        self.assertIn("sourceComponent: wallpaperBackground", apply)
+        result = subprocess.run(["sh", "-n", str(glue / "apply.sh")], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_ii_venv_is_system_wide_and_seed_keeps_user_files(self):
         text = self._read("ii-vynx")

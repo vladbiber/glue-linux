@@ -590,9 +590,10 @@ class DefaultWallpaperTest(unittest.TestCase):
         self.assertEqual(calls, ["-c gluemac-shell ipc call wallpaper change "
                                  + str(_BRANDING_ROOT / "glue-mac.jpg")])
 
-    def test_hyprland_shells_set_the_wallpaper_their_own_way(self):
+    def test_caelestia_and_ii_set_the_wallpaper_their_own_way(self):
         text = self.script.read_text()
-        self.assertIn('run_until_ok caelestia wallpaper -f "$wallpaper"', text)
+        self.assertIn('gluewc*:caelestia)\n        run_until_ok caelestia wallpaper -f "$wallpaper"', text)
+        self.assertNotIn("hyprland*:caelestia", text)
         self.assertIn("quickshell/ii/scripts/colors/switchwall.sh", text)
         self.assertIn("ILLOGICAL_IMPULSE_VIRTUAL_ENV=/usr/lib/ii-vynx/venv", text)
         temp = tempfile.TemporaryDirectory()
@@ -610,14 +611,14 @@ class DefaultWallpaperTest(unittest.TestCase):
         env.update({"HOME": str(root), "XDG_STATE_HOME": str(root / "state"),
                     "PATH": f"{bindir}:{env['PATH']}", "CALLS": str(log),
                     "GLUE_WALLPAPER_PATH": str(_BRANDING_ROOT / "wallpaper.png")})
-        result = subprocess.run([str(self.script), "hyprland-caelestia", "caelestia"],
+        result = subprocess.run([str(self.script), "gluewc-caelestia", "caelestia"],
                                 env=env, capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(log.read_text().splitlines(),
                          ["wallpaper -f " + str(_BRANDING_ROOT / "wallpaper.png")])
 
     def test_each_desktop_gets_the_default_on_its_first_login(self):
-        # Hyprland first must not leave gluewc without a wallpaper
+        # Caelestia first must not leave the glueqs desktop without a wallpaper
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
         root = Path(temp.name)
@@ -634,7 +635,7 @@ class DefaultWallpaperTest(unittest.TestCase):
         env.update({"HOME": str(root), "XDG_STATE_HOME": str(root / "state"),
                     "PATH": f"{bindir}:{env['PATH']}", "CALLS": str(log),
                     "GLUE_WALLPAPER_PATH": str(_BRANDING_ROOT / "wallpaper.png")})
-        for args in (["hyprland-caelestia", "caelestia"], ["gluewc", "glueqs"],
+        for args in (["gluewc-caelestia", "caelestia"], ["gluewc", "glueqs"],
                      ["gluewc", "glueqs"]):
             subprocess.run([str(self.script), *args], env=env, check=True)
         calls = log.read_text().splitlines()

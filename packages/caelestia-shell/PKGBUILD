@@ -1,9 +1,11 @@
 # Maintainer: Glue Linux
-# AUR-only upstream; Quickshell desktop shell made for Hyprland.
+# AUR-only upstream; Quickshell desktop shell made for Hyprland. Glue runs it on
+# gluewc: glue/apply.sh swaps its Hyprland service for one fed by gluewc's
+# workspace state file and gluewc-msg (ADR-026).
 pkgname=caelestia-shell
 pkgver=2.5.0
-pkgrel=1
-pkgdesc="The Caelestia desktop shell for Hyprland"
+pkgrel=2
+pkgdesc="The Caelestia desktop shell, made to run on gluewc"
 arch=('x86_64')
 url="https://github.com/caelestia-dots/shell"
 license=('GPL-3.0-only')
@@ -30,5 +32,6 @@ build() {
 package() {
     cd "$_pkg"
     DESTDIR="$pkgdir" cmake --install build
+    sh "$startdir/glue/apply.sh" "$pkgdir/etc/xdg/quickshell/caelestia"
     install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
 }

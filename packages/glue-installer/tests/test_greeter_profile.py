@@ -107,12 +107,13 @@ class GreeterLauncherTest(unittest.TestCase):
         sessions = [s for s in catalog.sessions if s.id.startswith("hyprland-")]
         shells = {s.id: s for s in catalog.shells}
         files = {f.path: f.content for f in _greeter_files(
-            sessions, {"hyprland-caelestia": "caelestia", "hyprland-ii": "ii"}, shells)}
-        for sid, shell in (("hyprland-caelestia", "caelestia"), ("hyprland-ii", "ii")):
+            sessions, {"hyprland-ii": "ii"}, shells)}
+        for sid, shell in (("hyprland-ii", "ii"),):
             wrapper = files[f"/usr/local/bin/glue-session-{sid}"]
             self.assertIn(f"exec glue-hyprland {shell}", wrapper)
             self.assertIn(f"glue-wallpaper-init {sid} {shell}", wrapper)
-            self.assertIn("export XDG_CURRENT_DESKTOP=hyprland", wrapper)
+            # Hyprland and xdph warn unless the name is exactly "Hyprland"
+            self.assertIn("export XDG_CURRENT_DESKTOP=Hyprland\n", wrapper)
             self.assertIn("export XCURSOR_THEME=Adwaita", wrapper)
             self.assertIn("gluewc|gluemac|Hyprland", wrapper)
             self.assertNotIn("qs -c", wrapper)

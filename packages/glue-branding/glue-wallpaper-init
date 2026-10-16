@@ -67,7 +67,7 @@ case "$session:$shell" in
     gluemac*:gluemac-shell)
         run_until_ok qs -c gluemac-shell ipc call wallpaper change "$wallpaper" || ok=0
         ;;
-    hyprland*:caelestia)
+    gluewc*:caelestia)
         run_until_ok caelestia wallpaper -f "$wallpaper" || ok=0
         ;;
     hyprland*:ii)
