@@ -74,7 +74,25 @@ Item {
             wrapMode: Text.WordWrap
             color: page.colMuted
             font.pixelSize: 13
-            text: "Pick one or more. Everything you pick is installed, and the login screen lets you choose which one to start. Click a picture to see it bigger."
+            text: "Click a picture to see it bigger."
+        }
+        Rectangle {
+            Layout.fillWidth: true
+            implicitHeight: multiNote.implicitHeight + 16
+            radius: 8
+            color: Qt.rgba(page.colAccent.r, page.colAccent.g, page.colAccent.b, 0.14)
+            border.color: page.colAccent
+            border.width: 1
+            Text {
+                id: multiNote
+                anchors.fill: parent
+                anchors.margins: 8
+                wrapMode: Text.WordWrap
+                color: page.colText
+                font.pixelSize: 13
+                font.bold: true
+                text: "You can install several desktops at the same time: tick as many as you like. All of them are installed side by side, and at every login the login screen lets you pick which one to start. You can switch between them any time."
+            }
         }
         Text {
             visible: page.notice !== ""

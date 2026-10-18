@@ -17,8 +17,9 @@ easy enough for someone who has never installed Linux.
   the desktops, the kernel, the init system and gaming.
 - **Eleven desktops, install as many as you like:** gluewc + glueqs (default),
   gluewc + Noctalia, gluewc + Caelestia, gluewc + MacShell, Glue Mac,
-  Hyprland + ii, nvwm, KDE Plasma, XFCE, GNOME and Cinnamon. The login screen
-  lets you pick one each time.
+  Hyprland + ii, nvwm, KDE Plasma, XFCE, GNOME and Cinnamon. Several of them
+  can be installed at the same time, side by side; the login screen lets you
+  pick which one to start each time.
 - **Glue Apps:** one store for the system repositories, Flathub, the AUR and
   AppImages, with a system update that keeps going when one package can't.
 - **Gaming in one click:** Steam with Proton-CachyOS and GE-Proton, Heroic,
