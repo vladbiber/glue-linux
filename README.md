@@ -15,14 +15,17 @@ easy enough for someone who has never installed Linux.
   x86-64-v3 the kernel and the gaming packages come from CachyOS's v3 builds.
 - **Graphical installer:** Calamares with Glue's own pages for the network,
   the desktops, the kernel, the init system and gaming.
-- **Seven desktops, install as many as you like:** gluewc + glueqs (default),
-  gluewc + Noctalia, nvwm, KDE Plasma, XFCE, GNOME and Cinnamon. The login
-  screen lets you pick one each time.
+- **Eleven desktops, install as many as you like:** gluewc + glueqs (default),
+  gluewc + Noctalia, gluewc + Caelestia, gluewc + MacShell, Glue Mac,
+  Hyprland + ii, nvwm, KDE Plasma, XFCE, GNOME and Cinnamon. The login screen
+  lets you pick one each time.
 - **Glue Apps:** one store for the system repositories, Flathub, the AUR and
   AppImages, with a system update that keeps going when one package can't.
 - **Gaming in one click:** Steam with Proton-CachyOS and GE-Proton, Heroic,
   Lutris, Wine, GameMode, MangoHud, Gamescope, the `scx_lavd` scheduler and
-  ananicy-cpp priorities. Graphics drivers are picked for your card.
+  ananicy-cpp priorities. `gamemoderun` and Game Mode switch to the
+  performance profile, and the open-file limit fits Proton. Graphics drivers
+  are picked for your card.
 
 ## Download
 
@@ -130,6 +133,15 @@ overview on a tap of Super, animations and blur.
 notifications, network, volume and brightness panels (with sleep mode), media
 controls and a settings window for gluewc itself.
 
+## Glue Mac
+
+[gluemac](https://github.com/vladbiber/gluemac) is a gluewc fork that behaves
+like macOS: floating windows with traffic lights, Spaces, Mission Control, full
+screen apps in their own Space with the menu bar coming down at the top edge.
+The menu bar, Dock, Spotlight, Control Center and lock screen are
+[MacShell](https://github.com/0-ss/MacShell) by Rickky and vSuol, packaged
+from [the Glue fork](https://github.com/vladbiber/macshell).
+
 ## Building the ISO
 
 You need Docker; the build runs in a container, so any host distro works.
@@ -191,3 +203,42 @@ Glue Welcome are covered by about 1100 tests that run without root:
 ```sh
 sh scripts/gate.sh
 ```
+
+## Credits
+
+Glue Linux is put together from the work of many projects:
+
+- [Artix Linux](https://artixlinux.org) and [Arch Linux](https://archlinux.org):
+  the base system, the init systems and artools, which builds the ISO
+- [CachyOS](https://cachyos.org): the kernels, the v3 package builds,
+  [CachyOS-Settings](https://github.com/CachyOS/CachyOS-Settings) (ported to
+  dinit, runit and OpenRC in `glue-settings`) and the
+  [ananicy rules](https://github.com/CachyOS/ananicy-rules)
+- [Calamares](https://calamares.io): the graphical installer
+- [dwl](https://codeberg.org/dwl/dwl), [wlroots](https://gitlab.freedesktop.org/wlroots/wlroots)
+  and [SceneFX](https://github.com/wlrfx/scenefx): the base of gluewc and gluemac
+- [Quickshell](https://quickshell.org): every shell here runs on it
+- [MacShell](https://github.com/0-ss/MacShell) by Rickky and vSuol,
+  [Noctalia](https://github.com/noctalia-dev/noctalia-shell),
+  [Caelestia](https://github.com/caelestia-dots/shell),
+  [ii](https://github.com/end-4/dots-hyprland) by end-4 through the
+  [ii-vynx fork](https://github.com/P3DROVFX/ii-p3drovfx) and
+  [ilyamiro's configuration](https://github.com/ilyamiro/nixos-configuration):
+  the desktop shells
+- [Hyprland](https://hyprland.org), [KDE Plasma](https://kde.org/plasma-desktop),
+  [GNOME](https://www.gnome.org), [XFCE](https://xfce.org) and
+  [Cinnamon](https://github.com/linuxmint/cinnamon): the other desktops
+- [greetd](https://sr.ht/~kennylevinsen/greetd), [ReGreet](https://github.com/rharish101/ReGreet)
+  and [cage](https://www.hjdskes.nl/projects/cage/): the login screen
+- [sched-ext](https://github.com/sched-ext/scx), [ananicy-cpp](https://gitlab.com/ananicy-cpp/ananicy-cpp),
+  [GameMode](https://github.com/FeralInteractive/gamemode),
+  [MangoHud](https://github.com/flightlessmango/MangoHud),
+  [GE-Proton](https://github.com/GloriousEggroll/proton-ge-custom) and
+  [Limine](https://github.com/limine-bootloader/limine)
+- [matugen](https://github.com/InioX/matugen), [swww](https://github.com/LGFae/swww),
+  [wlogout](https://github.com/ArtsyMacaw/wlogout), [cava](https://github.com/LukashonakV/cava),
+  [m3shapes](https://github.com/soramanew/m3shapes) and
+  [materialyoucolor](https://github.com/T-Dynamos/materialyoucolor-python),
+  packaged in `[glue]` for the shells that need them
+
+Each package keeps its upstream license; see `packages/*/PKGBUILD`.

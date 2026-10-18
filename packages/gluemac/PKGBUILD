@@ -2,8 +2,7 @@
 # gluemac: the macOS-style Glue session, a gluewc fork with floating windows,
 # Spaces, Mission Control and a Mac title bar. Its own SceneFX (scenefx/, with
 # Liquid Glass) is built by the Makefile and linked statically, so no scenefx0.5.
-# The repo has no remote yet:
-# build.sh mounts ~/gluemac read-only at /src/gluemac for the build container.
+# GLUEMAC_SRC=file:///src/gluemac builds an unpushed checkout (GLUE_LOCAL=1)
 pkgname=gluemac
 pkgver=0.3.0.r0.0000000
 pkgrel=1
@@ -26,7 +25,7 @@ optdepends=('macshell: the menu bar, Dock, Spotlight and Control Center gluemac 
             'slurp: screenshots of a region'
             'wl-clipboard: screenshots to the clipboard'
             'glib2: gsettings, hides the GTK title buttons gluemac draws itself')
-source=("gluemac::git+file://${GLUEMAC_SRC:-/src/gluemac}")
+source=("gluemac::git+${GLUEMAC_SRC:-https://github.com/vladbiber/gluemac.git}")
 sha256sums=('SKIP')
 
 pkgver() {

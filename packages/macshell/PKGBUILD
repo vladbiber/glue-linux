@@ -3,13 +3,13 @@
 # (MIT): the macOS Tahoe style menu bar, Dock, Liquid Glass and MacLock. Glue's
 # fork keeps upstream history plus glue/ (launcher, helper scripts, PAM, notes);
 # gluemac and gluewc speak Hyprland's IPC for it.
-# The fork has no remote yet: build.sh mounts it at /src/gluemac-macshell.
+# MACSHELL_SRC=file:///src/gluemac-macshell builds an unpushed checkout (GLUE_LOCAL=1)
 pkgname=macshell
 pkgver=0.0.8.r0.0000000
 pkgrel=2
 pkgdesc="macOS Tahoe style menu bar, Dock and lock screen with Liquid Glass (Quickshell)"
 arch=('any')
-url="https://github.com/0-ss/MacShell"
+url="https://github.com/vladbiber/macshell"
 license=('MIT')
 depends=('quickshell' 'qt6-svg' 'qt6-shadertools' 'qt6-multimedia' 'qt6-declarative'
          'awww' 'jq' 'curl' 'inter-font' 'ttf-roboto-flex' 'glue-branding'
@@ -34,7 +34,7 @@ makedepends=('git')
 replaces=('gluemac-shell')
 conflicts=('gluemac-shell')
 backup=('etc/pam.d/maclock')
-source=("gluemac-macshell::git+file://${MACSHELL_SRC:-/src/gluemac-macshell}")
+source=("gluemac-macshell::git+${MACSHELL_SRC:-https://github.com/vladbiber/macshell.git}")
 sha256sums=('SKIP')
 
 pkgver() {

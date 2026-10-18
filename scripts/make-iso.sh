@@ -75,17 +75,12 @@ for pkg in glue-keyring glue-zsh glue-branding glue-settings glue-boot st-glue n
     if [ -n "${GLUE_PKGS:-}" ] && ls "$REPO/$pkg"-[0-9r]*.pkg.tar.* >/dev/null 2>&1; then
         case " $GLUE_PKGS " in *" $pkg "*) ;; *) echo "    -- $pkg (kept)"; continue ;; esac
     fi
-    case $pkg in gluemac)
-        [ -d "/src/$pkg/.git" ] || { echo "    -- $pkg (skipped: /src/$pkg not mounted)"; continue; } ;;
-    macshell)
-        [ -d "/src/gluemac-macshell/.git" ] || { echo "    -- $pkg (skipped: /src/gluemac-macshell not mounted)"; continue; } ;;
-    esac
     echo "    -- $pkg"
     rm -f "$REPO/$pkg"-[0-9r]*.pkg.tar.zst "$REPO/$pkg"-[0-9r]*.pkg.tar.zst.sig
     # a rebuild with the same version must not meet the old copy in the cache
     rm -f /var/cache/pacman/pkg/"$pkg"-[0-9r]*.pkg.tar.zst
     ( cd "$ROOT/packages/$pkg" && \
-      sudo -u builder --preserve-env=GLUEWC_SRC makepkg -f --syncdeps --noconfirm --skippgpcheck )
+      sudo -u builder --preserve-env=GLUEWC_SRC,GLUEMAC_SRC,MACSHELL_SRC makepkg -f --syncdeps --noconfirm --skippgpcheck )
     cp "$ROOT/packages/$pkg"/*.pkg.tar.zst "$REPO"/ 2>/dev/null || true
     # the database is re-signed once at the end; until then it is unsigned
     rm -f "$REPO"/glue.db.tar.gz.sig "$REPO"/glue.files.tar.gz.sig /var/lib/pacman/sync/glue.db.sig
