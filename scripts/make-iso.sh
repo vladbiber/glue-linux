@@ -159,6 +159,10 @@ fi
 # come from our Glue os-release.)
 sed -i 's/iso_label="ARTIX_/iso_label="GLUE_/' /usr/bin/buildiso
 sed -i 's/local vars=("artix")/local vars=()/' /usr/bin/buildiso
+# the ISO's EFI partition label is what firmware boot menus show for the stick
+sed -i 's/mkfs.fat -n ARTIX_EFI/mkfs.fat -n GLUE_EFI/' /usr/share/artools/lib/iso/grub.sh
+grep -q 'mkfs.fat -n GLUE_EFI' /usr/share/artools/lib/iso/grub.sh || {
+    echo "!! artools no longer labels the EFI image ARTIX_EFI; check grub.sh" >&2; exit 1; }
 
 # clear stale ISOs from the (persistent) pool so only this build's ISO remains
 rm -f "$ISO_POOL"/glue/*.iso 2>/dev/null || true

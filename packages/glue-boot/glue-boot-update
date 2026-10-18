@@ -312,10 +312,6 @@ deploy_uefi() {
         warn "efibootmgr is not installed; firmware boot entry not registered"
         return 0
     fi
-    if efibootmgr | grep -q 'Glue Linux'; then
-        log "firmware boot entry 'Glue Linux' already present"
-        return 0
-    fi
     esp=$(part_of "$BOOT")
     name=${esp##*/}
     partno=""
@@ -323,6 +319,12 @@ deploy_uefi() {
     disk=$(lsblk -no PKNAME "$esp" 2>/dev/null | head -n 1 || true)
     if [ -z "$esp" ] || [ -z "$partno" ] || [ -z "$disk" ]; then
         warn "cannot resolve the disk and partition of $BOOT; firmware boot entry not registered"
+        return 0
+    fi
+    # an entry of an earlier install on another disk does not count
+    partuuid=$(lsblk -no PARTUUID "$esp" 2>/dev/null | head -n 1 || true)
+    if efibootmgr -v | grep 'Glue Linux' | grep -qi "${partuuid:-Glue Linux}"; then
+        log "firmware boot entry 'Glue Linux' already present"
         return 0
     fi
     efibootmgr --create --disk "/dev/$disk" --part "$partno" \
