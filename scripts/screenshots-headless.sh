@@ -64,7 +64,9 @@ files_for() {
         glueqs)   echo gluewc-glueqs-bar.png gluewc-glueqs-overview.png \
                        gluewc-glueqs-launcher.png gluewc-glueqs-calendar.png \
                        gluewc-glueqs-notifications.png gluewc-glueqs-settings.png \
-                       gluewc-glueqs-wallpapers.png ;;
+                       gluewc-glueqs-wallpapers.png gluewc-glueqs-colors.png \
+                       gluewc-glueqs-colors-bar.png gluewc-glueqs-font.png \
+                       gluewc-glueqs-fonts.png ;;
         noctalia) echo gluewc-noctalia-bar.png gluewc-noctalia-overview.png \
                        gluewc-noctalia-launcher.png gluewc-noctalia-control-center.png \
                        gluewc-noctalia-notifications.png gluewc-noctalia-settings.png \
@@ -190,6 +192,9 @@ inside_main() {
             install_local glueqs
             install_local cage
             pacman -S --noconfirm --needed grim wlr-randr libnotify
+            # the curated families of the LOOK page's font grid
+            pacman -S --noconfirm --needed ttf-jetbrains-mono \
+                ttf-cascadia-code-nerd noto-fonts gsfonts
             build_injectors
             ;;
         noctalia)
@@ -431,6 +436,32 @@ glueqs_extras() {
     $ipc wallpaper
     sleep 4; snap wallpapers
     $ipc close; sleep 1
+    # another scheme: the bar alone, then the THEME page listing the schemes
+    glueqs_set themeScheme '"amber"'
+    sleep 4; snap colors-bar
+    $ipc settingspage 2
+    sleep 3; snap colors
+    $ipc close; sleep 2
+    # plain text in a serif instead of the dot font, then the LOOK page's font grid
+    glueqs_set themeScheme '"nothing"' dotFont false uiFont '"Noto Serif"'
+    sleep 4; snap font
+    $ipc settingspage 3
+    sleep 2
+    $ipc settingsscroll 320
+    sleep 2; snap fonts
+    $ipc close; sleep 1
+}
+
+# glueqs_set KEY JSON...: edit settings.json, the shell reloads it on change
+glueqs_set() {
+    python3 - "$HOME/.config/glueqs/settings.json" "$@" <<'PY' || die "glueqs_set $* failed"
+import json, sys
+p, kv = sys.argv[1], sys.argv[2:]
+s = json.load(open(p))
+for k, v in zip(kv[::2], kv[1::2]):
+    s[k] = json.loads(v)
+json.dump(s, open(p, "w"), indent=4)
+PY
 }
 
 # Caelestia's drawers through its quickshell IPC (what glue-action calls)

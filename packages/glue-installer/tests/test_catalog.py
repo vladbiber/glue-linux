@@ -489,7 +489,7 @@ class ScreenshotFilesTest(unittest.TestCase):
     # the only names allowed (5.6/): headless captures + 4 DEs
     ALLOWED = ({f"gluewc-glueqs-{n}.png" for n in (
                    "bar", "launcher", "overview", "calendar", "notifications",
-                   "settings", "wallpapers")}
+                   "settings", "wallpapers", "colors", "colors-bar", "font", "fonts")}
                | {f"gluewc-noctalia-{n}.png" for n in (
                    "bar", "launcher", "control-center", "notifications", "overview",
                    "settings", "wallpapers")}

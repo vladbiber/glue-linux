@@ -21,6 +21,10 @@ var entries = [
       "file:///usr/share/glue-installer/catalog/screenshots/gluewc-glueqs-calendar.png",
       "file:///usr/share/glue-installer/catalog/screenshots/gluewc-glueqs-notifications.png",
       "file:///usr/share/glue-installer/catalog/screenshots/gluewc-glueqs-settings.png",
+      "file:///usr/share/glue-installer/catalog/screenshots/gluewc-glueqs-colors.png",
+      "file:///usr/share/glue-installer/catalog/screenshots/gluewc-glueqs-colors-bar.png",
+      "file:///usr/share/glue-installer/catalog/screenshots/gluewc-glueqs-font.png",
+      "file:///usr/share/glue-installer/catalog/screenshots/gluewc-glueqs-fonts.png",
       "file:///usr/share/glue-installer/catalog/screenshots/gluewc-glueqs-wallpapers.png"
     ],
     "checked": true

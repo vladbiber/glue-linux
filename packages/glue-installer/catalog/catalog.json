@@ -144,6 +144,10 @@
         "screenshots/gluewc-glueqs-calendar.png",
         "screenshots/gluewc-glueqs-notifications.png",
         "screenshots/gluewc-glueqs-settings.png",
+        "screenshots/gluewc-glueqs-colors.png",
+        "screenshots/gluewc-glueqs-colors-bar.png",
+        "screenshots/gluewc-glueqs-font.png",
+        "screenshots/gluewc-glueqs-fonts.png",
         "screenshots/gluewc-glueqs-wallpapers.png"
       ],
       "packages": [
@@ -1049,6 +1053,10 @@
         "screenshots/gluewc-glueqs-calendar.png",
         "screenshots/gluewc-glueqs-notifications.png",
         "screenshots/gluewc-glueqs-settings.png",
+        "screenshots/gluewc-glueqs-colors.png",
+        "screenshots/gluewc-glueqs-colors-bar.png",
+        "screenshots/gluewc-glueqs-font.png",
+        "screenshots/gluewc-glueqs-fonts.png",
         "screenshots/gluewc-glueqs-wallpapers.png"
       ],
       "packages": [
