@@ -87,11 +87,12 @@ class GreeterLauncherTest(unittest.TestCase):
         sessions = [s for s in catalog.sessions if s.id == "gluemac"]
         shells = {s.id: s for s in catalog.shells}
         files = {f.path: f.content for f in _greeter_files(
-            sessions, {"gluemac": "gluemac-shell"}, shells)}
+            sessions, {"gluemac": "macshell"}, shells)}
         wrapper = files["/usr/local/bin/glue-session-gluemac"]
-        self.assertIn("glue-wallpaper-init gluemac gluemac-shell", wrapper)
+        self.assertIn("glue-wallpaper-init gluemac macshell", wrapper)
         self.assertIn("exec gluemac-session", wrapper)
-        self.assertNotIn("qs -c gluemac-shell", wrapper)
+        # gluemac's autostart runs MacShell; the wrapper must not start another
+        self.assertNotIn("glue-macshell", wrapper)
         self.assertIn("gluewc|gluemac", wrapper)
         self.assertIn("/usr/share/xdg-desktop-portal/gluemac-portals.conf", files)
         entry = files["/usr/share/glue/sessions/gluemac.desktop"]

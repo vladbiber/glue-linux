@@ -69,10 +69,29 @@ var entries = [
     "checked": false
   },
   {
+    "id": "gluewc-macshell",
+    "name": "gluewc + MacShell",
+    "kind": "Tiling",
+    "description": "The gluewc tiling desktop with MacShell on top: a macOS Tahoe style menu bar, Dock, Spotlight, Control Center and notifications with Liquid Glass, over gluewc's BSP, scroll and drift layouts.",
+    "lightness": 5,
+    "weight": "Very light",
+    "ease": 4,
+    "ram": "about 230 MB",
+    "disk": "about 500 MB",
+    "wayland": true,
+    "images": [
+      "file:///usr/share/glue-installer/catalog/screenshots/macshell-desktop.png",
+      "file:///usr/share/glue-installer/catalog/screenshots/macshell-spotlight.png",
+      "file:///usr/share/glue-installer/catalog/screenshots/macshell-control-center.png",
+      "file:///usr/share/glue-installer/catalog/screenshots/macshell-settings.png"
+    ],
+    "checked": false
+  },
+  {
     "id": "gluemac",
     "name": "Glue Mac (gluemac)",
     "kind": "Floating",
-    "description": "A desktop that works like a Mac: floating windows with a title bar, a menu bar at the top, a dock, Spotlight and Launchpad, Mission Control and Spaces you swipe between on the touchpad. Cmd is the Super key; Cmd+C, Cmd+V and the other app shortcuts work as on a Mac.",
+    "description": "A desktop that works like a Mac: floating windows with a title bar, a menu bar at the top, MacShell's Dock, Spotlight and Control Center, Mission Control and Spaces you swipe between on the touchpad. Cmd is the Super key; Cmd+C, Cmd+V and the other app shortcuts work as on a Mac.",
     "lightness": 4,
     "weight": "Light",
     "ease": 4,
@@ -80,12 +99,10 @@ var entries = [
     "disk": "about 800 MB",
     "wayland": true,
     "images": [
-      "file:///usr/share/glue-installer/catalog/screenshots/gluemac-desktop.png",
-      "file:///usr/share/glue-installer/catalog/screenshots/gluemac-menu.png",
-      "file:///usr/share/glue-installer/catalog/screenshots/gluemac-spotlight.png",
-      "file:///usr/share/glue-installer/catalog/screenshots/gluemac-launchpad.png",
-      "file:///usr/share/glue-installer/catalog/screenshots/gluemac-control-center.png",
-      "file:///usr/share/glue-installer/catalog/screenshots/gluemac-mission-control.png"
+      "file:///usr/share/glue-installer/catalog/screenshots/macshell-desktop.png",
+      "file:///usr/share/glue-installer/catalog/screenshots/gluemac-mission-control.png",
+      "file:///usr/share/glue-installer/catalog/screenshots/macshell-spotlight.png",
+      "file:///usr/share/glue-installer/catalog/screenshots/macshell-control-center.png"
     ],
     "checked": false
   },

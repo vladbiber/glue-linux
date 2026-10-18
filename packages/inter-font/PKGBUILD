@@ -1,0 +1,16 @@
+# Maintainer: Glue Linux
+# Not in the Artix repos; the UI font of MacShell.
+pkgname=inter-font
+pkgver=4.1
+pkgrel=1
+pkgdesc="A typeface carefully crafted and designed for computer screens"
+arch=('any')
+url="https://rsms.me/inter/"
+license=('OFL-1.1')
+source=("https://github.com/rsms/inter/releases/download/v$pkgver/Inter-$pkgver.zip")
+sha256sums=('9883fdd4a49d4fb66bd8177ba6625ef9a64aa45899767dde3d36aa425756b11e')
+
+package() {
+    install -Dm644 -t "$pkgdir/usr/share/fonts/inter" "$srcdir"/Inter.ttc "$srcdir"/InterVariable*.ttf
+    install -Dm644 "$srcdir/LICENSE.txt" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

@@ -63,26 +63,26 @@ class TestPositive(unittest.TestCase):
         self.assertTrue(dinit.recommended)
 
     def test_expected_session_ids_in_exact_order(self):
-        """Exactly 10 sessions, gluewc first (the default), its Noctalia twin next."""
+        """Exactly 11 sessions, gluewc first (the default), its Noctalia twin next."""
         ids = [s.id for s in self.catalog.sessions]
-        self.assertEqual(ids, ["gluewc", "gluewc-noctalia", "gluewc-caelestia", "gluemac",
+        self.assertEqual(ids, ["gluewc", "gluewc-noctalia", "gluewc-caelestia", "gluewc-macshell", "gluemac",
                                "hyprland-ii", "nvwm", "kde-plasma", "xfce", "gnome", "cinnamon"])
 
     def test_session_kinds(self):
         wms = {s.id for s in self.catalog.sessions if s.kind == "wm"}
         des = {s.id for s in self.catalog.sessions if s.kind == "de"}
-        self.assertEqual(wms, {"gluewc", "gluewc-noctalia", "gluewc-caelestia", "gluemac",
-                               "hyprland-ii", "nvwm"})
+        self.assertEqual(wms, {"gluewc", "gluewc-noctalia", "gluewc-caelestia", "gluewc-macshell",
+                               "gluemac", "hyprland-ii", "nvwm"})
         self.assertEqual(des, {"kde-plasma", "xfce", "gnome", "cinnamon"})
 
     def test_five_shells_glueqs_first(self):
-        """glueqs, noctalia, gluemac-shell, caelestia, ii; each gluewc/gluemac/
+        """glueqs, noctalia, macshell, caelestia, ii; each gluewc/gluemac/
         Hyprland session has exactly one shell, every other session offers none."""
         self.assertEqual([s.id for s in self.catalog.shells],
-                         ["glueqs", "noctalia", "gluemac-shell", "caelestia", "ii"])
+                         ["glueqs", "noctalia", "macshell", "caelestia", "ii"])
         fixed = {"gluewc": ["glueqs"], "gluewc-noctalia": ["noctalia"],
-                 "gluemac": ["gluemac-shell"], "gluewc-caelestia": ["caelestia"],
-                 "hyprland-ii": ["ii"]}
+                 "gluemac": ["macshell"], "gluewc-macshell": ["macshell"],
+                 "gluewc-caelestia": ["caelestia"], "hyprland-ii": ["ii"]}
         for s in self.catalog.sessions:
             self.assertEqual(s.shell_choices, fixed.get(s.id, []), s.id)
             for pkg in s.packages:
@@ -181,7 +181,8 @@ class TestPositive(unittest.TestCase):
     def test_session_screenshot_names(self):
         expected = {"gluewc": "screenshots/gluewc-glueqs-bar.png",
                     "gluewc-noctalia": "screenshots/gluewc-noctalia-bar.png",
-                    "gluemac": "screenshots/gluemac-desktop.png",
+                    "gluemac": "screenshots/macshell-desktop.png",
+                    "gluewc-macshell": "screenshots/macshell-desktop.png",
                     "gluewc-caelestia": "screenshots/gluewc-caelestia-bar.png",
                     "hyprland-ii": "screenshots/hyprland-ii-desktop.png",
                     "nvwm": "screenshots/nvwm.png",
@@ -284,8 +285,8 @@ class TestPositive(unittest.TestCase):
         self.assertTrue(m.name)
         self.assertTrue(m.description)
 
-    def test_ten_sessions_five_shells_two_kernels(self):
-        self.assertEqual(len(self.catalog.sessions), 10)
+    def test_eleven_sessions_five_shells_two_kernels(self):
+        self.assertEqual(len(self.catalog.sessions), 11)
         self.assertEqual(len(self.catalog.shells), 5)
         self.assertEqual(len(self.catalog.kernels), 2)
 
@@ -492,9 +493,9 @@ class ScreenshotFilesTest(unittest.TestCase):
                | {f"gluewc-noctalia-{n}.png" for n in (
                    "bar", "launcher", "control-center", "notifications", "overview",
                    "settings", "wallpapers")}
-               | {f"gluemac-{n}.png" for n in (
-                   "desktop", "menu", "spotlight", "launchpad", "control-center",
-                   "mission-control")}
+               | {"gluemac-mission-control.png"}
+               | {f"macshell-{n}.png" for n in (
+                   "desktop", "spotlight", "control-center", "settings")}
                | {f"gluewc-caelestia-{n}.png" for n in (
                    "bar", "overview", "launcher", "dashboard", "sidebar", "session")}
                | {f"hyprland-ii-{n}.png" for n in (

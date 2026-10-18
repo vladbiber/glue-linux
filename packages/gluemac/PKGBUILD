@@ -15,7 +15,7 @@ depends=('wlroots0.20' 'wayland' 'libinput' 'libxkbcommon' 'pixman'
          'libdrm' 'libxcb' 'xcb-util-wm' 'mesa' 'libglvnd' 'lcms2' 'dbus'
          'xorg-xwayland' 'pango' 'cairo' 'librsvg')
 makedepends=('git' 'wayland-protocols' 'meson' 'ninja')
-optdepends=('gluemac-shell: the menu bar, dock, Spotlight and Launchpad gluemac autostarts'
+optdepends=('macshell: the menu bar, Dock, Spotlight and Control Center gluemac autostarts'
             'pipewire: audio in the session'
             'wireplumber: audio session manager and wpctl for the volume keys'
             'pipewire-pulse: PulseAudio compatible audio'
@@ -40,8 +40,8 @@ prepare() {
     [ -f scenefx/meson.build ] || {
         echo "ERROR: the vendored scenefx/ is missing" >&2; exit 1; }
     # the shell is started by gluemac itself, not by the session wrapper
-    grep -q '^autostart = qs -c gluemac-shell$' config.def.conf || {
-        echo "ERROR: config.def.conf no longer autostarts gluemac-shell" >&2; exit 1; }
+    grep -q '^autostart = glue-macshell$' config.def.conf || {
+        echo "ERROR: config.def.conf no longer autostarts MacShell" >&2; exit 1; }
 }
 
 build() {

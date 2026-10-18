@@ -393,10 +393,120 @@
       "disk": "about 900 MB"
     },
     {
+      "id": "gluewc-macshell",
+      "name": "gluewc + MacShell",
+      "kind": "wm",
+      "description": "The gluewc tiling desktop with MacShell on top: a macOS Tahoe style menu bar, Dock, Spotlight, Control Center and notifications with Liquid Glass, over gluewc's BSP, scroll and drift layouts.",
+      "ease": 4,
+      "lightness": 5,
+      "keybindings": [
+        {
+          "keys": "Super+Return",
+          "action": "Open terminal (alacritty)"
+        },
+        {
+          "keys": "Super+Space",
+          "action": "Open application launcher"
+        },
+        {
+          "keys": "Super+Q",
+          "action": "Close focused window"
+        },
+        {
+          "keys": "Super+F",
+          "action": "Toggle fullscreen"
+        },
+        {
+          "keys": "Super+V",
+          "action": "Toggle floating"
+        },
+        {
+          "keys": "Super+E",
+          "action": "Open file manager"
+        },
+        {
+          "keys": "Super+B",
+          "action": "Open web browser"
+        },
+        {
+          "keys": "Super+1-9",
+          "action": "Switch to workspace 1-9"
+        },
+        {
+          "keys": "Super+Shift+1-9",
+          "action": "Move window to workspace 1-9"
+        },
+        {
+          "keys": "Super+L",
+          "action": "Lock the screen"
+        },
+        {
+          "keys": "Super+Shift+S",
+          "action": "Screenshot a region to the clipboard"
+        },
+        {
+          "keys": "Print",
+          "action": "Screenshot"
+        },
+        {
+          "keys": "Ctrl+Alt+Delete",
+          "action": "Session menu (lock, log out, restart, shut down)"
+        },
+        {
+          "keys": "Super+Shift+F1",
+          "action": "Show Welcome and shortcuts"
+        },
+        {
+          "keys": "Super",
+          "action": "Open the overview (tap Super alone)"
+        },
+        {
+          "keys": "Super+←↑↓→",
+          "action": "Move focus left/down/up/right"
+        },
+        {
+          "keys": "Super+Shift+←↑↓→",
+          "action": "Swap window left/down/up/right"
+        },
+        {
+          "keys": "Super+Ctrl+1-9",
+          "action": "Move window to workspace 1-9 and follow it"
+        },
+        {
+          "keys": "Super+N",
+          "action": "Cycle layout (bsp / scroll / drift)"
+        }
+      ],
+      "screenshots": [
+        "screenshots/macshell-desktop.png",
+        "screenshots/macshell-spotlight.png",
+        "screenshots/macshell-control-center.png",
+        "screenshots/macshell-settings.png"
+      ],
+      "packages": [
+        "gluewc",
+        "macshell",
+        "polkit-gnome",
+        "nautilus",
+        "loupe",
+        "celluloid",
+        "papers"
+      ],
+      "services": [],
+      "shell_choices": [
+        "macshell"
+      ],
+      "session_type": "wayland",
+      "exec": "gluewc-session",
+      "desktop": "gluewc",
+      "idle_ram": "about 230 MB",
+      "disk": "about 500 MB"
+    },
+    {
       "id": "gluemac",
       "name": "Glue Mac (gluemac)",
       "kind": "wm",
-      "description": "A desktop that works like a Mac: floating windows with a title bar, a menu bar at the top, a dock, Spotlight and Launchpad, Mission Control and Spaces you swipe between on the touchpad. Cmd is the Super key; Cmd+C, Cmd+V and the other app shortcuts work as on a Mac.",
+      "description": "A desktop that works like a Mac: floating windows with a title bar, a menu bar at the top, MacShell's Dock, Spotlight and Control Center, Mission Control and Spaces you swipe between on the touchpad. Cmd is the Super key; Cmd+C, Cmd+V and the other app shortcuts work as on a Mac.",
       "ease": 4,
       "lightness": 4,
       "keybindings": [
@@ -405,8 +515,16 @@
           "action": "Spotlight: search apps and files"
         },
         {
+          "keys": "Cmd+Shift+V",
+          "action": "Clipboard history"
+        },
+        {
+          "keys": "Ctrl+Cmd+Space",
+          "action": "Emoji picker"
+        },
+        {
           "keys": "F4",
-          "action": "Open Launchpad (or pinch on the touchpad)"
+          "action": "Show all apps in Spotlight (or pinch on the touchpad)"
         },
         {
           "keys": "Cmd+Tab",
@@ -450,16 +568,14 @@
         }
       ],
       "screenshots": [
-        "screenshots/gluemac-desktop.png",
-        "screenshots/gluemac-menu.png",
-        "screenshots/gluemac-spotlight.png",
-        "screenshots/gluemac-launchpad.png",
-        "screenshots/gluemac-control-center.png",
-        "screenshots/gluemac-mission-control.png"
+        "screenshots/macshell-desktop.png",
+        "screenshots/gluemac-mission-control.png",
+        "screenshots/macshell-spotlight.png",
+        "screenshots/macshell-control-center.png"
       ],
       "packages": [
         "gluemac",
-        "gluemac-shell",
+        "macshell",
         "polkit-gnome",
         "nautilus",
         "loupe",
@@ -471,10 +587,11 @@
       ],
       "services": [],
       "shell_choices": [
-        "gluemac-shell"
+        "macshell"
       ],
       "session_type": "wayland",
       "exec": "gluemac-session",
+      "starts_shell": true,
       "idle_ram": "about 300 MB",
       "disk": "about 800 MB"
     },
@@ -961,23 +1078,22 @@
       "exec": "noctalia"
     },
     {
-      "id": "gluemac-shell",
-      "name": "gluemac-shell",
-      "description": "The Mac desktop of gluemac: menu bar, dock, Spotlight, Launchpad, notifications and control center. gluemac starts it itself.",
+      "id": "macshell",
+      "name": "MacShell",
+      "description": "MacShell by Rickky (@0-ss) and vSuol (@vsoultann): a macOS Tahoe style menu bar, Dock, Spotlight, Control Center, notifications, desktop widgets and lock screen, with real-time Liquid Glass. Runs on gluemac and gluewc. github.com/0-ss/MacShell",
       "ease": 5,
-      "lightness": 4,
+      "lightness": 3,
       "keybindings": [],
       "screenshots": [
-        "screenshots/gluemac-desktop.png",
-        "screenshots/gluemac-menu.png",
-        "screenshots/gluemac-spotlight.png",
-        "screenshots/gluemac-launchpad.png",
-        "screenshots/gluemac-control-center.png",
-        "screenshots/gluemac-mission-control.png"
+        "screenshots/macshell-desktop.png",
+        "screenshots/macshell-spotlight.png",
+        "screenshots/macshell-control-center.png",
+        "screenshots/macshell-settings.png"
       ],
       "packages": [
-        "gluemac-shell"
-      ]
+        "macshell"
+      ],
+      "exec": "glue-macshell"
     },
     {
       "id": "caelestia",

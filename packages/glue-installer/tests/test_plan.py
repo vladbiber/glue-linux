@@ -707,8 +707,8 @@ class TestGreeterProfile(unittest.TestCase):
 
     def test_real_catalog_sessions_have_exec_and_type(self):
         catalog = load_catalog(_CATALOG_PATH)
-        wayland = {"gluewc", "gluewc-noctalia", "gluewc-caelestia", "gluemac",
-                   "hyprland-ii", "gnome"}
+        wayland = {"gluewc", "gluewc-noctalia", "gluewc-caelestia", "gluewc-macshell",
+                   "gluemac", "hyprland-ii", "gnome"}
         for session in catalog.sessions:
             self.assertIsNotNone(session.exec, session.id)
             expected = "wayland" if session.id in wayland else "x11"
@@ -719,6 +719,9 @@ class TestGreeterProfile(unittest.TestCase):
                 self.assertIsNone(shell.exec)
                 continue
             self.assertIsNotNone(shell.exec, shell.id)
+        # gluemac starts MacShell itself; gluewc needs the wrapper to
+        starts = {s.id for s in catalog.sessions if s.starts_shell}
+        self.assertEqual(starts, {"gluemac"})
 
 
 

@@ -14,6 +14,7 @@ depends=('wlroots0.20' 'scenefx0.5' 'wayland' 'libinput' 'libxkbcommon' 'pixman'
 makedepends=('git' 'wayland-protocols')
 optdepends=('glueqs: the shell gluewc is developed against'
             'noctalia-shell: alternative shell'
+            "macshell: macOS style menu bar and Dock, through gluewc's Hyprland IPC"
             'pipewire: audio in the session'
             'wireplumber: audio session manager'
             'pipewire-pulse: PulseAudio compatible audio'
@@ -21,7 +22,8 @@ optdepends=('glueqs: the shell gluewc is developed against'
             'brightnessctl: XF86MonBrightness keys through gluewc-backlight (light is the fallback)'
             'playerctl: XF86Audio play/next/prev keys'
             'wireplumber: wpctl for the XF86 volume keys')
-source=("git+https://github.com/vladbiber/gluewc.git")
+# GLUEWC_SRC=file:///src/gluewc builds an unpushed checkout
+source=("gluewc::git+${GLUEWC_SRC:-https://github.com/vladbiber/gluewc.git}")
 sha256sums=('SKIP')
 
 pkgver() {
@@ -49,6 +51,8 @@ prepare() {
     # session's shell does (launcher, lock, session menu, files, browser)
     sed -i -e 's/^bind_insert = mod+q = spawn:alacritty$/bind_insert = mod+q = wm:kill/' \
         -e 's/^bind_insert = mod+space = spawn:rofi -show drun$/bind_insert = mod+space = spawn:glue-action launcher/' \
+        -e "/^# MacShell's Spotlight when it runs, rofi otherwise$/d" \
+        -e 's/^bind_insert = mod+space = spawn:glue-macshell ipc spotlight toggle .*$/bind_insert = mod+space = spawn:glue-action launcher/' \
         -e '/^bind_insert = mod+m = wm:quit$/d' \
         -e 's/^bind_insert = mod+l = wm:focus_right$/bind_insert = mod+l = spawn:glue-action lock/' \
         -e 's/^bind_insert = mod+b = wm:toggle_decorations$/bind_insert = mod+shift+b = wm:toggle_decorations/' \

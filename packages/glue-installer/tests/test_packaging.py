@@ -239,7 +239,8 @@ class TestGluewcPkgbuildGuards(unittest.TestCase):
         self.assertIn("no longer the default terminal", self.text)
 
     def test_source_unchanged(self):
-        self.assertIn('source=("git+https://github.com/vladbiber/gluewc.git")', self.text)
+        # GitHub stays the default; GLUEWC_SRC only overrides it for local builds
+        self.assertIn('source=("gluewc::git+${GLUEWC_SRC:-https://github.com/vladbiber/gluewc.git}")', self.text)
 
     #: the bar's hardware keys are guarded the same way
     def test_xf86_keybinding_guard(self):
@@ -258,21 +259,22 @@ class TestGluewcPkgbuildGuards(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# gluemac + gluemac-shell PKGBUILDs (local sources mounted by build.sh)
+# gluemac + macshell PKGBUILDs (local sources mounted by build.sh)
 # ---------------------------------------------------------------------------
 
 class TestGluemacPkgbuilds(unittest.TestCase):
     def setUp(self):
         self.mac = (_PKG_ROOT.parent / "gluemac" / "PKGBUILD").read_text()
-        self.shell = (_PKG_ROOT.parent / "gluemac-shell" / "PKGBUILD").read_text()
+        self.shell = (_PKG_ROOT.parent / "macshell" / "PKGBUILD").read_text()
 
     def test_sources_are_the_mounted_local_repos(self):
         self.assertIn('git+file://${GLUEMAC_SRC:-/src/gluemac}', self.mac)
-        self.assertIn('git+file://${GLUEMAC_SHELL_SRC:-/src/gluemac-shell}', self.shell)
+        self.assertIn('git+file://${MACSHELL_SRC:-/src/gluemac-macshell}', self.shell)
         build = (_PKG_ROOT.parent.parent / "build.sh").read_text()
         self.assertIn("-v $HOME/$src:/src/$src:ro", build)
+        self.assertIn("for src in gluemac gluemac-macshell; do", build)
         make_iso = (_PKG_ROOT.parent.parent / "scripts" / "make-iso.sh").read_text()
-        self.assertIn("gluewc glueqs noctalia-shell gluemac gluemac-shell", make_iso)
+        self.assertIn("noctalia-shell gluemac \\\n           inter-font ttf-roboto-flex macshell", make_iso)
 
     def test_gluemac_needs_pango_and_librsvg_and_guards_shell_autostart(self):
         depends = re.search(r"^depends=\((.*?)\)", self.mac, re.S | re.M).group(1)
@@ -283,14 +285,21 @@ class TestGluemacPkgbuilds(unittest.TestCase):
         makedepends = re.search(r"^makedepends=\((.*?)\)", self.mac, re.S | re.M).group(1)
         for pkg in ("meson", "ninja"):
             self.assertIn(f"'{pkg}'", makedepends)
-        self.assertIn("autostart = qs -c gluemac-shell", self.mac)
+        self.assertIn("autostart = glue-macshell", self.mac)
 
-    def test_shell_installed_like_glueqs_without_apple_fonts(self):
-        self.assertIn('"$pkgdir/etc/xdg/quickshell/gluemac-shell"', self.shell)
-        self.assertIn('rm -rf "$dest/media/fonts"', self.shell)
-        self.assertIn("/usr/share/backgrounds/glue/glue-mac.jpg", self.shell)
+    def test_macshell_credits_upstream_and_replaces_gluemac_shell(self):
+        self.assertIn("Rickky (@0-ss)", self.shell)
+        self.assertIn("https://github.com/0-ss/MacShell", self.shell)
+        self.assertIn("license=('MIT')", self.shell)
+        self.assertIn("replaces=('gluemac-shell')", self.shell)
+        self.assertIn('local qs="$pkgdir/etc/xdg/quickshell"', self.shell)
+        self.assertIn('"$pkgdir/usr/bin/glue-macshell"', self.shell)
+        self.assertIn('"$pkgdir/etc/pam.d/maclock"', self.shell)
+        # pacman updates it, and no Apple logo ships
+        self.assertIn('macshell-update', self.shell)
+        self.assertIn('apple-logo-*.svg', self.shell)
         depends = re.search(r"^depends=\((.*?)\)", self.shell, re.S | re.M).group(1)
-        for pkg in ("quickshell", "gluemac", "glue-branding"):
+        for pkg in ("quickshell", "awww", "inter-font", "ttf-roboto-flex", "glue-branding"):
             self.assertIn(f"'{pkg}'", depends)
 
 

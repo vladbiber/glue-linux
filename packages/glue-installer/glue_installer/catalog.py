@@ -75,6 +75,9 @@ class Session:
     idle_ram: Optional[str] = None
     # extra disk space over the base system, e.g. "about 1.2 GB"
     disk: Optional[str] = None
+    # the compositor starts the shell itself (gluemac's autostart), so the
+    # login wrapper must not start a second one
+    starts_shell: bool = False
 
 
 @dataclass
@@ -262,7 +265,8 @@ def _parse_init(raw: dict, idx: int) -> Init:
 
 _SESSION_KEYS = {"id", "name", "kind", "description", "ease", "lightness",
                  "keybindings", "packages", "services", "shell_choices"}
-_SESSION_OPTIONAL_KEYS = frozenset({"session_type", "exec", "desktop", "idle_ram", "disk"}) | SHOT_KEYS
+_SESSION_OPTIONAL_KEYS = frozenset({"session_type", "exec", "desktop", "idle_ram", "disk",
+                                    "starts_shell"}) | SHOT_KEYS
 _VALID_SESSION_TYPES = {"x11", "wayland"}
 
 
@@ -307,6 +311,7 @@ def _parse_session(raw: dict, idx: int) -> Session:
         desktop=desktop,
         idle_ram=idle_ram,
         disk=disk,
+        starts_shell=_bool_field(raw, "starts_shell", ctx) if "starts_shell" in raw else False,
     )
 
 

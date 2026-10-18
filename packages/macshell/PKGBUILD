@@ -1,0 +1,61 @@
+# Maintainer: Glue Linux
+# MacShell by Rickky (@0-ss) and vSuol (@vsoultann), https://github.com/0-ss/MacShell
+# (MIT): the macOS Tahoe style menu bar, Dock, Liquid Glass and MacLock. Glue's
+# fork keeps upstream history plus glue/ (launcher, helper scripts, PAM, notes);
+# gluemac and gluewc speak Hyprland's IPC for it.
+# The fork has no remote yet: build.sh mounts it at /src/gluemac-macshell.
+pkgname=macshell
+pkgver=0.0.8.r0.0000000
+pkgrel=1
+pkgdesc="macOS Tahoe style menu bar, Dock and lock screen with Liquid Glass (Quickshell)"
+arch=('any')
+url="https://github.com/0-ss/MacShell"
+license=('MIT')
+depends=('quickshell' 'qt6-svg' 'qt6-shadertools' 'qt6-multimedia' 'qt6-declarative'
+         'awww' 'jq' 'curl' 'inter-font' 'ttf-roboto-flex' 'glue-branding'
+         'networkmanager' 'bluez-utils' 'brightnessctl' 'wireplumber' 'libnotify'
+         'wl-clipboard' 'cliphist' 'grim' 'slurp' 'inotify-tools' 'upower'
+         'util-linux' 'xdg-utils' 'pam')
+optdepends=('mpvpaper: video wallpapers'
+            'ffmpeg: video wallpaper previews'
+            'wf-recorder: screen recording'
+            'gpu-screen-recorder: screen recording on the GPU'
+            'hyprpicker: colour picker'
+            'hyprsunset: Night Shift'
+            'zenity: folder picker for wallpapers'
+            'ddcutil: brightness of external monitors'
+            'wtype: paste from the clipboard history'
+            'power-profiles-daemon: Game Mode switches to the performance profile'
+            'pipewire-audio: UI sounds and the audio pickers'
+            'nautilus: the default file manager'
+            'alacritty: the default terminal')
+makedepends=('git')
+# gluemac's previous shell; gluemac-session moves its config over
+replaces=('gluemac-shell')
+conflicts=('gluemac-shell')
+backup=('etc/pam.d/maclock')
+source=("gluemac-macshell::git+file://${MACSHELL_SRC:-/src/gluemac-macshell}")
+sha256sums=('SKIP')
+
+pkgver() {
+    cd gluemac-macshell
+    printf '%s.r%s.%s' "$(git describe --tags --abbrev=0 --match '0.*' 2>/dev/null || echo 0.0.8)" \
+        "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+package() {
+    cd gluemac-macshell
+    local qs="$pkgdir/etc/xdg/quickshell"
+    install -dm755 "$qs/MacShell" "$qs/MacLock"
+    cp -r MacShell/. "$qs/MacShell/"
+    cp -r MacLock/. "$qs/MacLock/"
+    # pacman updates it; the Apple logo is not shown on Glue
+    rm -f "$qs/MacShell/macshell-update" "$qs/MacShell"/apple-logo-*.svg \
+        "$qs/MacLock/hyprland.lua"
+    install -Dm755 glue/glue-macshell "$pkgdir/usr/bin/glue-macshell"
+    install -Dm755 -t "$pkgdir/usr/lib/macshell/scripts" glue/scripts/*.sh
+    install -Dm644 glue/maclock.pam "$pkgdir/etc/pam.d/maclock"
+    install -Dm644 -t "$pkgdir/usr/share/doc/$pkgname" README.md glue/CHANGES.md
+    install -Dm644 MacLock/README.md "$pkgdir/usr/share/doc/$pkgname/MACLOCK.md"
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

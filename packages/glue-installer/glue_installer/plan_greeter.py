@@ -329,7 +329,7 @@ def _session_wrapper_content(
     cmd = session.exec or session.id
     shell_block = (
         _SHELL_AUTOSTART_TEMPLATE.format(shell_cmd=shell_cmd)
-        if shell_cmd else ""
+        if shell_cmd and not session.starts_shell else ""
     )
     x11_block = _X11_BOOTSTRAP if session.session_type == "x11" else ""
     wayland_env = (

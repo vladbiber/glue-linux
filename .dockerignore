@@ -8,3 +8,5 @@ packages/*/src/
 packages/*/pkg/
 packages/*/*.pkg.tar.*
 .glue-repo/
+# makepkg's clone of a VCS source; GLUEWC_SRC may point somewhere else
+packages/gluewc/gluewc/

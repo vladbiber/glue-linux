@@ -34,6 +34,7 @@ lock() {
     case "$shell" in
         caelestia) exec qs -c caelestia ipc call lock lock ;;
         noctalia) exec noctalia msg session lock ;;
+        macshell) glue-macshell lock && exit 0 ;;
     esac
     if wayland; then
         have swaylock && exec swaylock -f -c 2B2F33
@@ -56,6 +57,7 @@ launcher)
     case "$shell" in
         caelestia) exec qs -c caelestia ipc call drawers toggle launcher ;;
         noctalia) exec noctalia msg panel-toggle launcher ;;
+        macshell) glue-macshell ipc spotlight toggle 2>/dev/null && exit 0 ;;
     esac
     # a second press closes it
     pkill -u "$uid" -x rofi && exit 0

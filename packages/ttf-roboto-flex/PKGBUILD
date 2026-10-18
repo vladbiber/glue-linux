@@ -1,0 +1,19 @@
+# Maintainer: Glue Linux
+# AUR-only upstream; MacShell's lock screen clock styles use it.
+pkgname=ttf-roboto-flex
+pkgver=3.000
+pkgrel=1
+_commit=739e06dc46ebb14cddd88b9768a6c1504d4677f6
+pkgdesc="Roboto Flex, a variable version of Roboto with many axes"
+arch=('any')
+url="https://github.com/googlefonts/roboto-flex"
+license=('OFL-1.1')
+source=("RobotoFlex.ttf::${url}/raw/${_commit}/fonts/RobotoFlex%5BGRAD,XOPQ,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght%5D.ttf"
+        "${url}/raw/${_commit}/OFL.txt")
+sha256sums=('94a7ea95ccee28c54885a507e3cc0a534ce41ec61d413935df0e07261a7ffe63'
+            '454ec26838f2b8f2e2588e759dd3742577e0d305d3359a7b81c86641fcab7d21')
+
+package() {
+    install -Dm644 RobotoFlex.ttf "$pkgdir/usr/share/fonts/TTF/RobotoFlex.ttf"
+    install -Dm644 OFL.txt "$pkgdir/usr/share/licenses/$pkgname/OFL.txt"
+}
