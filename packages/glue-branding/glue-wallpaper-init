@@ -7,8 +7,9 @@ set -u
 
 session=${1:-}
 shell=${2:-none}
-case "$session" in
-    gluemac*) default=/usr/share/backgrounds/glue/glue-mac.jpg ;;
+# the Mac look (gluemac, or MacShell on any compositor) has its own picture
+case "$session:$shell" in
+    gluemac*|*:macshell) default=/usr/share/backgrounds/glue/glue-mac.jpg ;;
     *) default=/usr/share/backgrounds/glue/wallpaper.png ;;
 esac
 wallpaper=${GLUE_WALLPAPER_PATH:-$default}
