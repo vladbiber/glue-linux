@@ -645,7 +645,7 @@ class DefaultWallpaperTest(unittest.TestCase):
 
     def test_gluemac_default_is_the_mac_wallpaper_not_stillwater(self):
         text = self.script.read_text()
-        self.assertIn("gluemac*) default=/usr/share/backgrounds/glue/glue-mac.jpg",
+        self.assertIn("gluemac*|*:macshell) default=/usr/share/backgrounds/glue/glue-mac.jpg",
                       text)
         # without the packaged file the script must not fall back to Stillwater
         if not Path("/usr/share/backgrounds/glue/glue-mac.jpg").exists():

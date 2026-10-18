@@ -116,6 +116,8 @@ wait_wayland() {
     tries=0
     while [ "$tries" -lt 150 ]; do
         for s in "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"/wayland-*; do
+            # wayland-N only: awww and others put wayland-N-<name>.sock here too
+            case "${s##*/wayland-}" in ''|*[!0-9]*) continue ;; esac
             if [ -S "$s" ] && ! flock -n "$s.lock" true 2>/dev/null; then
                 current || exit 0
                 WAYLAND_DISPLAY="${s##*/}"; export WAYLAND_DISPLAY
@@ -146,6 +148,8 @@ if [ "${1:-}" = "--inner" ]; then
         tries=0
         while [ "$tries" -lt 150 ]; do
             for s in "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"/wayland-*; do
+                # wayland-N only: awww and others put wayland-N-<name>.sock here too
+                case "${s##*/wayland-}" in ''|*[!0-9]*) continue ;; esac
                 if [ -S "$s" ] && ! flock -n "$s.lock" true 2>/dev/null; then
                     current || exit 0
                     WAYLAND_DISPLAY="${s##*/}"; export WAYLAND_DISPLAY

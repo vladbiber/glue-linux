@@ -176,6 +176,8 @@ _SHELL_AUTOSTART_TEMPLATE = """\
         tries=0
         while [ "$tries" -lt 150 ]; do
             for s in "${{XDG_RUNTIME_DIR:-/run/user/$(id -u)}}"/wayland-*; do
+                # wayland-N only: awww and others put wayland-N-<name>.sock here too
+                case "${{s##*/wayland-}}" in ''|*[!0-9]*) continue ;; esac
                 if [ -S "$s" ] && ! flock -n "$s.lock" true 2>/dev/null; then
                     WAYLAND_DISPLAY="${{s##*/}}"; export WAYLAND_DISPLAY
                     find_display
@@ -218,6 +220,8 @@ wait_wayland() {
     tries=0
     while [ "$tries" -lt 150 ]; do
         for s in "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"/wayland-*; do
+            # wayland-N only: awww and others put wayland-N-<name>.sock here too
+            case "${s##*/wayland-}" in ''|*[!0-9]*) continue ;; esac
             if [ -S "$s" ] && ! flock -n "$s.lock" true 2>/dev/null; then
                 WAYLAND_DISPLAY="${s##*/}"; export WAYLAND_DISPLAY
                 find_display

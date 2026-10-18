@@ -408,7 +408,7 @@ class TestIntegration(unittest.TestCase):
         steps = compile_steps(plan, target="/mnt", init_id="dinit")
         bashrc_steps = [s for s in steps if isinstance(s, WriteTargetFile) and s.path.endswith("/etc/skel/.bashrc")]
         self.assertEqual(len(bashrc_steps), 1)
-        self.assertIn("fastfetch", bashrc_steps[0].content)
+        self.assertNotIn("fastfetch", bashrc_steps[0].content)
 
     def test_integration_compile_deterministic(self):
         plan = resolve_plan(self._catalog, self._sel("runit"))

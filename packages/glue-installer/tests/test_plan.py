@@ -150,20 +150,20 @@ class TestHappyPath(unittest.TestCase):
         self.assertIn("/etc/skel/.bashrc", paths)
         self.assertIn("/etc/skel/.zshrc", paths)
 
-    def test_bashrc_contains_fastfetch_interactive_guard(self):
+    # a new terminal opens clean: fastfetch stays installed but is not run
+    def test_bashrc_does_not_run_fastfetch(self):
         sel = Selection("k-main", "dinit", [], {}, [], False, True)
         plan = resolve_plan(self.catalog, sel)
         bashrc = next(f for f in plan.files if f.path == "/etc/skel/.bashrc")
-        self.assertIn("fastfetch", bashrc.content)
-        self.assertIn("*i*", bashrc.content)
+        self.assertNotIn("fastfetch", bashrc.content)
         self.assertEqual(bashrc.mode, 0o644)
 
-    def test_zshrc_contains_fastfetch_interactive_guard(self):
+    def test_zshrc_does_not_run_fastfetch(self):
         sel = Selection("k-main", "dinit", [], {}, [], False, True)
         plan = resolve_plan(self.catalog, sel)
         zshrc = next(f for f in plan.files if f.path == "/etc/skel/.zshrc")
-        self.assertIn("fastfetch", zshrc.content)
-        self.assertIn("interactive", zshrc.content)
+        self.assertNotIn("fastfetch", zshrc.content)
+        self.assertIn("/usr/share/glue/zshrc", zshrc.content)
         self.assertEqual(zshrc.mode, 0o644)
 
     def test_files_sorted_by_path(self):
