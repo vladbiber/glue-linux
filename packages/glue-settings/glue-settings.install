@@ -49,6 +49,20 @@ _gamemode_group() {
     return 0
 }
 
+# Session wrappers are written once at install; ones from before the
+# installer skipped wayland-N-<name>.sock sockets take awww's for the
+# compositor and the shell never starts
+_wrapper_sockets() {
+    local f
+    for f in /usr/local/bin/glue-session-*; do
+        [ -f "$f" ] || continue
+        grep -q 'wayland-N only' "$f" && continue
+        grep -q '/wayland-\*; do$' "$f" || continue
+        sed -i '/\/wayland-\*; do$/{p;s/^\( *\)for s in .*/\1    case "${s##*\/wayland-}" in '"''"'|*[!0-9]*) continue ;; esac/}' "$f"
+    done
+    return 0
+}
+
 post_install() {
     _gamemode_group
 }
@@ -62,5 +76,8 @@ post_upgrade() {
     fi
     if [ "$(vercmp "$2" 1-6)" -lt 0 ]; then
         _gamemode_group
+    fi
+    if [ "$(vercmp "$2" 1-7)" -lt 0 ]; then
+        _wrapper_sockets
     fi
 }
