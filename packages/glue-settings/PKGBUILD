@@ -1,7 +1,7 @@
 # Maintainer: Glue Linux
 pkgname=glue-settings
 pkgver=1
-pkgrel=8
+pkgrel=9
 pkgdesc="Glue Linux performance defaults (CachyOS-Settings ported to Artix inits): sysctl, udev rules, modprobe, limits, THP oneshot, game-performance"
 arch=('any')
 url="https://github.com/vladbiber/glue-linux"
@@ -23,10 +23,11 @@ source=('70-glue.conf'
         'glue-sensors-detect'
         '99-glue-sshd-restart.hook' 'sshd-restart'
         '30-nofile.conf' 'glue-gamemode.sysusers' 'gamemode.ini' 'glue-perf'
-        'keep-modules' '10-glue-keep-modules.hook' '90-glue-keep-modules.hook')
+        'keep-modules' '10-glue-keep-modules.hook' '90-glue-keep-modules.hook'
+        'elogind-finish')
 sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
             'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
-            'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+            'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
     # ----- sysctl (vendor dir; /etc stays free for the admin) -----
@@ -75,6 +76,9 @@ package() {
         "$pkgdir/usr/share/libalpm/hooks/10-glue-keep-modules.hook"
     install -Dm644 "$srcdir/90-glue-keep-modules.hook" \
         "$pkgdir/usr/share/libalpm/hooks/90-glue-keep-modules.hook"
+
+    # ----- runit: no elogind respawn loop after D-Bus activation -----
+    install -Dm755 "$srcdir/elogind-finish" "$pkgdir/etc/runit/sv/elogind/finish"
 
     # ----- glue-tuning oneshot for all three inits -----
     install -Dm644 "$startdir/dinit.d/glue-tuning" \

@@ -53,6 +53,8 @@ rootfs:
     # copied onto the offline clone
     - limine
     - glue-boot
+    # glue-settings: performance defaults, and the elogind finish script runit needs
+    - glue-settings
     # os-prober: live-only; the installer turns its output into /etc/glue/boot.d
     - os-prober
     # laptop audio (SOF/UCM) and early CPU microcode on the live system

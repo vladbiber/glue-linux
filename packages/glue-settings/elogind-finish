@@ -1,0 +1,7 @@
+#!/bin/sh
+# runit: elogind was already started by D-Bus activation; wait on it instead
+# of respawning every second, take over if it exits.
+while pidof -q elogind; do
+    sleep 30
+done
+exit 0
