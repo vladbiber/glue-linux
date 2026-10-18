@@ -1,0 +1,3 @@
+# cachyos-ananicy-rules makes greetd a Launcher (nice 16), and every session
+# it starts inherits that: the compositor, the apps and the games
+{ "name": "greetd", "nice": 0, "ioclass": "best-effort" }

@@ -33,18 +33,12 @@ from glue_installer.plan_types import (  # noqa: F401
 
 _BASHRC_CONTENT = """\
 # ~/.bashrc — Glue Linux
-# Run fastfetch on interactive shell start
-case $- in
-    *i*) command -v fastfetch >/dev/null && fastfetch ;;
-esac
 """
 
 _ZSHRC_CONTENT = """\
 # ~/.zshrc - Glue Linux
 # Oh My Zsh is preinstalled for graphical sessions; minimal installs still work.
 [[ -r /usr/share/glue/zshrc ]] && source /usr/share/glue/zshrc
-# Run fastfetch on interactive shell start
-[[ -o interactive ]] && command -v fastfetch >/dev/null && fastfetch
 """
 
 # Quiet the kernel console on the installed system (ported from the proven
@@ -73,6 +67,8 @@ _ALWAYS_PACKAGES = frozenset({
     # signing key of the online [glue] repo (Glue's own packages and updates)
     "glue-keyring",
     "wpa_supplicant", "openresolv",
+    # fsck.fat: the ESP is checked at boot, and without it a dirty FAT is never repaired
+    "dosfstools",
     # os-prober is NOT installed on the target: it runs on the live side only
     # (iso-profile) and its results become /etc/glue/boot.d/*.conf
     # (glue_installer.osdetect) that glue-boot-update keeps.

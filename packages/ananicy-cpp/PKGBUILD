@@ -5,7 +5,7 @@
 # fails to attach on linux-cachyos 7.2 and the daemon then segfaults.
 pkgname=ananicy-cpp
 pkgver=1.2.0
-pkgrel=2
+pkgrel=3
 pkgdesc="Auto nice daemon with community rules (C++ rewrite), with dinit/runit/openrc services"
 arch=('x86_64')
 url="https://gitlab.com/ananicy-cpp/ananicy-cpp"
@@ -16,11 +16,15 @@ optdepends=('cachyos-ananicy-rules: the rule set the daemon applies')
 source=("git+https://gitlab.com/ananicy-cpp/ananicy-cpp.git#tag=v${pkgver}"
         'ananicy-cpp.dinit'
         'ananicy-cpp.runit-run'
-        'ananicy-cpp.openrc')
-sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP')
+        'ananicy-cpp.openrc'
+        'sorted-rules.patch'
+        'greetd.rules')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 prepare() {
   cd "$pkgname"
+  # rule files load in path order, so zz-glue/ overrides 00-default/
+  patch -Np1 -i "$srcdir/sorted-rules.patch"
   # missing standard headers show up as errors with GCC 16
   find src -name '*.cpp' -exec sed -i '1i #include <cstdint>\n#include <cstring>\n#include <unistd.h>' {} +
 }
@@ -43,6 +47,7 @@ build() {
 package() {
   DESTDIR="$pkgdir" cmake --install build --component Runtime
   install -dm755 "$pkgdir/etc/ananicy.d"
+  install -Dm644 "$srcdir/greetd.rules" "$pkgdir/etc/ananicy.d/zz-glue/greetd.rules"
 
   install -Dm644 "$srcdir/ananicy-cpp.dinit"     "$pkgdir/etc/dinit.d/ananicy-cpp"
   install -Dm755 "$srcdir/ananicy-cpp.runit-run" "$pkgdir/etc/runit/sv/ananicy-cpp/run"

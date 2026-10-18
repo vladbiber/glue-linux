@@ -1,0 +1,37 @@
+diff --git a/src/rules.cpp b/src/rules.cpp
+index a4c5a59..54b21e6 100644
+--- a/src/rules.cpp
++++ b/src/rules.cpp
+@@ -9,6 +9,8 @@
+ #include "utility/regex_utils.hpp"
+ #endif
+ 
++#include <algorithm>
++#include <vector>
+ #include <filesystem>  // for path, recursive_directory_iterator
+ #include <fstream>     // for ifstream
+ #include <iostream>    // for cout
+@@ -153,6 +155,8 @@ void Rules::load_rules_from_directory(const fs::path &dir_path) {
+             (config_ref->rule_load() && file_ext.compare(".rules") == 0));
+   };
+ 
++  // sorted, so a later file overrides an earlier rule of the same name
++  std::vector<fs::path> files;
+   for (const auto &dir_entry : fs::recursive_directory_iterator{dir_path}) {
+     if (fs::is_directory(dir_entry)) {
+       spdlog::debug(fmt::format("Scanning directory {}",
+@@ -161,9 +165,13 @@ void Rules::load_rules_from_directory(const fs::path &dir_path) {
+     }
+ 
+     if (is_valid_file(m_config, std::move(dir_entry.path().extension()))) {
+-      load_rules_from_file(dir_entry.path());
++      files.push_back(dir_entry.path());
+     }
+   }
++  std::sort(files.begin(), files.end());
++  for (const auto &file : files) {
++    load_rules_from_file(file);
++  }
+ }
+ 
+ void Rules::create_cgroups() const noexcept {

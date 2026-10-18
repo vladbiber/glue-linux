@@ -1,13 +1,14 @@
 # Maintainer: Glue Linux
 pkgname=glue-boot
 pkgver=1
-pkgrel=6
+pkgrel=7
 pkgdesc="Glue Linux boot menu maintenance: regenerates /boot/limine.conf from /etc/glue/boot.conf and redeploys Limine on kernel and bootloader updates"
 arch=('any')
 url="https://github.com/vladbiber/glue-linux"
 license=('GPL-3.0-or-later')
 # util-linux: findmnt, lsblk; coreutils: cp, mv, sort, ls
-depends=('limine' 'util-linux' 'coreutils' 'python')
+# dosfstools: fsck.fat clears the ESP's dirty bit at boot, the kernel never does
+depends=('limine' 'util-linux' 'coreutils' 'python' 'dosfstools')
 optdepends=('efibootmgr: register Glue Linux in the UEFI boot menu'
             'os-prober: find Windows on BIOS installs and other disks'
             'sbctl: Secure Boot (glue-secureboot)')
