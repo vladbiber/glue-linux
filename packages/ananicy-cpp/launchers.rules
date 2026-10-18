@@ -1,0 +1,6 @@
+# cachyos-ananicy-rules makes these Services (nice 10), and every app they
+# start inherits it: MacShell and glueqs (qs) launch from the Dock and
+# Spotlight, bwrap wraps every Flatpak, dbus-daemon activates apps
+{ "name": "qs", "nice": 0, "ioclass": "best-effort" }
+{ "name": "bwrap", "nice": 0, "ioclass": "best-effort" }
+{ "name": "dbus-daemon", "nice": 0, "ioclass": "best-effort" }
