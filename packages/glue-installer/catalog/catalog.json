@@ -572,7 +572,8 @@
         }
       ],
       "screenshots": [
-        "screenshots/macshell-desktop.png",
+        "screenshots/gluemac-desktop.png",
+        "screenshots/gluemac-applications.png",
         "screenshots/gluemac-mission-control.png",
         "screenshots/macshell-spotlight.png",
         "screenshots/macshell-control-center.png"
@@ -1170,11 +1171,22 @@
         "bluetoothd"
       ],
       "default": false
+    },
+    {
+      "id": "xbox-dongle",
+      "name": "Xbox Wireless Adapter",
+      "description": "Driver (xone) for Microsoft's Xbox Wireless Adapter USB stick and wired Xbox One / Series controllers. Only if you use the adapter: it replaces the standard xpad driver, so Xbox 360 and other xinput-mode pads stop working on USB.",
+      "packages": [
+        "xone-dkms",
+        "xone-dongle-firmware"
+      ],
+      "services": [],
+      "default": false
     }
   ],
   "gaming": {
     "name": "Gaming Mode",
-    "description": "Prepares the system for gaming out of the box: Steam with Proton (the CachyOS build, plus Proton GE), Heroic, Lutris, Wine with winetricks and protontricks, 32- and 64-bit Vulkan, GameMode, MangoHud with GOverlay, Gamescope, a sched_ext CPU scheduler and ananicy-cpp process priorities. Graphics drivers are detected and installed automatically.",
+    "description": "Prepares the system for gaming out of the box: Steam with Proton (the CachyOS build, plus Proton GE), Heroic, Lutris, Wine with winetricks and protontricks, 32- and 64-bit Vulkan, GameMode, MangoHud with GOverlay, Gamescope, xpadneo for Xbox controllers over Bluetooth, a sched_ext CPU scheduler and ananicy-cpp process priorities. Graphics drivers are detected and installed automatically.",
     "packages": [
       "steam",
       "heroic-games-launcher-bin",
@@ -1195,6 +1207,7 @@
       "ananicy-cpp",
       "cachyos-ananicy-rules",
       "lib32-mangohud",
+      "xpadneo-dkms",
       "wine-cachyos",
       "lutris",
       "goverlay",

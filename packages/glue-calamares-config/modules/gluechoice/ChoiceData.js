@@ -67,7 +67,19 @@ var pages = {
           "Wine for Windows programs",
           "Graphics drivers for your card, installed automatically",
           "MangoHud, GameMode and Gamescope for FPS and smoother play",
+          "PlayStation, Switch, Steam and Xbox controllers, also over Bluetooth",
           "A CPU scheduler and process priorities tuned for games"
+        ]
+      },
+      {
+        "id": "gaming-xbox",
+        "name": "Yes, gaming with an Xbox Wireless Adapter",
+        "description": "Everything above, plus the driver for Microsoft's USB wireless adapter.",
+        "badge": "Larger download",
+        "points": [
+          "Only if you use the Xbox Wireless Adapter stick",
+          "Xbox controllers over Bluetooth already work with the option above",
+          "Xbox 360 and xinput-mode pads stop working on USB with this driver"
         ]
       },
       {

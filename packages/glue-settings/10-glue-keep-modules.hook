@@ -1,0 +1,10 @@
+[Trigger]
+Type = Path
+Operation = Upgrade
+Operation = Remove
+Target = usr/lib/modules/*/vmlinuz
+
+[Action]
+Description = Saving the running kernel's modules...
+When = PreTransaction
+Exec = /usr/lib/glue/keep-modules save

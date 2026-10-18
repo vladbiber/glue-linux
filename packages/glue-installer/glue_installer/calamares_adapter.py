@@ -99,8 +99,8 @@ def parse_selection(d: Mapping, catalog=None) -> Selection:
     Keys: kernel (catalog id, default linux-cachyos), init (dinit|runit|
     openrc), sessions (list of catalog session ids), shell (glueqs|
     noctalia[-shell], only for sessions offering several shells), gaming (bool),
-    scheduler (scx_lavd|scx_bpfland|none), app_store/bluetooth (bool support
-    toggles), swap_mode (auto|zram|none), hibernate (bool). Unknown keys are
+    scheduler (scx_lavd|scx_bpfland|none), app_store/bluetooth/xbox_dongle (bool
+    support toggles), swap_mode (auto|zram|none), hibernate (bool). Unknown keys are
     ignored (never read). With a catalog, kernel/sessions/shell are checked
     against it here; without one resolve_plan does it later.
     Raises AdapterError for a value outside its allowed set.
@@ -123,6 +123,8 @@ def parse_selection(d: Mapping, catalog=None) -> Selection:
         support.append("app-store")
     if _bool(d, "bluetooth", True):
         support.append("bluetooth")
+    if _bool(d, "xbox_dongle", False):
+        support.append("xbox-dongle")
     swap_mode = _choice(d, "swap_mode", SWAP_MODES, "auto")
     hibernate = _bool(d, "hibernate", False)
     secure_boot = _bool(d, "secure_boot", False)

@@ -1,7 +1,7 @@
 # Maintainer: Glue Linux
 pkgname=glue-settings
 pkgver=1
-pkgrel=7
+pkgrel=8
 pkgdesc="Glue Linux performance defaults (CachyOS-Settings ported to Artix inits): sysctl, udev rules, modprobe, limits, THP oneshot, game-performance"
 arch=('any')
 url="https://github.com/vladbiber/glue-linux"
@@ -22,10 +22,11 @@ source=('70-glue.conf'
         'glue-thp-tune' 'game-performance' 'pci-latency'
         'glue-sensors-detect'
         '99-glue-sshd-restart.hook' 'sshd-restart'
-        '30-nofile.conf' 'glue-gamemode.sysusers' 'gamemode.ini' 'glue-perf')
+        '30-nofile.conf' 'glue-gamemode.sysusers' 'gamemode.ini' 'glue-perf'
+        'keep-modules' '10-glue-keep-modules.hook' '90-glue-keep-modules.hook')
 sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
             'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
-            'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+            'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
     # ----- sysctl (vendor dir; /etc stays free for the admin) -----
@@ -67,6 +68,13 @@ package() {
     install -Dm644 "$srcdir/99-glue-sshd-restart.hook" \
         "$pkgdir/usr/share/libalpm/hooks/99-glue-sshd-restart.hook"
     install -Dm755 "$srcdir/sshd-restart" "$pkgdir/usr/lib/glue/sshd-restart"
+
+    # ----- running kernel keeps its modules until reboot -----
+    install -Dm755 "$srcdir/keep-modules" "$pkgdir/usr/lib/glue/keep-modules"
+    install -Dm644 "$srcdir/10-glue-keep-modules.hook" \
+        "$pkgdir/usr/share/libalpm/hooks/10-glue-keep-modules.hook"
+    install -Dm644 "$srcdir/90-glue-keep-modules.hook" \
+        "$pkgdir/usr/share/libalpm/hooks/90-glue-keep-modules.hook"
 
     # ----- glue-tuning oneshot for all three inits -----
     install -Dm644 "$startdir/dinit.d/glue-tuning" \

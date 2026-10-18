@@ -267,12 +267,13 @@ class TestGluemacPkgbuilds(unittest.TestCase):
         self.mac = (_PKG_ROOT.parent / "gluemac" / "PKGBUILD").read_text()
         self.shell = (_PKG_ROOT.parent / "macshell" / "PKGBUILD").read_text()
 
-    def test_sources_are_the_mounted_local_repos(self):
-        self.assertIn('git+file://${GLUEMAC_SRC:-/src/gluemac}', self.mac)
-        self.assertIn('git+file://${MACSHELL_SRC:-/src/gluemac-macshell}', self.shell)
+    def test_sources_are_github_or_mounted_checkouts(self):
+        self.assertIn('git+${GLUEMAC_SRC:-https://github.com/vladbiber/gluemac.git}', self.mac)
+        self.assertIn('git+${MACSHELL_SRC:-https://github.com/vladbiber/macshell.git}', self.shell)
         build = (_PKG_ROOT.parent.parent / "build.sh").read_text()
-        self.assertIn("-v $HOME/$src:/src/$src:ro", build)
-        self.assertIn("for src in gluemac gluemac-macshell; do", build)
+        self.assertIn('SRC_MOUNTS="$SRC_MOUNTS -v $HOME/$1:/src/$1:ro"', build)
+        self.assertIn("local_src gluemac GLUEMAC_SRC", build)
+        self.assertIn("local_src gluemac-macshell MACSHELL_SRC", build)
         make_iso = (_PKG_ROOT.parent.parent / "scripts" / "make-iso.sh").read_text()
         self.assertIn("noctalia-shell gluemac \\\n           inter-font ttf-roboto-flex macshell", make_iso)
 

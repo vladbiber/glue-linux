@@ -8,6 +8,7 @@ depend() {
 
 start() {
     ebegin "Applying Glue THP tuning"
+    /usr/lib/glue/keep-modules clean
     /usr/bin/glue-thp-tune
     eend $?
 }

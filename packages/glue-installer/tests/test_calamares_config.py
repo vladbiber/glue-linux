@@ -149,9 +149,9 @@ class TestPages(unittest.TestCase):
     def test_gaming_page_required_off_by_default(self):
         gaming = self.pages["gluegaming"]
         self.assertEqual((gaming.mode, gaming.default), ("required", "no-gaming"))
-        self.assertEqual(gaming.item_ids(), ["gaming", "no-gaming"])
+        self.assertEqual(gaming.item_ids(), ["gaming", "gaming-xbox", "no-gaming"])
         self.assertTrue(gaming.items[0].points)
-        self.assertEqual(gaming.items[1].points, [])
+        self.assertEqual(gaming.items[2].points, [])
 
     def test_item_texts_present(self):
         for page in self.pages.values():
@@ -234,12 +234,20 @@ class TestSelectionFromGlobalstorage(unittest.TestCase):
               GS_PREFIX + "gluegaming": "gaming", "rootMountPoint": "/tmp/x"}
         sel = selection_from_globalstorage(gs, _CATALOG)
         self.assertEqual(sel, {"sessions": ["gluewc-noctalia", "kde-plasma"],
-                               "kernel": "linux-zen", "init": "runit", "gaming": True})
+                               "kernel": "linux-zen", "init": "runit", "gaming": True,
+                               "xbox_dongle": False})
         parsed = parse_selection(sel, _CATALOG)
         self.assertEqual(parsed.shell_choice, {"gluewc-noctalia": "noctalia"})
         self.assertEqual(parsed.scheduler, "scx_lavd")
         self.assertEqual(parsed.support_ids, ["app-store", "bluetooth"])
         self.assertTrue(has_page_values(gs))
+
+    def test_xbox_adapter_choice_is_gaming_plus_xone(self):
+        gs = {SESSIONS_KEY: "gluewc", GS_PREFIX + "gluegaming": "gaming-xbox"}
+        sel = selection_from_globalstorage(gs, _CATALOG)
+        self.assertTrue(sel["gaming"])
+        parsed = parse_selection({**sel, "shell": "glueqs"}, _CATALOG)
+        self.assertEqual(parsed.support_ids, ["app-store", "bluetooth", "xbox-dongle"])
 
     def test_defaults_and_empty_pages(self):
         gs = {SESSIONS_KEY: "gluewc", GS_PREFIX + "gluekernel": "linux-cachyos",

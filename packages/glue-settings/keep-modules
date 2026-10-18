@@ -1,0 +1,38 @@
+#!/bin/sh
+# keep-modules save|restore|clean: the running kernel's modules survive a
+# kernel upgrade until the next boot, so new devices (controllers, USB) still
+# get their driver.
+set -u
+MODS=/usr/lib/modules
+SAVE=/usr/lib/glue/modules-saved
+kver=$(uname -r)
+
+case "${1:-}" in
+save)
+    [ -d "$MODS/$kver" ] || exit 0
+    rm -rf "$SAVE"
+    mkdir -p "$SAVE"
+    cp -al "$MODS/$kver" "$SAVE/" 2>/dev/null || cp -a "$MODS/$kver" "$SAVE/"
+    ;;
+restore)
+    if [ ! -e "$MODS/$kver/modules.dep" ] && [ -d "$SAVE/$kver" ]; then
+        rm -rf "$MODS/$kver"
+        mv "$SAVE/$kver" "$MODS/$kver"
+        touch "$MODS/$kver/.glue-kept"
+        echo "kept the modules of the running kernel $kver until the next boot"
+    fi
+    rm -rf "$SAVE"
+    ;;
+clean)
+    rm -rf "$SAVE"
+    for d in "$MODS"/*/.glue-kept; do
+        [ -e "$d" ] || continue
+        d=${d%/.glue-kept}
+        [ "${d##*/}" = "$kver" ] || rm -rf "$d"
+    done
+    ;;
+*)
+    echo "usage: keep-modules save|restore|clean" >&2
+    exit 2
+    ;;
+esac

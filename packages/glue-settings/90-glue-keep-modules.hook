@@ -1,0 +1,10 @@
+[Trigger]
+Type = Path
+Operation = Upgrade
+Operation = Remove
+Target = usr/lib/modules/*/vmlinuz
+
+[Action]
+Description = Keeping the running kernel's modules until reboot...
+When = PostTransaction
+Exec = /usr/lib/glue/keep-modules restore

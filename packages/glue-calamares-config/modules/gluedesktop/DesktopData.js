@@ -103,7 +103,8 @@ var entries = [
     "disk": "about 800 MB",
     "wayland": true,
     "images": [
-      "file:///usr/share/glue-installer/catalog/screenshots/macshell-desktop.png",
+      "file:///usr/share/glue-installer/catalog/screenshots/gluemac-desktop.png",
+      "file:///usr/share/glue-installer/catalog/screenshots/gluemac-applications.png",
       "file:///usr/share/glue-installer/catalog/screenshots/gluemac-mission-control.png",
       "file:///usr/share/glue-installer/catalog/screenshots/macshell-spotlight.png",
       "file:///usr/share/glue-installer/catalog/screenshots/macshell-control-center.png"

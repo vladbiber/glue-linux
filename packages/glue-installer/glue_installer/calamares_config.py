@@ -36,6 +36,7 @@ GS_PREFIX = "packagechooser_"
 # relative to the catalog directory).
 GAMING_ON = "gaming"
 GAMING_OFF = "no-gaming"
+GAMING_XBOX = "gaming-xbox"
 SECUREBOOT_ON = "secureboot"
 SECUREBOOT_OFF = "no-secureboot"
 # QML pages run as instances of the stock notesqml view module; the QML file
@@ -154,7 +155,16 @@ def build_pages(catalog) -> List[Page]:
                 "Wine for Windows programs",
                 "Graphics drivers for your card, installed automatically",
                 "MangoHud, GameMode and Gamescope for FPS and smoother play",
+                "PlayStation, Switch, Steam and Xbox controllers, also over Bluetooth",
                 "A CPU scheduler and process priorities tuned for games"]))
+    gaming.items.append(Item(
+        GAMING_XBOX, "Yes, gaming with an Xbox Wireless Adapter",
+        "Everything above, plus the driver for Microsoft's USB wireless "
+        "adapter.",
+        badge="Larger download",
+        points=["Only if you use the Xbox Wireless Adapter stick",
+                "Xbox controllers over Bluetooth already work with the option above",
+                "Xbox 360 and xinput-mode pads stop working on USB with this driver"]))
     gaming.items.append(Item(
         GAMING_OFF, "No, keep it light",
         "A smaller, lighter system. You can still install Steam or other "
@@ -240,7 +250,8 @@ def selection_from_globalstorage(gs: Mapping, catalog) -> Dict[str, object]:
             sel[key] = ids[0]
     gaming = _picked(gs, pages["gluegaming"])
     if gaming:
-        sel["gaming"] = gaming[0] == GAMING_ON
+        sel["gaming"] = gaming[0] in (GAMING_ON, GAMING_XBOX)
+        sel["xbox_dongle"] = gaming[0] == GAMING_XBOX
     secure = _picked(gs, pages["gluesecureboot"])
     if secure:
         sel["secure_boot"] = secure[0] == SECUREBOOT_ON

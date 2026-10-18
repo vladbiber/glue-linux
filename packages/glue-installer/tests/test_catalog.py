@@ -181,7 +181,7 @@ class TestPositive(unittest.TestCase):
     def test_session_screenshot_names(self):
         expected = {"gluewc": "screenshots/gluewc-glueqs-bar.png",
                     "gluewc-noctalia": "screenshots/gluewc-noctalia-bar.png",
-                    "gluemac": "screenshots/macshell-desktop.png",
+                    "gluemac": "screenshots/gluemac-desktop.png",
                     "gluewc-macshell": "screenshots/macshell-desktop.png",
                     "gluewc-caelestia": "screenshots/gluewc-caelestia-bar.png",
                     "hyprland-ii": "screenshots/hyprland-ii-desktop.png",
@@ -493,7 +493,8 @@ class ScreenshotFilesTest(unittest.TestCase):
                | {f"gluewc-noctalia-{n}.png" for n in (
                    "bar", "launcher", "control-center", "notifications", "overview",
                    "settings", "wallpapers")}
-               | {"gluemac-mission-control.png"}
+               | {"gluemac-mission-control.png", "gluemac-desktop.png",
+                  "gluemac-applications.png"}
                | {f"macshell-{n}.png" for n in (
                    "desktop", "spotlight", "control-center", "settings")}
                | {f"gluewc-caelestia-{n}.png" for n in (
