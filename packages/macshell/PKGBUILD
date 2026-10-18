@@ -6,7 +6,7 @@
 # The fork has no remote yet: build.sh mounts it at /src/gluemac-macshell.
 pkgname=macshell
 pkgver=0.0.8.r0.0000000
-pkgrel=1
+pkgrel=2
 pkgdesc="macOS Tahoe style menu bar, Dock and lock screen with Liquid Glass (Quickshell)"
 arch=('any')
 url="https://github.com/0-ss/MacShell"
@@ -15,7 +15,7 @@ depends=('quickshell' 'qt6-svg' 'qt6-shadertools' 'qt6-multimedia' 'qt6-declarat
          'awww' 'jq' 'curl' 'inter-font' 'ttf-roboto-flex' 'glue-branding'
          'networkmanager' 'bluez-utils' 'brightnessctl' 'wireplumber' 'libnotify'
          'wl-clipboard' 'cliphist' 'grim' 'slurp' 'inotify-tools' 'upower'
-         'util-linux' 'xdg-utils' 'pam')
+         'util-linux' 'xdg-utils' 'pam' 'imagemagick')
 optdepends=('mpvpaper: video wallpapers'
             'ffmpeg: video wallpaper previews'
             'wf-recorder: screen recording'
