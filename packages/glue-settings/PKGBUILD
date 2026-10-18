@@ -1,14 +1,15 @@
 # Maintainer: Glue Linux
 pkgname=glue-settings
 pkgver=1
-pkgrel=5
+pkgrel=6
 pkgdesc="Glue Linux performance defaults (CachyOS-Settings ported to Artix inits): sysctl, udev rules, modprobe, limits, THP oneshot, game-performance"
 arch=('any')
 url="https://github.com/vladbiber/glue-linux"
 license=('GPL-3.0-or-later')
 # hdparm: 69-hdparm.rules RUN; pciutils: setpci in pci-latency
 depends=('hdparm' 'pciutils')
-optdepends=('power-profiles-daemon: profile switching for game-performance'
+optdepends=('power-profiles-daemon: profile switching for game-performance and glue-perf'
+            'gamemode: gamemoderun picks up the Glue gamemode.ini'
             'nvidia-utils: nvidia-powerd for the Dynamic Boost service')
 install=glue-settings.install
 source=('70-glue.conf'
@@ -20,10 +21,11 @@ source=('70-glue.conf'
         '20-audio.conf'
         'glue-thp-tune' 'game-performance' 'pci-latency'
         'glue-sensors-detect'
-        '99-glue-sshd-restart.hook' 'sshd-restart')
+        '99-glue-sshd-restart.hook' 'sshd-restart'
+        '30-nofile.conf' 'glue-gamemode.sysusers' 'gamemode.ini' 'glue-perf')
 sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
             'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
-            'SKIP' 'SKIP')
+            'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
     # ----- sysctl (vendor dir; /etc stays free for the admin) -----
@@ -46,6 +48,14 @@ package() {
     # ----- realtime limits for the audio group -----
     install -Dm644 "$srcdir/20-audio.conf" \
         "$pkgdir/etc/security/limits.d/20-audio.conf"
+
+    # ----- games: fd limit for Proton, gamemode group + defaults -----
+    install -Dm644 "$srcdir/30-nofile.conf" \
+        "$pkgdir/etc/security/limits.d/30-nofile.conf"
+    install -Dm644 "$srcdir/glue-gamemode.sysusers" \
+        "$pkgdir/usr/lib/sysusers.d/glue-gamemode.conf"
+    install -Dm644 "$srcdir/gamemode.ini" "$pkgdir/usr/share/gamemode/gamemode.ini"
+    install -Dm755 "$srcdir/glue-perf" "$pkgdir/usr/bin/glue-perf"
 
     # ----- tools -----
     install -Dm755 "$srcdir/glue-thp-tune"       "$pkgdir/usr/bin/glue-thp-tune"

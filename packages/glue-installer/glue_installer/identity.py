@@ -94,9 +94,10 @@ def identity_steps(spec: IdentitySpec, *, target: str = "/mnt") -> List[Step]:
       6. locale-gen (artix-chroot)
       7. /etc/locale.conf write
       8. useradd -m -G wheel,audio,video,input,storage -s /bin/bash <username>
-      9. chpasswd for the new user (password in stdin only)
-     10. chpasswd for root (password in stdin only)
-     11. /etc/sudoers.d/10-wheel (mode 0o440)
+      9. gamemode group for the new user, when glue-settings created it
+     10. chpasswd for the new user (password in stdin only)
+     11. chpasswd for root (password in stdin only)
+     12. /etc/sudoers.d/10-wheel (mode 0o440)
 
     Pure function: no I/O, no subprocess calls. Password appears ONLY in
     RunCommand.stdin, never in RunCommand.argv.
@@ -176,21 +177,31 @@ def identity_steps(spec: IdentitySpec, *, target: str = "/mnt") -> List[Step]:
         description=f"Create user {spec.username}",
     ))
 
-    # 9. Set user password via chpasswd stdin (password NEVER in argv)
+    # 9. gamemode group (glue-settings creates it; server installs have none)
+    steps.append(RunCommand(
+        argv=[
+            "artix-chroot", t, "sh", "-c",
+            'getent group gamemode >/dev/null || exit 0; gpasswd -a "$1" gamemode',
+            "sh", spec.username,
+        ],
+        description=f"Add {spec.username} to gamemode",
+    ))
+
+    # 10. Set user password via chpasswd stdin (password NEVER in argv)
     steps.append(RunCommand(
         argv=["artix-chroot", t, "chpasswd"],
         stdin=f"{spec.username}:{spec.password}\n",
         description=f"Set password for {spec.username}",
     ))
 
-    # 10. Set root password via chpasswd stdin (password NEVER in argv)
+    # 11. Set root password via chpasswd stdin (password NEVER in argv)
     steps.append(RunCommand(
         argv=["artix-chroot", t, "chpasswd"],
         stdin=f"root:{spec.password}\n",
         description="Set root password",
     ))
 
-    # 11. Wheel sudoers drop-in (mode 0o440 - required by sudo)
+    # 12. Wheel sudoers drop-in (mode 0o440 - required by sudo)
     steps.append(WriteTargetFile(
         path=f"{t}/etc/sudoers.d/10-wheel",
         content="%wheel ALL=(ALL:ALL) ALL\n",

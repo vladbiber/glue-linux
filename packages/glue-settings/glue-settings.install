@@ -37,11 +37,30 @@ _enable_powerd() {
     return 0
 }
 
+# gamemode's limits.d entry is for @gamemode, but Artix's gamemode ships no
+# group. Every regular user joins it once; removing someone later sticks.
+_gamemode_group() {
+    getent group gamemode >/dev/null || groupadd -r gamemode
+    getent passwd | while IFS=: read -r name _ uid _ _ _ shell; do
+        [ "$uid" -ge 1000 ] && [ "$uid" -lt 60000 ] || continue
+        case "$shell" in */nologin|*/false) continue ;; esac
+        gpasswd -a "$name" gamemode >/dev/null
+    done
+    return 0
+}
+
+post_install() {
+    _gamemode_group
+}
+
 post_upgrade() {
     if [ "$(vercmp "$2" 1-4)" -lt 0 ]; then
         _drop_thermald
     fi
     if [ "$(vercmp "$2" 1-5)" -lt 0 ]; then
         _enable_powerd
+    fi
+    if [ "$(vercmp "$2" 1-6)" -lt 0 ]; then
+        _gamemode_group
     fi
 }

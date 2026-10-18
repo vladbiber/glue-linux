@@ -1,0 +1,23 @@
+#!/bin/sh
+# glue-perf on|off <tag>: performance power profile while any tag holds it,
+# the previous profile back when the last one lets go
+command -v powerprofilesctl >/dev/null 2>&1 || exit 0
+[ $# -eq 2 ] || { echo "usage: glue-perf on|off <tag>" >&2; exit 64; }
+dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/glue-perf"
+mkdir -p "$dir" || exit 1
+case "$1" in
+on)
+	[ -f "$dir/saved" ] || powerprofilesctl get > "$dir/saved" 2>/dev/null
+	: > "$dir/$2.on"
+	powerprofilesctl set performance 2>/dev/null
+	;;
+off)
+	rm -f "$dir/$2.on"
+	ls "$dir"/*.on >/dev/null 2>&1 && exit 0
+	[ -s "$dir/saved" ] && powerprofilesctl set "$(cat "$dir/saved")" 2>/dev/null
+	rm -f "$dir/saved"
+	;;
+*)
+	echo "usage: glue-perf on|off <tag>" >&2; exit 64 ;;
+esac
+exit 0

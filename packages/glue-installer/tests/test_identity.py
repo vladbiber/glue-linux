@@ -142,7 +142,7 @@ class TestIdentitySteps(unittest.TestCase):
         self.steps = identity_steps(self.spec, target="/mnt")
 
     def test_step_count(self):
-        self.assertEqual(len(self.steps), 11)
+        self.assertEqual(len(self.steps), 12)
 
     def test_step_1_hostname_write(self):
         step = self.steps[0]
@@ -200,22 +200,29 @@ class TestIdentitySteps(unittest.TestCase):
         self.assertIn("/bin/bash", step.argv)
         self.assertIn("carol", step.argv)
 
-    def test_step_9_user_chpasswd(self):
+    def test_step_9_gamemode_group(self):
         step = self.steps[8]
+        self.assertIsInstance(step, RunCommand)
+        self.assertEqual(step.argv[:4], ["artix-chroot", "/mnt", "sh", "-c"])
+        self.assertIn("gpasswd", step.argv[4])
+        self.assertEqual(step.argv[-1], "carol")
+
+    def test_step_10_user_chpasswd(self):
+        step = self.steps[9]
         self.assertIsInstance(step, RunCommand)
         self.assertIn("chpasswd", step.argv)
         self.assertIsNotNone(step.stdin)
         self.assertIn("carol:", step.stdin)
 
-    def test_step_10_root_chpasswd(self):
-        step = self.steps[9]
+    def test_step_11_root_chpasswd(self):
+        step = self.steps[10]
         self.assertIsInstance(step, RunCommand)
         self.assertIn("chpasswd", step.argv)
         self.assertIsNotNone(step.stdin)
         self.assertIn("root:", step.stdin)
 
-    def test_step_11_sudoers(self):
-        step = self.steps[10]
+    def test_step_12_sudoers(self):
+        step = self.steps[11]
         self.assertIsInstance(step, WriteTargetFile)
         self.assertEqual(step.path, "/mnt/etc/sudoers.d/10-wheel")
         self.assertIn("%wheel", step.content)
