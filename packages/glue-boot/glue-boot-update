@@ -322,11 +322,17 @@ deploy_uefi() {
         return 0
     fi
     # an entry of an earlier install on another disk does not count
-    partuuid=$(lsblk -no PARTUUID "$esp" 2>/dev/null | head -n 1 || true)
-    if efibootmgr -v | grep 'Glue Linux' | grep -qi "${partuuid:-Glue Linux}"; then
+    # blkid probes the disk; lsblk needs the udev db, which a chroot lacks
+    partuuid=$(blkid -s PARTUUID -o value "$esp" 2>/dev/null || true)
+    [ -n "$partuuid" ] || partuuid=$(lsblk -no PARTUUID "$esp" 2>/dev/null | head -n 1 || true)
+    if [ -n "$partuuid" ] && efibootmgr -v | grep 'Glue Linux' | grep -qi "$partuuid"; then
         log "firmware boot entry 'Glue Linux' already present"
         return 0
     fi
+    # some firmware turns entries of a vanished partition into VenHw(...) stubs
+    for n in $(efibootmgr -v | sed -n 's/^Boot\([0-9A-Fa-f]\{4\}\)\*\{0,1\} Glue Linux[[:space:]]*VenHw(.*/\1/p'); do
+        efibootmgr --bootnum "$n" --delete-bootnum >/dev/null && log "removed stale firmware entry Boot$n"
+    done
     efibootmgr --create --disk "/dev/$disk" --part "$partno" \
         --loader '\EFI\limine\BOOTX64.EFI' --label 'Glue Linux' --unicode >/dev/null
     log "registered 'Glue Linux' in the firmware boot menu (/dev/$disk partition $partno)"
