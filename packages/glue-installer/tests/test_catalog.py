@@ -493,8 +493,7 @@ class ScreenshotFilesTest(unittest.TestCase):
                | {f"gluewc-noctalia-{n}.png" for n in (
                    "bar", "launcher", "control-center", "notifications", "overview",
                    "settings", "wallpapers")}
-               | {"gluemac-mission-control.png", "gluemac-desktop.png",
-                  "gluemac-applications.png"}
+               | {"gluemac-desktop.png", "gluemac-applications.png"}
                | {f"macshell-{n}.png" for n in (
                    "desktop", "spotlight", "control-center", "settings")}
                | {f"gluewc-caelestia-{n}.png" for n in (
