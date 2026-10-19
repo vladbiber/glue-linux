@@ -239,6 +239,21 @@ wait_wayland() {
 # The startx bootstrap for X11 sessions: greetd/tuigreet is a TUI greeter and
 # never starts an X server, so the wrapper re-execs itself under startx first
 # (same trick as the packaged nvwm-session wrapper).
+# Logout: apps that outlive the session keep its bus address, which is gone at
+# the next login (Steam's window never opens again). Steam gets a clean shutdown.
+_SESSION_END = """\
+    if pgrep -u "$(id -u)" -x steam >/dev/null 2>&1; then
+        steam -shutdown >/dev/null 2>&1
+        n=0; while [ "$n" -lt 20 ] && pgrep -u "$(id -u)" -x steam >/dev/null 2>&1; do sleep 0.5; n=$((n + 1)); done
+    fi
+    [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ] && for e in /proc/[0-9]*/environ; do
+        p=${e#/proc/}; p=${p%/environ}
+        [ "$p" = "$$" ] && continue
+        grep -qsaF "$DBUS_SESSION_BUS_ADDRESS" "$e" && kill "$p" 2>/dev/null
+    done
+    exit 0
+"""
+
 _X11_BOOTSTRAP = """\
 if [ -z "${DISPLAY:-}" ] && [ -z "${WAYLAND_DISPLAY:-}" ] && [ -z "${GLUE_XSTARTED:-}" ]; then
     GLUE_XSTARTED=1; export GLUE_XSTARTED
@@ -370,8 +385,8 @@ def _session_wrapper_content(
     command -v pipewire       >/dev/null 2>&1 && pipewire &
     command -v wireplumber    >/dev/null 2>&1 && wireplumber &
     command -v pipewire-pulse >/dev/null 2>&1 && pipewire-pulse &
-{polkit_block}{welcome_block}{wallpaper_block}{shell_block}    exec {cmd}
-fi
+{polkit_block}{welcome_block}{wallpaper_block}{shell_block}    {cmd}
+{_SESSION_END}fi
 
 # keep the last two starts for glue-debug and bug reports
 log="${{XDG_STATE_HOME:-$HOME/.local/state}}/glue-session.log"

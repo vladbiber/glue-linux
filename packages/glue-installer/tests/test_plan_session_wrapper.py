@@ -18,7 +18,7 @@ sys.path.insert(0, str(_PKG_ROOT))
 from glue_installer.catalog import load_catalog
 from glue_installer.plan import Selection, resolve_plan
 from glue_installer.plan_greeter import (
-    _SHELL_AUTOSTART_TEMPLATE, _session_wrapper_content,
+    _SESSION_END, _SHELL_AUTOSTART_TEMPLATE, _session_wrapper_content,
 )
 
 _POLKIT = "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1"
@@ -40,6 +40,24 @@ class TestSessionWrapperPolkit(unittest.TestCase):
             support_ids=[], gaming=False, minimal=False,
         ))
 
+    def test_logout_stops_apps_of_this_session_only(self):
+        self.assertIn("    gluewc-session\n" + _SESSION_END, self._wrapper("gluewc", "glueqs"))
+        script = ("sleep 30 & mine=$!\n"
+                  "env -u DBUS_SESSION_BUS_ADDRESS sleep 30 & other=$!\n"
+                  "sleep 0.2\n" + _SESSION_END.replace("    exit 0\n", "")
+                  + "sleep 0.2\nkill -0 $mine 2>/dev/null && echo mine-alive\n"
+                  "kill -0 $other 2>/dev/null && echo other-alive; kill $other\n")
+        bus = "unix:path=/tmp/glue-test-bus-%d" % id(self)
+        out = subprocess.run(["sh", "-c", script], capture_output=True, text=True,
+                             env={"PATH": "/usr/bin:/bin", "DBUS_SESSION_BUS_ADDRESS": bus},
+                             timeout=20).stdout
+        self.assertEqual(out.split(), ["other-alive"])
+        empty = subprocess.run(["sh", "-c", "sleep 30 & p=$!\n" + _SESSION_END.replace("    exit 0\n", "")
+                                + "kill -0 $p && echo alive; kill $p"],
+                               capture_output=True, text=True, env={"PATH": "/usr/bin:/bin"},
+                               timeout=20).stdout
+        self.assertEqual(empty.split(), ["alive"])
+
     def test_gluewc_polkit_before_welcome_and_shell(self):
         content = self._wrapper("gluewc", "glueqs")
         polkit = content.index(_POLKIT)
@@ -47,7 +65,7 @@ class TestSessionWrapperPolkit(unittest.TestCase):
         shell = content.index("                        glueqs\n")
         self.assertLess(polkit, welcome)
         self.assertLess(welcome, shell)
-        self.assertLess(polkit, content.index("exec gluewc-session"))
+        self.assertLess(polkit, content.index("    gluewc-session\n"))
         # Inside the --inner section, not the outer bootstrap.
         self.assertLess(content.index('"--inner" ]'), polkit)
         self.assertLess(polkit, content.index("\nfi\n"))
@@ -97,7 +115,7 @@ class TestSessionWrapperPolkit(unittest.TestCase):
                 self.assertIn(f"\nexport GLUE_SESSION={sid}\n", self._wrapper(sid))
         twin = self._wrapper("gluewc-noctalia", "qs -c noctalia-shell")
         self.assertIn("export XDG_CURRENT_DESKTOP=gluewc\n", twin)
-        self.assertIn("exec gluewc-session", twin)
+        self.assertIn("    gluewc-session\n", twin)
 
     def test_plan_includes_polkit_gnome_only_for_wm_sessions(self):
         self.assertIn(

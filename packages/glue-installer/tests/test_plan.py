@@ -564,7 +564,7 @@ class TestGreeterProfile(unittest.TestCase):
         self.assertIn("startx", wrapper.content)
         self.assertIn("dbus-run-session", wrapper.content)
         self.assertIn("pipewire", wrapper.content)
-        self.assertIn("exec wm-bare", wrapper.content)  # exec defaults to id
+        self.assertIn("    wm-bare\n", wrapper.content)  # exec defaults to id
         self.assertIn("XDG_SESSION_TYPE=x11", wrapper.content)
 
     def test_wayland_wrapper_no_startx_uses_exec(self):
@@ -572,7 +572,7 @@ class TestGreeterProfile(unittest.TestCase):
         wrapper = self._file(plan, "/usr/local/bin/glue-session-wm-shell")
         self.assertNotIn("startx", wrapper.content)
         self.assertIn("dbus-run-session", wrapper.content)
-        self.assertIn("exec shellwm", wrapper.content)
+        self.assertIn("    shellwm\n", wrapper.content)
         self.assertIn("XDG_SESSION_TYPE=wayland", wrapper.content)
 
     def test_shell_with_exec_is_autostarted(self):

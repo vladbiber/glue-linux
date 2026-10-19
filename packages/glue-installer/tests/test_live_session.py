@@ -140,7 +140,7 @@ class TestWrapperParity(unittest.TestCase):
         self.assertIn("(wait_wayland && command -v glue-welcome", self.wrapper)
         polkit = re.search(r"/usr/lib/polkit-gnome/\S+", self.wrapper).group(0)
         self.assertIn(polkit, self.script)
-        self.assertIn("exec gluewc-session", self.wrapper)
+        self.assertIn("    gluewc-session\n", self.wrapper)
         self.assertIn("exec gluewc-session", self.script)
         # live: plain sh, a login shell would re-source profile.d/glue-live.sh and loop
         self.assertIn('try_session gpu sh "$0" --inner', self.script)

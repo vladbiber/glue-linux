@@ -90,7 +90,7 @@ class GreeterLauncherTest(unittest.TestCase):
             sessions, {"gluemac": "macshell"}, shells)}
         wrapper = files["/usr/local/bin/glue-session-gluemac"]
         self.assertIn("glue-wallpaper-init gluemac macshell", wrapper)
-        self.assertIn("exec gluemac-session", wrapper)
+        self.assertIn("    gluemac-session\n", wrapper)
         # gluemac's autostart runs MacShell; the wrapper must not start another
         self.assertNotIn("glue-macshell", wrapper)
         self.assertIn("gluewc|gluemac", wrapper)
@@ -111,7 +111,7 @@ class GreeterLauncherTest(unittest.TestCase):
             sessions, {"hyprland-ii": "ii"}, shells)}
         for sid, shell in (("hyprland-ii", "ii"),):
             wrapper = files[f"/usr/local/bin/glue-session-{sid}"]
-            self.assertIn(f"exec glue-hyprland {shell}", wrapper)
+            self.assertIn(f"    glue-hyprland {shell}\n", wrapper)
             self.assertIn(f"glue-wallpaper-init {sid} {shell}", wrapper)
             # Hyprland and xdph warn unless the name is exactly "Hyprland"
             self.assertIn("export XDG_CURRENT_DESKTOP=Hyprland\n", wrapper)
