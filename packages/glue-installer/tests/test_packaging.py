@@ -240,7 +240,8 @@ class TestGluewcPkgbuildGuards(unittest.TestCase):
 
     def test_source_unchanged(self):
         # GitHub stays the default; GLUEWC_SRC only overrides it for local builds
-        self.assertIn('source=("gluewc::git+${GLUEWC_SRC:-https://github.com/vladbiber/gluewc.git}")', self.text)
+        self.assertIn('source=("gluewc::git+${GLUEWC_SRC:-https://github.com/vladbiber/gluewc.git}#commit=$_commit")', self.text)
+        self.assertRegex(self.text, r"\n_commit=[0-9a-f]{40}\n")
 
     #: the bar's hardware keys are guarded the same way
     def test_xf86_keybinding_guard(self):
