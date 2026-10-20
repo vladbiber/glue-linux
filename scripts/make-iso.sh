@@ -94,6 +94,11 @@ if [ -n "$SIGN_KEY" ]; then
 else
     repo-add -q "$REPO/glue.db.tar.gz" "$REPO"/*.pkg.tar.zst
 fi
+# a same-version rebuild from an earlier run must not be installed from the cache
+for f in "$REPO"/*.pkg.tar.zst; do
+    c=/var/cache/pacman/pkg/${f##*/}
+    [ -f "$c" ] && ! cmp -s "$f" "$c" && rm -f "$c" "$c.sig"
+done
 
 # make the [glue] repo visible to buildiso's pacman
 install -Dm644 "$ROOT/repo/pacman.conf" /etc/pacman.conf
