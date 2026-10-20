@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Prepare CS2
+Exec=glue-cs2-warmup --offer
+Icon=org.glue.Welcome
+Terminal=false
+Type=Application
+X-GNOME-Autostart-enabled=true
+NoDisplay=true

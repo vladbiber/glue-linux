@@ -1,7 +1,7 @@
 # Maintainer: Glue Linux
 pkgname=glue-welcome
 pkgver=0.3.0
-pkgrel=8
+pkgrel=9
 pkgdesc="Glue Linux welcome window: keyboard shortcuts, system information and settings"
 arch=('any')
 url="https://github.com/vladbiber/glue-linux"
@@ -13,12 +13,13 @@ optdepends=('glue-calamares-config: Install button on the live ISO'
             'nm-connection-editor: Advanced button in Network'
             'lm_sensors: temperature on the System page'
             'power-profiles-daemon: power mode switch')
-source=('glue-welcome' 'glue-network')
-sha256sums=('SKIP' 'SKIP')
+source=('glue-welcome' 'glue-network' 'glue-cs2-warmup')
+sha256sums=('SKIP' 'SKIP' 'SKIP')
 
 package() {
     install -Dm755 "$srcdir/glue-welcome" "$pkgdir/usr/bin/glue-welcome"
     install -Dm755 "$srcdir/glue-network" "$pkgdir/usr/bin/glue-network"
+    install -Dm755 "$srcdir/glue-cs2-warmup" "$pkgdir/usr/bin/glue-cs2-warmup"
     install -dm755 "$pkgdir/usr/lib/glue-welcome/glue_welcome"
     install -m644 "$startdir"/glue_welcome/*.py "$pkgdir/usr/lib/glue-welcome/glue_welcome/"
     install -Dm644 "$startdir/data/applications/org.glue.Welcome.desktop" \
@@ -27,6 +28,10 @@ package() {
         "$pkgdir/usr/share/applications/org.glue.Network.desktop"
     install -Dm644 "$startdir/data/autostart/org.glue.Welcome.desktop" \
         "$pkgdir/etc/xdg/autostart/org.glue.Welcome.desktop"
+    install -Dm644 "$startdir/data/applications/org.glue.CS2Warmup.desktop" \
+        "$pkgdir/usr/share/applications/org.glue.CS2Warmup.desktop"
+    install -Dm644 "$startdir/data/autostart/org.glue.CS2Warmup.desktop" \
+        "$pkgdir/etc/xdg/autostart/org.glue.CS2Warmup.desktop"
     install -Dm644 "$startdir/data/icons/org.glue.Welcome.svg" \
         "$pkgdir/usr/share/icons/hicolor/scalable/apps/org.glue.Welcome.svg"
     install -Dm644 "$startdir/data/icons/org.glue.Network.svg" \

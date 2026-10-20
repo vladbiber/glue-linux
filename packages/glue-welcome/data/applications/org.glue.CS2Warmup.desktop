@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Prepare CS2
+Comment=Prepare CS2 shaders for your graphics card
+Exec=glue-cs2-warmup
+Icon=org.glue.Welcome
+Terminal=false
+Type=Application
+Categories=Game;
+NoDisplay=true

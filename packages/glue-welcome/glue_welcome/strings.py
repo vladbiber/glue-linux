@@ -91,4 +91,47 @@ RO = {
     "Connect to Wi-Fi.": "Conectează-te la Wi-Fi.",
     "Hardware info": "Informații hardware",
     "See what this computer has.": "Vezi ce are acest calculator.",
+    "Prepare CS2": "Pregătește CS2",
+    "No stutter in your first matches.": "Fără sacadări în primele meciuri.",
+    "Prepare CS2 for your graphics card": "Pregătește CS2 pentru placa ta video",
+    "Preparing CS2 for your graphics card (one time only)":
+        "Pregătesc CS2 pentru placa ta video (o singură dată)",
+    "CS2 will open by itself and load each map with bots, while your graphics card "
+    "prepares its shaders. Do not touch it; it closes when done. Matches after this "
+    "start without the stutter of the first minutes. Takes about {minutes} minutes.":
+        "CS2 se deschide singur și încarcă fiecare hartă cu boți, cât timp placa video își "
+        "pregătește shaderele. Nu-l atinge; se închide singur la final. După asta, meciurile "
+        "pornesc fără sacadările din primele minute. Durează cam {minutes} minute.",
+    "Start": "Începe",
+    "Not now": "Nu acum",
+    "Don't ask again": "Nu mai întreba",
+    "Cancel": "Anulează",
+    "Close": "Închide",
+    "Starting CS2 through Steam…": "Pornesc CS2 prin Steam…",
+    "Map {n} of {total}": "Harta {n} din {total}",
+    "Opening {name}…": "Deschid {name}…",
+    "Loading {name}…": "Încarc {name}…",
+    "{name}: preparing shaders": "{name}: pregătesc shaderele",
+    "Done. CS2 is ready for your graphics card.": "Gata. CS2 e pregătit pentru placa ta video.",
+    "CS2 is ready": "CS2 e pregătit",
+    "Stopping CS2…": "Opresc CS2…",
+    "Stopped. The maps done so far stay ready.": "Oprit. Hărțile făcute până acum rămân gata.",
+    "CS2 is already running. Close it and try again.":
+        "CS2 rulează deja. Închide-l și încearcă din nou.",
+    "Steam did not start CS2. Open Steam, sign in, and try again.":
+        "Steam n-a pornit CS2. Deschide Steam, conectează-te și încearcă din nou.",
+    "CS2 started but did not load the map. Try again later.":
+        "CS2 a pornit, dar n-a încărcat harta. Încearcă mai târziu.",
+    "CS2 closed before it was ready. Try again later.":
+        "CS2 s-a închis înainte să fie gata. Încearcă mai târziu.",
+    "Your CS2 launch options join a server. Remove +connect from them in Steam, then try again.":
+        "Opțiunile de lansare CS2 intră pe un server. Scoate +connect din ele în Steam, apoi "
+        "încearcă din nou.",
+    "Steam still shows CS2 as running. Wait a moment, then try again.":
+        "Steam încă arată CS2 pornit. Așteaptă puțin, apoi încearcă din nou.",
+    "CS2 is set to run with Proton. In Steam, open CS2 Properties, Compatibility, untick the "
+    "forced tool, then try again.":
+        "CS2 e setat să ruleze cu Proton. În Steam deschide Proprietăți CS2, Compatibilitate, "
+        "debifează unealta forțată, apoi încearcă din nou.",
+    "Preparing CS2 shaders": "Pregătesc shaderele CS2",
 }

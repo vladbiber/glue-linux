@@ -22,7 +22,7 @@ from glue_apps.pages import panel, panel_row, settings_page  # noqa: E402
 from glue_apps.shell import use_adwaita_icons, ShellWindow  # noqa: E402
 from glue_apps.widgets import clickable, grid, label  # noqa: E402
 
-from . import live
+from . import cs2_game, live
 from .login_screen import login_screen_panel
 from .keybindings import (binding_rows, detect_session, load_shell_choices, running_processes,
                           session_name)
@@ -204,11 +204,15 @@ class WelcomeWindow(ShellWindow):
 
     def _actions(self) -> Gtk.Widget:
         cards = []
-        for title, text, icon, action in (
-                (_("Get apps"), _("Find and install apps."), "org.glue.Apps",
-                 lambda: _spawn(["glue-apps"])),
-                (_("System"), _("Power, fonts and hardware."), "computer-symbolic",
-                 lambda: self.show_page("system"))):
+        items = [(_("Get apps"), _("Find and install apps."), "org.glue.Apps",
+                  lambda: _spawn(["glue-apps"])),
+                 (_("System"), _("Power, fonts and hardware."), "computer-symbolic",
+                  lambda: self.show_page("system"))]
+        # NVIDIA + CS2 without a finished warm-up for this driver
+        if cs2_game.needs_warmup(Path.home()):
+            items.append((_("Prepare CS2"), _("No stutter in your first matches."),
+                          "applications-games-symbolic", lambda: _spawn(["glue-cs2-warmup"])))
+        for title, text, icon, action in items:
             card = Gtk.Box(spacing=14, css_classes=["action-card"])
             image = Gtk.Image.new_from_icon_name(icon)
             image.set_pixel_size(28)
