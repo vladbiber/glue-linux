@@ -1,0 +1,64 @@
+#!/bin/sh
+# glue-steam-precache on|off|status|auto: Steam's Vulkan shader pre-caching switch
+# off: no "Processing Vulkan shaders" replay; the NVIDIA driver keeps its own cache
+# auto: off unless Steam already has a choice, seeding the config before a first run
+cfg="${STEAM_CONFIG:-$HOME/.local/share/Steam/config/config.vdf}"
+usage() { echo "usage: glue-steam-precache on|off|status|auto" >&2; exit 64; }
+[ $# -eq 1 ] || usage
+[ "$1" = auto ] || [ -f "$cfg" ] || { echo "no Steam config at $cfg (start Steam once first)" >&2; exit 1; }
+
+# rewrites the file with DisableShaderCache=$1 in Software/Valve/Steam/ShaderCacheManager
+set_key() {
+	awk -v val="$1" '
+	function tabs(n,  s) { s = ""; while (n-- > 0) s = s "\t"; return s }
+	function path(  i, p) { p = ""; for (i = 1; i <= d; i++) p = p "/" st[i]; return p }
+	BEGIN { want = "/installconfigstore/software/valve/steam"; d = 0 }
+	{
+		line = $0; t = line; gsub(/^[ \t]+|[ \t]+$/, "", t)
+		if (t == "{") { d++; st[d] = tolower(pend); if (path() == want "/shadercachemanager") inscm = 1; print line; next }
+		if (t == "}") {
+			if (path() == want "/shadercachemanager" && !done) { print tabs(d) "\"DisableShaderCache\"\t\t\"" val "\""; done = 1 }
+			if (path() == want && !done) {
+				print tabs(d) "\"ShaderCacheManager\""; print tabs(d) "{"
+				print tabs(d + 1) "\"DisableShaderCache\"\t\t\"" val "\""; print tabs(d) "}"; done = 1
+			}
+			d--; print line; next
+		}
+		if (t ~ /^"[^"]*"$/) { pend = substr(t, 2, length(t) - 2); print line; next }
+		if (path() == want "/shadercachemanager" && tolower(t) ~ /^"disableshadercache"[ \t]/) {
+			if (!done) { print tabs(d) "\"DisableShaderCache\"\t\t\"" val "\""; done = 1 }
+			next
+		}
+		print line
+	}
+	END { if (!done) exit 3 }' "$cfg"
+}
+
+case "$1" in
+status)
+	if awk 'tolower($1) == "\"disableshadercache\"" && $2 == "\"1\"" { f = 1 } END { exit !f }' "$cfg"
+	then echo off; else echo on; fi
+	exit 0 ;;
+on) v=0 ;;
+off|auto) v=1 ;;
+*) usage ;;
+esac
+
+# Steam rewrites config.vdf on exit, so an edit made while it runs is lost
+if pgrep -u "$(id -u)" -f 'ubuntu12_32/steam( |$)' >/dev/null; then
+	echo "Steam is running; quit it first (steam -shutdown)" >&2; exit 1
+fi
+
+if [ "$1" = auto ]; then
+	grep -qi '"DisableShaderCache"' "$cfg" 2>/dev/null && exit 0
+	if [ ! -f "$cfg" ]; then
+		mkdir -p "${cfg%/*}" || exit 1
+		printf '"InstallConfigStore"\n{\n\t"Software"\n\t{\n\t\t"Valve"\n\t\t{\n\t\t\t"Steam"\n\t\t\t{\n\t\t\t\t"ShaderCacheManager"\n\t\t\t\t{\n\t\t\t\t\t"DisableShaderCache"\t\t"1"\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n}\n' > "$cfg"
+		exit
+	fi
+fi
+cp -p "$cfg" "$cfg.glue-bak" || exit 1
+tmp="$cfg.glue-tmp"
+set_key "$v" > "$tmp" || { rm -f "$tmp"; echo "could not find the Steam section in $cfg" >&2; exit 1; }
+mv "$tmp" "$cfg"
+echo "Steam shader pre-caching: $([ "$v" = 1 ] && echo off || echo on) (backup: $cfg.glue-bak)"

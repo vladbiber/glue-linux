@@ -1,0 +1,8 @@
+#!/bin/sh
+# dinit-rc swaps udevd-early for a supervised udevd after settle; a NIC whose
+# firmware finishes loading in that gap never gets its add event processed and
+# NetworkManager keeps it unmanaged ("link is not initialized by udev").
+udevadm control --ping --timeout=10 >/dev/null 2>&1
+udevadm trigger --subsystem-match=net --initialized-nomatch --action=add
+udevadm settle --timeout=10
+exit 0

@@ -63,8 +63,30 @@ _wrapper_sockets() {
     return 0
 }
 
+# dinit-rc loses uevents while udevd-early hands over to udevd; replay the
+# net ones before NetworkManager or Wi-Fi can stay unmanaged
+_enable_net_udev() {
+    [ -d /etc/dinit.d/boot.d ] || return 0
+    [ -e /etc/dinit.d/boot.d/glue-net-udev ] ||
+        ln -s ../glue-net-udev /etc/dinit.d/boot.d/glue-net-udev
+    return 0
+}
+
+# glue-game-watch runs from the session wrapper; ones written before it
+# existed get the line after their PipeWire start
+_wrapper_game_watch() {
+    local f
+    for f in /usr/local/bin/glue-session-*; do
+        [ -f "$f" ] || continue
+        grep -q 'glue-game-watch' "$f" && continue
+        sed -i '/^ *command -v pipewire-pulse .*pipewire-pulse &$/a\    (command -v glue-game-watch >/dev/null 2>\&1 \&\& exec glue-game-watch) \&' "$f"
+    done
+    return 0
+}
+
 post_install() {
     _gamemode_group
+    _enable_net_udev
 }
 
 post_upgrade() {
@@ -79,5 +101,11 @@ post_upgrade() {
     fi
     if [ "$(vercmp "$2" 1-7)" -lt 0 ]; then
         _wrapper_sockets
+    fi
+    if [ "$(vercmp "$2" 1-11)" -lt 0 ]; then
+        _enable_net_udev
+    fi
+    if [ "$(vercmp "$2" 1-12)" -lt 0 ]; then
+        _wrapper_game_watch
     fi
 }

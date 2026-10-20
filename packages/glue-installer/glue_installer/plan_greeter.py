@@ -340,6 +340,13 @@ def _portal_file(session: Session) -> Optional[PlannedFile]:
 # via xorg-xwayland) or the compositor managing its own (mutter/GNOME).
 
 
+# every session kind: glue-settings' game helper (Steam games join GameMode,
+# NVIDIA defaults); glue-settings.install adds it to older wrappers
+_GAME_WATCH_LINE = (
+    "    (command -v glue-game-watch >/dev/null 2>&1 && exec glue-game-watch) &\n"
+)
+
+
 def _session_wrapper_content(
     session: Session, shell_cmd: Optional[str], shell_id: Optional[str] = None,
 ) -> str:
@@ -391,7 +398,7 @@ def _session_wrapper_content(
     command -v pipewire       >/dev/null 2>&1 && pipewire &
     command -v wireplumber    >/dev/null 2>&1 && wireplumber &
     command -v pipewire-pulse >/dev/null 2>&1 && pipewire-pulse &
-{polkit_block}{welcome_block}{notify_block}{wallpaper_block}{shell_block}    {cmd}
+{_GAME_WATCH_LINE}{polkit_block}{welcome_block}{notify_block}{wallpaper_block}{shell_block}    {cmd}
 {_SESSION_END}fi
 
 # keep the last two starts for glue-debug and bug reports

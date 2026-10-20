@@ -1,0 +1,5 @@
+# glue-net-udev - replay net uevents lost in the udevd-early -> udevd handover
+type = scripted
+command = /usr/lib/glue/net-udev-replay
+waits-for = udevd
+before = pre-network.target

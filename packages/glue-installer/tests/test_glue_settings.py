@@ -7,8 +7,13 @@ glue-tuning oneshot, sysctl key non-duplication between the package's
 values, PKGBUILD source completeness, and the no-systemd guarantee.
 """
 
+import json
+import os
 import re
+import subprocess
 import sys
+import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -68,6 +73,12 @@ class TestPlanInclusion(unittest.TestCase):
             plan = resolve_plan(self.catalog, _sel(["wm-bare"], False, init_id))
             self.assertIn("glue-settings", plan.packages, init_id)
             self.assertIn("glue-tuning", plan.services, init_id)
+
+    def test_net_udev_replay_only_on_dinit(self):
+        for init_id in _INITS:
+            plan = resolve_plan(self.catalog, _sel(["wm-bare"], False, init_id))
+            self.assertEqual("glue-net-udev" in plan.services,
+                             init_id == "dinit", init_id)
 
     def test_gaming_without_sessions_includes_glue_settings(self):
         for init_id in _INITS:
@@ -155,6 +166,16 @@ class TestPackageContent(unittest.TestCase):
             self.assertTrue(svc.is_file(), f"missing service file: {svc}")
             self.assertIn("/usr/bin/glue-thp-tune", svc.read_text())
 
+    def test_net_udev_replay_dinit_service(self):
+        svc = (_SETTINGS_DIR / "dinit.d" / "glue-net-udev").read_text()
+        self.assertIn("/usr/lib/glue/net-udev-replay", svc)
+        self.assertIn("waits-for = udevd", svc)
+        self.assertIn("before = pre-network.target", svc)
+        text = (_SETTINGS_DIR / "net-udev-replay").read_text()
+        self.assertIn("--subsystem-match=net --initialized-nomatch --action=add", text)
+        self.assertIn("udevadm settle", text)
+        self.assertNotIn("set -e", text)
+
     def test_thp_tune_values_and_missing_file_guards(self):
         text = (_SETTINGS_DIR / "glue-thp-tune").read_text()
         self.assertIn("defer+madvise", text)
@@ -172,6 +193,87 @@ class TestPackageContent(unittest.TestCase):
         self.assertIn("trap restore EXIT", text)
         # runs the command directly when powerprofilesctl is missing
         self.assertIn('exec "$@"', text)
+
+    def _precache(self, cfg, *args):
+        stub = Path(cfg).parent.parent.parent / "bin"
+        stub.mkdir(exist_ok=True)
+        (stub / "pgrep").write_text("#!/bin/sh\nexit 1\n")
+        (stub / "pgrep").chmod(0o755)
+        return subprocess.run(
+            ["sh", str(_SETTINGS_DIR / "glue-steam-precache"), *args],
+            capture_output=True, text=True, timeout=20,
+            env={"PATH": f"{stub}:/usr/bin:/bin", "STEAM_CONFIG": cfg})
+
+    def test_steam_precache_auto_seeds_a_new_steam(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = f"{tmp}/Steam/config/config.vdf"
+            self.assertEqual(self._precache(cfg, "auto").returncode, 0)
+            self.assertEqual(self._precache(cfg, "status").stdout, "off\n")
+            self.assertIn('"InstallConfigStore"', Path(cfg).read_text())
+
+    def test_steam_precache_auto_keeps_a_choice(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = f"{tmp}/Steam/config/config.vdf"
+            self._precache(cfg, "auto")
+            self._precache(cfg, "on")
+            before = Path(cfg).read_text()
+            self._precache(cfg, "auto")
+            self.assertEqual(Path(cfg).read_text(), before)
+            self.assertEqual(self._precache(cfg, "status").stdout, "on\n")
+
+    def test_steam_precache_auto_adds_the_key(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = Path(tmp, "Steam", "config", "config.vdf")
+            cfg.parent.mkdir(parents=True)
+            cfg.write_text('"InstallConfigStore"\n{\n\t"Software"\n\t{\n\t\t"Valve"\n'
+                           '\t\t{\n\t\t\t"Steam"\n\t\t\t{\n\t\t\t\t"x"\t\t"1"\n'
+                           '\t\t\t}\n\t\t}\n\t}\n}\n')
+            self.assertEqual(self._precache(str(cfg), "auto").returncode, 0)
+            self.assertEqual(self._precache(str(cfg), "status").stdout, "off\n")
+            self.assertIn('"x"\t\t"1"', cfg.read_text())
+
+    def test_game_watch_contract(self):
+        text = (_SETTINGS_DIR / "glue-game-watch").read_text()
+        self.assertEqual(subprocess.run(["sh", "-n", str(_SETTINGS_DIR / "glue-game-watch")])
+                         .returncode, 0)
+        self.assertIn("flock -n 9 || exit 0", text)
+        # pre-caching and the Flatpak GL extension only on the NVIDIA driver
+        self.assertIn("if [ -r /sys/module/nvidia/version ]; then", text)
+        self.assertLess(text.index("/sys/module/nvidia/version ]"),
+                        text.index("has steam && glue-steam-precache auto"))
+        self.assertIn("flatpak --user install", text)
+        self.assertNotIn("sudo", text)
+
+    def test_game_watch_registers_each_steam_game_once(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            (tmp / "bin").mkdir()
+            (tmp / "run").mkdir()
+            (tmp / "home" / ".steam").mkdir(parents=True)
+            for name, body in (("steam", "exit 0"),
+                               ("gamemoded", 'echo "$@" >> "$HOME/log"')):
+                (tmp / "bin" / name).write_text(f"#!/bin/sh\n{body}\n")
+                (tmp / "bin" / name).chmod(0o755)
+            steam = subprocess.Popen(["sleep", "30"])
+            (tmp / "home" / ".steam" / "steam.pid").write_text(f"{steam.pid}\n")
+            argv0 = f"{tmp}/Steam/ubuntu12_32/reaper SteamLaunch AppId=730 -- game"
+            game = subprocess.Popen([argv0, "30"], executable="/usr/bin/sleep")
+            other = subprocess.Popen(["/x/reaper SteamLaunch AppId=1", "30"],
+                                     executable="/usr/bin/sleep")
+            env = {"PATH": f"{tmp}/bin:/usr/bin:/bin", "HOME": str(tmp / "home"),
+                   "XDG_RUNTIME_DIR": str(tmp / "run")}
+            watch = subprocess.Popen(["sh", str(_SETTINGS_DIR / "glue-game-watch")], env=env)
+            try:
+                time.sleep(1.5)
+                second = subprocess.run(["sh", str(_SETTINGS_DIR / "glue-game-watch")],
+                                        env=env, timeout=10)
+                self.assertEqual(second.returncode, 0)
+                self.assertEqual((tmp / "home" / "log").read_text(),
+                                 f"--request={game.pid}\n")
+            finally:
+                for p in (watch, game, other, steam):
+                    p.kill()
+                    p.wait()
 
     def test_no_systemd_anywhere_in_package(self):
         offenders = []

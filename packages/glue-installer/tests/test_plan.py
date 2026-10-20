@@ -708,7 +708,7 @@ class TestGreeterProfile(unittest.TestCase):
     def test_real_catalog_sessions_have_exec_and_type(self):
         catalog = load_catalog(_CATALOG_PATH)
         wayland = {"gluewc", "gluewc-noctalia", "gluewc-caelestia", "gluewc-macshell",
-                   "gluemac", "hyprland-ii", "gnome"}
+                   "gluemac", "hyprland-ii", "gnome", "kde-plasma"}
         for session in catalog.sessions:
             self.assertIsNotNone(session.exec, session.id)
             expected = "wayland" if session.id in wayland else "x11"
@@ -985,6 +985,25 @@ class TestAnanicyAndGamingExtras(unittest.TestCase):
         self.assertIn("libva-nvidia-driver", plan.packages)
         self.assertNotIn("libva-nvidia-driver",
                          self._plan(True, gpu_vendors=frozenset({"amd"})).packages)
+
+    def test_steam_games_do_not_inherit_the_launcher_idle_io(self):
+        import json
+        pkg = _PKG_ROOT.parent / "ananicy-cpp"
+        rules = {}
+        for line in (pkg / "steam.rules").read_text().splitlines():
+            if line.strip() and not line.startswith("#"):
+                rule = json.loads(line)
+                rules[rule["name"]] = rule
+        # every Steam game passes reaper; runtime/Proton ones srt-bwrap and pv-adverb
+        for name in ("reaper", "srt-bwrap", "pv-adverb"):
+            self.assertEqual(rules[name]["ioclass"], "best-effort", name)
+        # the REAPER DAW keeps its CachyOS type; Steam's UI keeps idle IO
+        self.assertEqual(rules["reaper"]["type"], "Player-Audio")
+        self.assertEqual(rules["steamwebhelper"]["ioclass"], "idle")
+        self.assertNotIn("steam", rules)
+        pkgbuild = (pkg / "PKGBUILD").read_text()
+        self.assertIn("'steam.rules'", pkgbuild)
+        self.assertIn('"$pkgdir/etc/ananicy.d/zz-glue/steam.rules"', pkgbuild)
 
     def test_no_gaming_no_ananicy(self):
         plan = self._plan(False)

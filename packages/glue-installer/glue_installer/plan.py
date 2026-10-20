@@ -320,6 +320,9 @@ def resolve_plan(
     if tuned:
         packages.add("glue-settings")
         services.add("glue-tuning")
+        # dinit only: replays net uevents lost in the udevd-early handover
+        if selection.init_id == "dinit":
+            services.add("glue-net-udev")
 
     # Rule 19: NVIDIA Dynamic Boost on laptops. Without nvidia-powerd the GPU
     # stays at its base power limit (measured: RTX 3050 60 W vs 75 W, -15% fps).

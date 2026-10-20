@@ -107,6 +107,26 @@ class TestSessionWrapperPolkit(unittest.TestCase):
         self.assertEqual((r.returncode, r.stdout), (0, "login-continues\n"), r.stderr)
         self.assertIn(line, self._wrapper("nvwm"))
 
+    def test_game_watch_in_every_session(self):
+        line = "    (command -v glue-game-watch >/dev/null 2>&1 && exec glue-game-watch) &\n"
+        for sid in self.sessions:
+            content = self._wrapper(sid)
+            self.assertIn(line, content, sid)
+            self.assertLess(content.index('"--inner" ]'), content.index(line), sid)
+            self.assertLess(content.index(line), content.index("\nfi\n"), sid)
+
+    def test_glue_settings_upgrade_adds_game_watch_like_a_new_wrapper(self):
+        install = (_PKG_ROOT.parent / "glue-settings" / "glue-settings.install").read_text()
+        sed = re.search(r"sed -i '(/\^ \*command -v pipewire-pulse[^\n]*)' \"\$f\"", install)
+        self.assertIsNotNone(sed)
+        for sid in ("gluewc", "nvwm", "kde-plasma"):
+            new = self._wrapper(sid)
+            old = new.replace("    (command -v glue-game-watch >/dev/null 2>&1 && "
+                              "exec glue-game-watch) &\n", "")
+            out = subprocess.run(["sed", sed.group(1)], input=old, text=True,
+                                 capture_output=True, timeout=20).stdout
+            self.assertEqual(out, new, sid)
+
     def test_desktop_environments_have_no_polkit_gnome(self):
         for session in self.catalog.sessions:
             if session.kind != "de":
@@ -115,6 +135,15 @@ class TestSessionWrapperPolkit(unittest.TestCase):
                 self.assertNotIn("polkit-gnome", self._wrapper(session.id))
                 self.assertNotIn("polkit-gnome", session.packages)
         self.assertNotIn("polkit-gnome", self._wrapper("kde-plasma"))
+
+    def test_plasma_starts_wayland(self):
+        # Plasma 6.8 dropped startplasma-x11 and kwin_x11
+        content = self._wrapper("kde-plasma")
+        self.assertIn("    startplasma-wayland\n", content)
+        self.assertNotIn("startx", content)
+        self.assertNotIn("startplasma-x11", content)
+        self.assertIn("export XDG_CURRENT_DESKTOP=KDE\n", content)
+        self.assertIn("export XDG_SESSION_TYPE=wayland\n", content)
 
     def test_shell_autostart_still_in_wrapper(self):
         content = self._wrapper("gluewc", "glueqs")
