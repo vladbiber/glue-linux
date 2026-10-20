@@ -157,7 +157,7 @@ var entries = [
     "ease": 5,
     "ram": "about 670 MB",
     "disk": "about 1.7 GB",
-    "wayland": false,
+    "wayland": true,
     "images": [
       "file:///usr/share/glue-installer/catalog/screenshots/kde-plasma.png"
     ],

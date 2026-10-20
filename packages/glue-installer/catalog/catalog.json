@@ -870,8 +870,9 @@
       ],
       "services": [],
       "shell_choices": [],
-      "session_type": "x11",
-      "exec": "startplasma-x11",
+      "session_type": "wayland",
+      "exec": "startplasma-wayland",
+      "desktop": "KDE",
       "idle_ram": "about 670 MB",
       "disk": "about 1.7 GB"
     },
