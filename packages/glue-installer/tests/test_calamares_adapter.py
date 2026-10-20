@@ -139,12 +139,14 @@ class TestForbiddenAndOrder(unittest.TestCase):
                     kinds.append("config")
                 elif "swapfile" in text:
                     kinds.append("swapfile")
+                elif "glue-security level" in text:
+                    kinds.append("security")
                 elif "glue-boot-update" in text:
                     kinds.append("boot")
                 else:
                     self.fail(f"unclassified step {s.description!r} for {d}")
             order = [k for k, _ in itertools.groupby(kinds)]
-            expect = ["keyring", "bootstrap", "config"]
+            expect = ["keyring", "bootstrap", "config", "security"]
             if d["swap_mode"] == "auto":
                 expect.append("swapfile")
                 self.assertEqual(result.swapfile_path, "/tmp/calamares-root/swapfile", d)

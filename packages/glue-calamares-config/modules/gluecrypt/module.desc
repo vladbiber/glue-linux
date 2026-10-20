@@ -1,0 +1,7 @@
+# Glue Linux: encrypted root only. Rebuilds the initramfs after the keyboard
+# job wrote /etc/vconsole.conf, so the passphrase prompt uses that keymap.
+---
+type: "job"
+name: "gluecrypt"
+interface: "python"
+script: "main.py"

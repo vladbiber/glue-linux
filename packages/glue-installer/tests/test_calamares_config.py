@@ -45,7 +45,7 @@ class TestSequence(unittest.TestCase):
     def test_exec_order_exact(self):
         self.assertEqual(_phase(_SETTINGS, "exec", 1), [
             "partition", "mount", "glueinstall", "fstab", "gluefstab", "locale",
-            "keyboard", "localecfg", "users", "umount"])
+            "keyboard", "localecfg", "gluecrypt", "users", "umount"])
         self.assertEqual(tuple(_phase(_SETTINGS, "exec", 1)), EXEC)
         self.assertEqual(_phase(_SETTINGS, "show", 2), ["finished"])
 
@@ -57,7 +57,8 @@ class TestSequence(unittest.TestCase):
                          + pages + ["summary"])
         self.assertEqual((NETWORK_STEP, DESKTOP_STEP),
                          ("notesqml@gluenetwork", "notesqml@gluedesktop"))
-        self.assertEqual(PAGE_IDS, ("gluekernel", "glueinit", "gluegaming", "gluesecureboot"))
+        self.assertEqual(PAGE_IDS, ("gluekernel", "glueinit", "gluegaming", "gluesecureboot",
+                                    "gluesecurity"))
         self.assertEqual([i["id"] for i in _SETTINGS["instances"]],
                          ["gluenetwork", "gluedesktop"] + list(PAGE_IDS))
         self.assertNotIn("packagechooser", sequence_modules(_SETTINGS))
@@ -390,7 +391,7 @@ class TestGluefstab(unittest.TestCase):
 class TestPackaging(unittest.TestCase):
     def test_pkgbuild_installs_modules_and_pages(self):
         text = (_CFG / "PKGBUILD").read_text()
-        for needle in ("settings.conf", "modules/*.conf", "glueinstall gluefstab",
+        for needle in ("settings.conf", "modules/*.conf", "glueinstall gluefstab gluecrypt",
                        "module.desc", "main.py", "branding.desc", "'glue-installer'"):
             self.assertIn(needle, text)
         self.assertNotIn("Co-Authored", text)

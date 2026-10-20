@@ -16,6 +16,14 @@
 # Empty files and files whose first non-blank line is not '#' or '/' are
 # skipped with a warning. Drop a file there (or delete one) and re-run.
 #
+# Encrypted root (GLUE_BOOT_CRYPT_UUID + GLUE_BOOT_CRYPT_NAME in boot.conf):
+# `cryptdevice=UUID=<luks>:<name> root=/dev/mapper/<name>` for the initramfs
+# `encrypt` hook instead of root=UUID=.
+#
+# Kernel parameter drop-ins: every /etc/glue/cmdline.d/*.conf (glue-security
+# and others) holds parameters separated by any whitespace, '#' starts a
+# comment; they are appended to the cmdline in LC_ALL=C file order.
+#
 # Secure Boot (GLUE_BOOT_SECUREBOOT=1 in boot.conf, set by glue-secureboot):
 # every file Limine loads gets its BLAKE2B in the path (`...#<b2sum>`), a
 # fresh Limine EFI from /usr/share/limine gets the b2sum of the new
@@ -74,6 +82,7 @@ CONF="$ROOT/etc/glue/boot.conf"
 OUT="$BOOT/limine.conf"
 SHARE="$ROOT/usr/share/limine"
 BOOT_D="$ROOT/etc/glue/boot.d"
+CMDLINE_D="$ROOT/etc/glue/cmdline.d"
 
 # ------------------------------------------------------------- settings ----
 if [ ! -f "$CONF" ]; then
@@ -87,6 +96,8 @@ GLUE_BOOT_RESUME_UUID=""
 GLUE_BOOT_CMDLINE=""
 GLUE_BOOT_TIMEOUT=5
 GLUE_BOOT_SECUREBOOT=0
+GLUE_BOOT_CRYPT_UUID=""
+GLUE_BOOT_CRYPT_NAME=""
 # shellcheck disable=SC1090
 . "$CONF"
 case $GLUE_BOOT_FIRMWARE in
@@ -133,9 +144,21 @@ for k in $KERNELS; do
     [ "$k" = "$PRIMARY" ] || OTHERS="$OTHERS $k"
 done
 
-CMDLINE="root=UUID=$GLUE_BOOT_ROOT_UUID"
+if [ -n "$GLUE_BOOT_CRYPT_UUID" ]; then
+    [ -n "$GLUE_BOOT_CRYPT_NAME" ] || die "GLUE_BOOT_CRYPT_NAME is empty in $CONF"
+    CMDLINE="cryptdevice=UUID=$GLUE_BOOT_CRYPT_UUID:$GLUE_BOOT_CRYPT_NAME root=/dev/mapper/$GLUE_BOOT_CRYPT_NAME"
+else
+    CMDLINE="root=UUID=$GLUE_BOOT_ROOT_UUID"
+fi
 [ -z "$GLUE_BOOT_CMDLINE" ] || CMDLINE="$CMDLINE $GLUE_BOOT_CMDLINE"
 [ -z "$GLUE_BOOT_RESUME_UUID" ] || CMDLINE="$CMDLINE resume=UUID=$GLUE_BOOT_RESUME_UUID"
+if [ -d "$CMDLINE_D" ]; then
+    for f in "$CMDLINE_D"/*.conf; do
+        [ -f "$f" ] || continue
+        params=$(sed 's/#.*//' "$f" | tr -s '[:space:]' ' ' | sed 's/^ //; s/ $//')
+        [ -z "$params" ] || CMDLINE="$CMDLINE $params"
+    done
+fi
 
 # ---------------------------------------------------------- limine.conf ----
 # `#<BLAKE2B>` for a file Limine loads, only with Secure Boot (empty if absent)

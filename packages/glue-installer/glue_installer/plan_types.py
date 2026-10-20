@@ -31,6 +31,8 @@ class Selection:
     offline: bool = False
     # Secure Boot page: sbctl keys + signed, config-enrolled Limine (UEFI)
     secure_boot: bool = False
+    # Security page: basic|hardened|super, applied by `glue-security level`
+    security_level: str = "basic"
 
 
 @dataclass
@@ -48,3 +50,5 @@ class InstallPlan:
     warnings: List[str]    # in the fixed order documented above
     # extra kernel cmdline tokens for limine.conf (sorted, deduplicated)
     cmdline_extra: List[str] = field(default_factory=list)
+    # glue-security level run on the target after configuration
+    security_level: str = "basic"

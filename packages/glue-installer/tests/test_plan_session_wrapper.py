@@ -87,6 +87,26 @@ class TestSessionWrapperPolkit(unittest.TestCase):
         content = self._wrapper("gluewc", "glueqs")
         self.assertIn(f"(wait_wayland && [ -x {_POLKIT} ] && exec {_POLKIT}) &", content)
 
+    def test_update_reminder_in_bare_wm_sessions_only(self):
+        notify = "command -v glue-update-notify >/dev/null 2>&1 && exec glue-update-notify) &"
+        for sid, session in self.sessions.items():
+            content = self._wrapper(sid)
+            if session.kind != "wm":
+                self.assertNotIn("glue-update-notify", content, sid)
+                continue
+            wait = "wait_wayland && " if session.session_type == "wayland" else ""
+            self.assertIn(f"    ({wait}{notify}\n", content, sid)
+            self.assertLess(content.index('"--inner" ]'), content.index(notify), sid)
+            self.assertLess(content.index(notify), content.index("\nfi\n"), sid)
+
+    def test_update_reminder_missing_never_breaks_login(self):
+        line = "(command -v glue-update-notify >/dev/null 2>&1 && exec glue-update-notify) &\n"
+        r = subprocess.run(["/bin/sh", "-ec", line + "wait\necho login-continues\n"],
+                           capture_output=True, text=True, env={"PATH": "/nonexistent"},
+                           timeout=20)
+        self.assertEqual((r.returncode, r.stdout), (0, "login-continues\n"), r.stderr)
+        self.assertIn(line, self._wrapper("nvwm"))
+
     def test_desktop_environments_have_no_polkit_gnome(self):
         for session in self.catalog.sessions:
             if session.kind != "de":

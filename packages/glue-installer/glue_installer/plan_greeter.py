@@ -370,6 +370,12 @@ def _session_wrapper_content(
         "exec glue-welcome --autostart) &\n"
         if session.kind == "wm" else ""
     )
+    # glue-security's update reminder; exits at once when it is turned off
+    notify_block = (
+        f"    ({wait}command -v glue-update-notify >/dev/null 2>&1 && "
+        "exec glue-update-notify) &\n"
+        if session.kind == "wm" else ""
+    )
     wallpaper_block = (
         f"    ({wait}[ -x {_WALLPAPER_INIT} ] && "
         f"exec {_WALLPAPER_INIT} {session.id} {shell_id or 'none'}) &\n"
@@ -385,7 +391,7 @@ def _session_wrapper_content(
     command -v pipewire       >/dev/null 2>&1 && pipewire &
     command -v wireplumber    >/dev/null 2>&1 && wireplumber &
     command -v pipewire-pulse >/dev/null 2>&1 && pipewire-pulse &
-{polkit_block}{welcome_block}{wallpaper_block}{shell_block}    {cmd}
+{polkit_block}{welcome_block}{notify_block}{wallpaper_block}{shell_block}    {cmd}
 {_SESSION_END}fi
 
 # keep the last two starts for glue-debug and bug reports

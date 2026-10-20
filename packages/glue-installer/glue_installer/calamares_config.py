@@ -5,7 +5,8 @@ under packages/glue-calamares-config that depends on the catalog is GENERATED
 from here (settings.conf and modules/glue*.conf); tests assert the committed
 files equal the output byte for byte. One owner per operation: Calamares owns
 partition/mount/fstab/locale/keyboard/users/umount, glueinstall owns packages,
-Glue configuration, services and Limine, gluefstab owns the swapfile line.
+Glue configuration, services and Limine, gluefstab owns the swapfile line,
+gluecrypt rebuilds the initramfs of an encrypted root after keyboard.
 
 Every Glue page is QML (notesqml instances) and writes one globalstorage key,
 `packagechooser_<page>` = comma-separated item ids (the shape the stock
@@ -39,6 +40,9 @@ GAMING_OFF = "no-gaming"
 GAMING_XBOX = "gaming-xbox"
 SECUREBOOT_ON = "secureboot"
 SECUREBOOT_OFF = "no-secureboot"
+# Security page item id -> selection security_level
+SECURITY_LEVELS = {"security-basic": "basic", "security-hardened": "hardened",
+                   "security-super": "super"}
 # QML pages run as instances of the stock notesqml view module; the QML file
 # is looked up in the branding directory (qmlSearch: branding)
 NETWORK_STEP = "notesqml@gluenetwork"
@@ -49,7 +53,7 @@ QML_PAGES = (("gluenetwork", "gluenetwork", "Network"),
 SESSIONS_KEY = GS_PREFIX + "gluesessions"
 
 # one-choice QML pages (ChoicePage.qml) in the order the user sees them
-PAGE_IDS = ("gluekernel", "glueinit", "gluegaming", "gluesecureboot")
+PAGE_IDS = ("gluekernel", "glueinit", "gluegaming", "gluesecureboot", "gluesecurity")
 SHOW_BEFORE = ("welcome", NETWORK_STEP, "locale", "keyboard", "partition", "users",
                DESKTOP_STEP)
 SHOW_AFTER = ("summary",)
@@ -57,7 +61,7 @@ SHOW_AFTER = ("summary",)
 # and runs after basestrap so the `filesystem` package cannot conflict with an
 # earlier /etc/fstab); gluefstab adds only the Glue swapfile line right after.
 EXEC = ("partition", "mount", "glueinstall", "fstab", "gluefstab", "locale",
-        "keyboard", "localecfg", "users", "umount")
+        "keyboard", "localecfg", "gluecrypt", "users", "umount")
 SHOW_FINISH = ("finished",)
 # Never in the sequence: bootloader/initramfs are glue-boot's, services and the
 # greeter are config_steps', packages come from basestrap in glueinstall.
@@ -71,6 +75,7 @@ _EXEC_COMMENTS = {
     "glueinstall": "basestrap + Glue config + Limine over the mounted root",
     "fstab": "after basestrap: the filesystem package ships /etc/fstab",
     "gluefstab": "appends the Glue swapfile line recorded by glueinstall",
+    "gluecrypt": "encrypted root only: initramfs again with the console keymap",
     "locale": "locale/keyboard/users after glueinstall: glibc, kbd, shells, groups",
     "users": "needs the target's passwd/group (video, audio, …) and /bin/bash",
 }
@@ -191,9 +196,46 @@ def build_pages(catalog) -> List[Page]:
                 "Other Linux systems on this computer only start from the menu "
                 "while Secure Boot is off, unless they are signed with these keys"]))
     secure.default = SECUREBOOT_OFF
-    pages = [kernel, init, gaming, secure]
+    pages = [kernel, init, gaming, secure, security_page()]
     assert tuple(p.id for p in pages) == PAGE_IDS
     return pages
+
+
+def security_page() -> Page:
+    page = Page("gluesecurity", "Security", "required",
+                title="How much protection do you want?",
+                subtitle="Disk encryption is chosen on the Partitions page, where you "
+                         "set its passphrase. Everything else here can be changed "
+                         "later in Settings; encryption cannot.")
+    page.items.append(Item(
+        "security-basic", "Basic",
+        "Strong protection that costs you nothing in speed or games.",
+        badge="Recommended",
+        points=["Firewall on",
+                "AppArmor keeps apps inside their limits",
+                "Kernel protections with zero cost",
+                "Security update notices",
+                "Zero impact on games",
+                "Better protected out of the box than Arch, Artix or Linux Mint"]))
+    page.items.append(Item(
+        "security-hardened", "Hardened",
+        "More walls between apps, for a tiny cost in speed.",
+        points=["Everything in Basic",
+                "Apps cannot read each other's memory",
+                "A random Wi-Fi MAC address for every network",
+                "Kernel memory laid out so bugs are harder to exploit",
+                "Under 1-2% slower in games (estimate)",
+                "Breaks: game trainers and Cheat Engine"]))
+    page.items.append(Item(
+        "security-super", "Super hardened",
+        "Maximum protection for sensitive work. Not for gaming.",
+        points=["Hardened kernel with kernel lockdown",
+                "USBGuard: new USB devices stay blocked until you allow them",
+                "LibreWolf instead of Firefox",
+                "10-30% slower; Steam, Flatpak apps and anti-cheat games may stop working",
+                "No hibernation; with an NVIDIA card kernel lockdown is skipped"]))
+    page.default = "security-basic"
+    return page
 
 
 def page_keys(catalog) -> List[str]:
@@ -255,6 +297,9 @@ def selection_from_globalstorage(gs: Mapping, catalog) -> Dict[str, object]:
     secure = _picked(gs, pages["gluesecureboot"])
     if secure:
         sel["secure_boot"] = secure[0] == SECUREBOOT_ON
+    security = _picked(gs, pages["gluesecurity"])
+    if security:
+        sel["security_level"] = SECURITY_LEVELS[security[0]]
     return sel
 
 

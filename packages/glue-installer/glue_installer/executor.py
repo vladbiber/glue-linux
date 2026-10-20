@@ -185,8 +185,11 @@ def compile_steps(
     from glue_installer.hw_compat import microcode_hook_steps
     steps.extend(microcode_hook_steps(plan.packages, t, plan.files))
 
-    # 6. Bootloader (only when a DiskPlan is provided) - always last
+    # 6. Bootloader (only when a DiskPlan is provided) - always last, right
+    # after the security level (its cmdline.d drop-in must exist for Limine)
     if disk_plan is not None:
+        from glue_installer.plan_security import security_steps
+        steps.extend(security_steps(plan.security_level, t))
         steps.extend(bootloader_steps(disk_plan, boot, target=target))
 
     return steps

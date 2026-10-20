@@ -116,5 +116,53 @@ var pages = {
         ]
       }
     ]
+  },
+  "gluesecurity": {
+    "title": "How much protection do you want?",
+    "subtitle": "Disk encryption is chosen on the Partitions page, where you set its passphrase. Everything else here can be changed later in Settings; encryption cannot.",
+    "default": "security-basic",
+    "items": [
+      {
+        "id": "security-basic",
+        "name": "Basic",
+        "description": "Strong protection that costs you nothing in speed or games.",
+        "badge": "Recommended",
+        "points": [
+          "Firewall on",
+          "AppArmor keeps apps inside their limits",
+          "Kernel protections with zero cost",
+          "Security update notices",
+          "Zero impact on games",
+          "Better protected out of the box than Arch, Artix or Linux Mint"
+        ]
+      },
+      {
+        "id": "security-hardened",
+        "name": "Hardened",
+        "description": "More walls between apps, for a tiny cost in speed.",
+        "badge": "",
+        "points": [
+          "Everything in Basic",
+          "Apps cannot read each other's memory",
+          "A random Wi-Fi MAC address for every network",
+          "Kernel memory laid out so bugs are harder to exploit",
+          "Under 1-2% slower in games (estimate)",
+          "Breaks: game trainers and Cheat Engine"
+        ]
+      },
+      {
+        "id": "security-super",
+        "name": "Super hardened",
+        "description": "Maximum protection for sensitive work. Not for gaming.",
+        "badge": "",
+        "points": [
+          "Hardened kernel with kernel lockdown",
+          "USBGuard: new USB devices stay blocked until you allow them",
+          "LibreWolf instead of Firefox",
+          "10-30% slower; Steam, Flatpak apps and anti-cheat games may stop working",
+          "No hibernation; with an NVIDIA card kernel lockdown is skipped"
+        ]
+      }
+    ]
   }
 };

@@ -54,6 +54,9 @@ _VALID_FIRMWARE = frozenset({"uefi", "bios"})
 _BOOT_CONF_PATH = "/etc/glue/boot.conf"
 _ROOT_PLACEHOLDER = "@ROOT_UUID@"
 _RESUME_PLACEHOLDER = "@RESUME_UUID@"
+_CRYPT_PLACEHOLDER = "@CRYPT_UUID@"
+# kernel parameter drop-ins (glue-security and others), read by glue-boot-update
+CMDLINE_D = "/etc/glue/cmdline.d"
 _HEREDOC_TAG = "GLUE_BOOT_CONF"
 _TIMEOUT = 5
 # Characters that would be interpreted by sh inside the double-quoted
@@ -67,6 +70,8 @@ class BootSpec:
     cmdline_extra: Tuple[str, ...] = ()    # e.g. ('amd_pstate=active',)
     resume: bool = False                   # hibernation: resume= + hook
     secure_boot: bool = False              # glue-secureboot (UEFI only)
+    crypt_device: str = ""                 # LUKS root partition (encrypt hook)
+    crypt_name: str = ""                   # its mapper name: root=/dev/mapper/<name>
 
 
 # ---------------------------------------------------------------------------
@@ -84,6 +89,13 @@ def _check_spec(spec: BootSpec) -> None:
         raise ValueError(f"kernel must be a package name, not a path: {spec.kernel!r}")
     for extra in spec.cmdline_extra:
         _check_token(extra, "cmdline_extra entry")
+    if spec.crypt_name or spec.crypt_device:
+        from glue_installer.crypt import MAPPER_RE
+        if not MAPPER_RE.match(spec.crypt_name):
+            raise ValueError(f"crypt_name must be a mapper name: {spec.crypt_name!r}")
+        _check_token(spec.crypt_device, "crypt_device")
+        if not spec.crypt_device.startswith("/dev/") or ".." in spec.crypt_device:
+            raise ValueError(f"crypt_device must be a /dev path: {spec.crypt_device!r}")
 
 
 def _check_firmware(firmware: str) -> None:
@@ -96,18 +108,39 @@ def _check_firmware(firmware: str) -> None:
 # limine.conf text
 # ---------------------------------------------------------------------------
 
+def cmdline_d_params(texts: Tuple[str, ...]) -> List[str]:
+    """Parameters of /etc/glue/cmdline.d/*.conf texts (LC_ALL=C file order):
+    '#' starts a comment, any whitespace separates."""
+    params: List[str] = []
+    for text in texts:
+        for line in text.split("\n"):
+            params += line.split("#", 1)[0].split()
+    return params
+
+
 def kernel_cmdline(spec: BootSpec, root_uuid: str,
-                   resume_uuid: Optional[str] = None) -> str:
-    """root=UUID=… + BASE_CMDLINE + sorted extras + optional resume=UUID=…"""
+                   resume_uuid: Optional[str] = None,
+                   crypt_uuid: Optional[str] = None,
+                   cmdline_d: Tuple[str, ...] = ()) -> str:
+    """root=UUID=… (or cryptdevice=… root=/dev/mapper/…) + BASE_CMDLINE +
+    sorted extras + optional resume=UUID=… + cmdline.d parameters"""
     _check_spec(spec)
     _check_token(root_uuid, "root_uuid")
-    parts = [f"root=UUID={root_uuid}", *BASE_CMDLINE,
-             *sorted(set(spec.cmdline_extra))]
+    if spec.crypt_name:
+        if not crypt_uuid:
+            raise ValueError("an encrypted root needs its LUKS UUID")
+        _check_token(crypt_uuid, "crypt_uuid")
+        parts = [f"cryptdevice=UUID={crypt_uuid}:{spec.crypt_name}",
+                 f"root=/dev/mapper/{spec.crypt_name}"]
+    else:
+        parts = [f"root=UUID={root_uuid}"]
+    parts += [*BASE_CMDLINE, *sorted(set(spec.cmdline_extra))]
     if spec.resume and resume_uuid:
         _check_token(resume_uuid, "resume_uuid")
         # Same shape as swap.resume_cmdline (which only accepts real UUIDs;
         # the chroot writer passes a placeholder here).
         parts.append(f"resume=UUID={resume_uuid}")
+    parts += cmdline_d_params(cmdline_d)
     return " ".join(parts)
 
 
@@ -125,7 +158,9 @@ def limine_conf(spec: BootSpec, root_uuid: str,
                 resume_uuid: Optional[str] = None,
                 firmware: str = "uefi",
                 extra_kernels: Tuple[str, ...] = (),
-                foreign_entries: Tuple[str, ...] = ()) -> str:
+                foreign_entries: Tuple[str, ...] = (),
+                crypt_uuid: Optional[str] = None,
+                cmdline_d: Tuple[str, ...] = ()) -> str:
     """Full /boot/limine.conf: amber globals + Glue entry + fallback entry.
 
     firmware is validated only; the Linux entries are identical on UEFI and
@@ -136,9 +171,12 @@ def limine_conf(spec: BootSpec, root_uuid: str,
     foreign_entries: texts of /etc/glue/boot.d/*.conf (osdetect.boot_d_files,
     LC_ALL=C order), each appended after ALL kernel entries preceded by one
     blank line, exactly as glue-boot-update concatenates them.
+    crypt_uuid: LUKS UUID of the root partition when spec.crypt_name is set.
+    cmdline_d: texts of /etc/glue/cmdline.d/*.conf (LC_ALL=C order), their
+    parameters appended to every kernel cmdline.
     """
     _check_firmware(firmware)
-    cmdline = kernel_cmdline(spec, root_uuid, resume_uuid)
+    cmdline = kernel_cmdline(spec, root_uuid, resume_uuid, crypt_uuid, cmdline_d)
     k = spec.kernel
     lines = [
         "# Glue Linux boot menu (written by the installer; glue-boot-update regenerates it)",
@@ -188,10 +226,12 @@ def _check_fragment(text: str) -> str:
 
 
 def boot_conf(spec: BootSpec, firmware: str, root_uuid: str,
-              resume_uuid: Optional[str] = None) -> str:
+              resume_uuid: Optional[str] = None,
+              crypt_uuid: Optional[str] = None) -> str:
     """Text of /etc/glue/boot.conf: POSIX-sh assignments read by
     glue-boot-update. GLUE_BOOT_CMDLINE holds BASE_CMDLINE + sorted extras
-    (no root=, no resume=: the script adds those from the UUID keys)."""
+    (no root=, no resume=: the script adds those from the UUID keys).
+    GLUE_BOOT_CRYPT_UUID/NAME only for an encrypted root."""
     _check_firmware(firmware)
     _check_spec(spec)
     _check_token(root_uuid, "root_uuid")
@@ -212,6 +252,12 @@ def boot_conf(spec: BootSpec, firmware: str, root_uuid: str,
         f'GLUE_BOOT_CMDLINE="{cmdline}"',
         f"GLUE_BOOT_TIMEOUT={_TIMEOUT}",
     ]
+    if spec.crypt_name:
+        if not crypt_uuid:
+            raise ValueError("an encrypted root needs its LUKS UUID")
+        _check_token(crypt_uuid, "crypt_uuid")
+        lines += [f"GLUE_BOOT_CRYPT_UUID={crypt_uuid}",
+                  f"GLUE_BOOT_CRYPT_NAME={spec.crypt_name}"]
     return "\n".join(lines) + "\n"
 
 
@@ -269,11 +315,13 @@ def bootloader_packages(disk_plan: DiskPlan, secure_boot: bool = False) -> List[
 
 
 def _writer_script(spec: BootSpec, firmware: str, swap_path: Optional[str]) -> str:
-    """Chrooted sh: resolve UUIDs, (resume hook + initramfs), write
+    """Chrooted sh: resolve UUIDs, (resume/encrypt hooks + initramfs), write
     /etc/glue/boot.conf, then `glue-boot-update --deploy` on the target."""
     resume = spec.resume and swap_path is not None
+    crypt = bool(spec.crypt_name)
     template = boot_conf(spec, firmware, _ROOT_PLACEHOLDER,
-                         _RESUME_PLACEHOLDER if resume else None)
+                         _RESUME_PLACEHOLDER if resume else None,
+                         _CRYPT_PLACEHOLDER if crypt else None)
     if _HEREDOC_TAG in template:
         raise ValueError("boot.conf text collides with the heredoc delimiter")
     lines = [
@@ -288,8 +336,16 @@ def _writer_script(spec: BootSpec, firmware: str, swap_path: Optional[str]) -> s
             # resume hook right after filesystems (idempotent), then rebuild
             "grep -Eq '^HOOKS=.*[ (]resume[ )]' /etc/mkinitcpio.conf || "
             "sed -i -E 's/^(HOOKS=.*[ (]filesystems)([ )])/\\1 resume\\2/' /etc/mkinitcpio.conf",
-            "mkinitcpio -P",
         ]
+    if crypt:
+        from glue_installer.crypt import ENCRYPT_HOOK_SCRIPT
+        lines += [
+            f'CRYPT_UUID=$(blkid -s UUID -o value {spec.crypt_device})',
+            '[ -n "$CRYPT_UUID" ] || { echo "cannot resolve the LUKS UUID of the root" >&2; exit 1; }',
+            ENCRYPT_HOOK_SCRIPT.rstrip("\n"),
+        ]
+    if resume or crypt:
+        lines.append("mkinitcpio -P")
     lines += [
         "mkdir -p /etc/glue",
         f"cat > {_BOOT_CONF_PATH} <<'{_HEREDOC_TAG}'",
@@ -299,6 +355,8 @@ def _writer_script(spec: BootSpec, firmware: str, swap_path: Optional[str]) -> s
     ]
     if resume:
         lines.append(f'sed -i "s|{_RESUME_PLACEHOLDER}|$RESUME_UUID|g" {_BOOT_CONF_PATH}')
+    if crypt:
+        lines.append(f'sed -i "s|{_CRYPT_PLACEHOLDER}|$CRYPT_UUID|g" {_BOOT_CONF_PATH}')
     if spec.secure_boot and firmware == "uefi":
         # never fails the install: without Secure Boot it is the normal Limine
         lines += [
@@ -338,6 +396,8 @@ def bootloader_steps(disk_plan: DiskPlan, spec: BootSpec, *,
     what = f"Write {_BOOT_CONF_PATH}"
     if swap_path is not None:
         what += " (with hibernation resume), rebuild the initramfs"
+    elif spec.crypt_name:
+        what += " (encrypted root), rebuild the initramfs"
     what += " and deploy Limine with glue-boot-update (limine.conf)"
     return [RunCommand(
         argv=["artix-chroot", t, "sh", "-c",

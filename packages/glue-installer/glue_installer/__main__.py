@@ -360,8 +360,9 @@ def main(argv=None) -> int:
     # Limine entry: the selected kernel, plan extras, resume= only for a new
     # swap partition (erase mode) when hibernation was requested.
     kernel = next(k for k in catalog.kernels if k.id == selection.kernel_id)
+    from glue_installer.plan_security import boot_kernel
     boot = BootSpec(
-        kernel=kernel_name(kernel.packages),
+        kernel=boot_kernel(plan.security_level, kernel_name(kernel.packages)),
         cmdline_extra=tuple(plan.cmdline_extra),
         resume=resume_wanted(disk_plan, selection.hibernate),
     )

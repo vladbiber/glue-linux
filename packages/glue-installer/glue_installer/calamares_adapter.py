@@ -13,9 +13,10 @@ from __future__ import annotations
 
 import os
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Callable, List, Mapping, Optional
 
+from glue_installer.crypt import CryptRoot
 from glue_installer.disks import DiskPlan, PartitionSpec
 from glue_installer.executor import (
     RunCommand, Step, bootstrap_steps, config_steps, keyring_steps,
@@ -25,6 +26,7 @@ from glue_installer.limine import (
 )
 from glue_installer.osdetect import BOOT_D, DetectResult, boot_d_files
 from glue_installer.plan import PlanError, Selection, resolve_plan
+from glue_installer.plan_security import LEVELS, boot_kernel, security_steps
 from glue_installer.plan_types import PlannedFile
 from glue_installer.swap import SwapPlan, swap_plan
 
@@ -44,7 +46,8 @@ SHELLS = {"glueqs": "glueqs", "noctalia": "noctalia", "noctalia-shell": "noctali
 # Selection keys this adaptor reads; anything else (users, passwords…) is
 # Calamares' business and is never touched or logged.
 SELECTION_KEYS = ("kernel", "init", "sessions", "shell", "gaming", "scheduler",
-                  "app_store", "bluetooth", "swap_mode", "hibernate", "secure_boot")
+                  "app_store", "bluetooth", "swap_mode", "hibernate", "secure_boot",
+                  "security_level")
 SWAPFILE = "/swapfile"
 # Calamares did the partitioning: bootloader_steps only checks the device is
 # set (glue-boot-update resolves the BIOS disk from the root's PKNAME).
@@ -100,7 +103,8 @@ def parse_selection(d: Mapping, catalog=None) -> Selection:
     openrc), sessions (list of catalog session ids), shell (glueqs|
     noctalia[-shell], only for sessions offering several shells), gaming (bool),
     scheduler (scx_lavd|scx_bpfland|none), app_store/bluetooth/xbox_dongle (bool
-    support toggles), swap_mode (auto|zram|none), hibernate (bool). Unknown keys are
+    support toggles), swap_mode (auto|zram|none), hibernate (bool), secure_boot
+    (bool), security_level (basic|hardened|super). Unknown keys are
     ignored (never read). With a catalog, kernel/sessions/shell are checked
     against it here; without one resolve_plan does it later.
     Raises AdapterError for a value outside its allowed set.
@@ -128,6 +132,7 @@ def parse_selection(d: Mapping, catalog=None) -> Selection:
     swap_mode = _choice(d, "swap_mode", SWAP_MODES, "auto")
     hibernate = _bool(d, "hibernate", False)
     secure_boot = _bool(d, "secure_boot", False)
+    security_level = _choice(d, "security_level", LEVELS, "basic")
 
     shell_choice = {}
     if catalog is not None:
@@ -160,6 +165,7 @@ def parse_selection(d: Mapping, catalog=None) -> Selection:
         shell_choice=shell_choice, support_ids=support, gaming=gaming,
         minimal=not sessions and not gaming, scheduler=scheduler,
         swap_mode=swap_mode, hibernate=hibernate, secure_boot=secure_boot,
+        security_level=security_level,
     )
 
 
@@ -265,7 +271,7 @@ def compile_adapter(
     root_bytes: int = 0, root_fstype: str = "ext4", pacman_conf: Optional[str] = None,
     gpu_vendors=None, cpu_v3: bool = False, cpu_vendor_id: str = "other",
     amd_pstate_active: bool = False, other_os: Optional[DetectResult] = None,
-    hw=None,
+    hw=None, crypt_root: Optional[CryptRoot] = None,
 ) -> AdapterResult:
     """Compile the Glue part of a Calamares install (pure).
 
@@ -280,6 +286,10 @@ def compile_adapter(
     0 = unknown → no swapfile. boot_spec: overrides the kernel/cmdline
     derived from the catalog + plan. other_os: osdetect result from the
     live side (main.py runs os-prober); None = no foreign entries.
+    crypt_root: the LUKS root Calamares created (crypt.crypt_layout):
+    cryptsetup is installed and the bootloader step adds the encrypt hook
+    and cryptdevice=. The security level runs (glue-security) right
+    before the bootloader step so its cmdline.d drop-in is in limine.conf.
     Raises AdapterError (also for PlanError) - messages carry no secrets.
     """
     t = check_root_mount(root_mount, is_mount)
@@ -325,14 +335,20 @@ def compile_adapter(
         plan.files.sort(key=lambda f: f.path)
     if boot_spec is None:
         kernel = next(k for k in catalog.kernels if k.id == selection.kernel_id)
-        boot_spec = BootSpec(kernel=kernel_name(kernel.packages),
+        boot_spec = BootSpec(kernel=boot_kernel(plan.security_level,
+                                                kernel_name(kernel.packages)),
                              cmdline_extra=tuple(plan.cmdline_extra),
                              resume=want_resume,
                              secure_boot=selection.secure_boot and firmware == "uefi")
+    if crypt_root is not None:
+        boot_spec = replace(boot_spec, crypt_device=crypt_root.device,
+                            crypt_name=crypt_root.name)
     if selection.secure_boot and firmware != "uefi":
         warnings.append("Secure Boot skipped: this computer started in BIOS mode")
 
     boot_packages = bootloader_packages(disk_plan, secure_boot=boot_spec.secure_boot)
+    if crypt_root is not None:
+        boot_packages = sorted(set(boot_packages) | {"cryptsetup"})
     packages = sorted(set(plan.packages) | set(boot_packages))
     steps: List[Step] = []
     steps.extend(keyring_steps())
@@ -342,6 +358,7 @@ def compile_adapter(
                               only_if_present=False))
     from glue_installer.hw_compat import microcode_hook_steps
     steps.extend(microcode_hook_steps(plan.packages, t, plan.files))
+    steps.extend(security_steps(plan.security_level, t))
     swapfile_path = None
     if swap is not None and swap.disk_mib > 0 and swap_partition is None:
         steps.extend(swapfile_steps(t, swap.disk_mib, root_fstype))

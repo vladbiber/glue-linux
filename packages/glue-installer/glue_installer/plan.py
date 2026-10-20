@@ -20,6 +20,7 @@ from glue_installer.plan_files import (  # noqa: F401
     _GAMING_ENV_CONTENT, _PRIME_RUN_CONTENT, _TARGET_PACMAN_CONF,
     _build_target_pacman_conf)
 from glue_installer.plan_greeter import _greeter_files
+from glue_installer.plan_security import apply_security
 from glue_installer.plan_session import session_runtime_packages
 from glue_installer.swap import ZRAMEN_CONF, SwapPlan, zramen_conf
 # Re-exported: callers import these from glue_installer.plan.
@@ -441,6 +442,10 @@ def resolve_plan(
         zramen_path, zramen_content = zramen
         files.append(PlannedFile(path=zramen_path, content=zramen_content, mode=0o644))
 
+    # Rule 20: glue-security on every install; super swaps Firefox for LibreWolf
+    warnings.extend(apply_security(selection.security_level, packages, files,
+                                   selection.gaming, gpu_vendors or ()))
+
     # Kernel cmdline extras land in /boot/limine.conf (limine.py)
     cmdline_extra = {"amd_pstate=active"} if amd_pstate_active else set()
 
@@ -450,4 +455,5 @@ def resolve_plan(
         files=sorted(files, key=lambda f: f.path),
         warnings=warnings,
         cmdline_extra=sorted(cmdline_extra),
+        security_level=selection.security_level,
     )

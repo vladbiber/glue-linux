@@ -22,6 +22,7 @@ from glue_installer.calamares_adapter import (  # noqa: E402
 from glue_installer.calamares_config import (  # noqa: E402
     has_page_values, page_keys, selection_from_globalstorage,
 )
+from glue_installer.crypt import crypt_layout, crypt_warnings  # noqa: E402
 from glue_installer.executor import ExecutorError, execute  # noqa: E402
 
 _DEFAULT_SELECTION_FILE = "/etc/glue/selection.json"
@@ -183,6 +184,10 @@ def run(execute_steps=execute, facts=None, online=_online):
         if firmware == "bios" and (problem := _bios_boot_problem(gs)):
             raise AdapterError(problem)
         root, boot, swap, fstype = _gs_partitions(gs)
+        # LUKS root: encrypt hook + cryptdevice=; an encrypted swap stays unused
+        crypt = crypt_layout(gs.value("partitions"))
+        if swap in crypt.dropped_swap:
+            swap = None
         # os-prober (Windows) + the loaders on other ESPs; without os-prober
         # the ESP scan still runs and a warning says what is missing
         other_os, os_warnings = _other_os(gs, firmware, root, boot)
@@ -196,10 +201,10 @@ def run(execute_steps=execute, facts=None, online=_online):
             selection, catalog, root_mount=root_mount, firmware=firmware,
             swap_partition=swap, root_device=root, boot_device=boot,
             root_bytes=_root_bytes(root_mount), root_fstype=fstype,
-            pacman_conf=pacman_conf, other_os=other_os, **facts)
+            pacman_conf=pacman_conf, other_os=other_os, crypt_root=crypt.root, **facts)
     except (AdapterError, OSError, ValueError) as exc:
         return ("Glue Linux configuration rejected", str(exc))
-    for line in list(result.warnings) + list(os_warnings):
+    for line in list(result.warnings) + crypt_warnings(crypt) + list(os_warnings):
         cala.utils.warning(line)
     if not online():
         return ("No internet connection",
@@ -227,5 +232,10 @@ def run(execute_steps=execute, facts=None, online=_online):
         # Calamares' fstab job runs AFTER this module and only lists partitions:
         # record the swapfile line now; the fstab module appends its own lines.
         gs.insert("glue_swapfile_fstab_line", swapfile_fstab_line())
+    if crypt.root is not None:
+        # gluecrypt rebuilds the initramfs once keyboard wrote vconsole.conf
+        gs.insert("glue_crypt_root", crypt.root.name)
+    if crypt.dropped_fstab:
+        gs.insert("glue_fstab_drop", list(crypt.dropped_fstab))
     cala.job.setprogress(1.0)
     return None

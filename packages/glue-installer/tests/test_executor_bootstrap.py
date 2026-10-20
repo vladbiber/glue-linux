@@ -13,6 +13,7 @@ from glue_installer.executor import (
     RunCommand, bootstrap_steps, compile_steps, config_steps)
 from glue_installer.limine import BootSpec, bootloader_steps
 from glue_installer.plan import InstallPlan, PlannedFile
+from glue_installer.plan_security import security_steps
 
 _PLAN = InstallPlan(
     packages=["zz", "aa", "linux-cachyos"], services=["NetworkManager", "openntpd"],
@@ -38,6 +39,7 @@ def _golden(init_id, pacman_conf=None, disk=None):
         steps += swapfile_fstab_steps(disk, target=t)
     steps += config_steps(_PLAN, target=t, init_id=init_id)
     if disk is not None:
+        steps += security_steps("basic", t)
         steps += bootloader_steps(disk, BootSpec(kernel="linux-cachyos"), target=t)
     return steps
 
