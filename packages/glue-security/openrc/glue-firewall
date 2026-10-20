@@ -1,0 +1,20 @@
+#!/usr/bin/openrc-run
+# glue-firewall - Glue Linux firewall (nftables table inet glue_firewall)
+description="Glue Linux firewall"
+
+depend() {
+    need localmount
+    before net
+}
+
+start() {
+    ebegin "Loading the Glue firewall"
+    /usr/bin/nft -f /usr/share/glue-security/firewall.nft
+    eend $?
+}
+
+stop() {
+    ebegin "Removing the Glue firewall"
+    /usr/bin/nft delete table inet glue_firewall 2>/dev/null
+    eend 0
+}

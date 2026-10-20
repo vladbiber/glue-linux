@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Glue update reminder
+Comment=Notifies when system updates are available
+Exec=/usr/bin/glue-update-notify
+Icon=software-update-available
+NoDisplay=true
+X-GNOME-Autostart-enabled=true

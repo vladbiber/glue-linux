@@ -1,0 +1,46 @@
+# Maintainer: Glue Linux
+pkgname=glue-security
+pkgver=1
+pkgrel=1
+pkgdesc="Glue Linux security levels (basic, hardened, super): firewall, AppArmor, sysctl, USBGuard, hardened kernel and more"
+arch=('any')
+url="https://github.com/vladbiber/glue-linux"
+license=('GPL-3.0-or-later')
+# nftables: the firewall is part of every level; util-linux: flock
+depends=('python' 'nftables' 'util-linux')
+optdepends=('pacman-contrib: checkupdates for the update reminder'
+            'libnotify: notify-send for the update reminder'
+            'glue-boot: kernel command line for AppArmor, lockdown, nosmt'
+            'networkmanager: private Wi-Fi address')
+source=('glue-security' 'firewall.nft'
+        'glue-update-notify' 'glue-update-notify.desktop')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP')
+
+check() {
+    cd "$startdir"
+    python -m unittest discover -s tests
+}
+
+package() {
+    install -Dm755 "$srcdir/glue-security" "$pkgdir/usr/bin/glue-security"
+    local lib="$pkgdir/usr/lib/glue-security/glue_security"
+    install -d "$lib"
+    install -m644 "$startdir"/glue_security/*.py "$lib/"
+
+    install -Dm644 "$srcdir/firewall.nft" "$pkgdir/usr/share/glue-security/firewall.nft"
+    # extra rules (open ports), included after the table
+    install -d "$pkgdir/etc/glue/firewall.d"
+
+    install -Dm755 "$srcdir/glue-update-notify" "$pkgdir/usr/bin/glue-update-notify"
+    # linked into /etc/xdg/autostart by `glue-security enable updates-notify`
+    install -Dm644 "$srcdir/glue-update-notify.desktop" \
+        "$pkgdir/usr/share/glue-security/glue-update-notify.desktop"
+
+    # ----- glue-firewall for all three inits -----
+    install -Dm644 "$startdir/dinit.d/glue-firewall" "$pkgdir/etc/dinit.d/glue-firewall"
+    install -Dm755 "$startdir/runit/glue-firewall/run" \
+        "$pkgdir/etc/runit/sv/glue-firewall/run"
+    install -Dm755 "$startdir/runit/glue-firewall/finish" \
+        "$pkgdir/etc/runit/sv/glue-firewall/finish"
+    install -Dm755 "$startdir/openrc/glue-firewall" "$pkgdir/etc/init.d/glue-firewall"
+}

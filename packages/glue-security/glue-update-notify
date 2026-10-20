@@ -1,0 +1,36 @@
+#!/bin/sh
+# glue-update-notify: after login and every 6 hours, tell the user when
+# system updates are waiting; the button opens Glue Apps on its Updates page.
+# Same check as Glue Apps (checkupdates, no root, real db untouched).
+# Exits at once while the updates-notify component is off.
+AUTOSTART=/etc/xdg/autostart/glue-update-notify.desktop
+INTERVAL=${GLUE_UPDATE_NOTIFY_INTERVAL:-21600}
+FIRST_DELAY=${GLUE_UPDATE_NOTIFY_DELAY:-120}
+
+[ -e "$AUTOSTART" ] || exit 0
+command -v checkupdates >/dev/null 2>&1 || exit 0
+command -v notify-send >/dev/null 2>&1 || exit 0
+# one per user session
+lock="${XDG_RUNTIME_DIR:-/tmp}/glue-update-notify.lock"
+exec 9>"$lock"
+flock -n 9 || exit 0
+
+sleep "$FIRST_DELAY"
+last=""
+while [ -e "$AUTOSTART" ]; do
+    list=$(checkupdates 2>/dev/null)
+    n=$(printf '%s\n' "$list" | grep -c .)
+    # same list as last time: do not nag again
+    if [ "$n" -gt 0 ] && [ "$list" != "$last" ]; then
+        last=$list
+        (
+            act=$(notify-send -a "Glue Linux" -i software-update-available \
+                -A open="Open updates" \
+                "Updates available" "$n package updates are ready to install.")
+            if [ "$act" = open ] && command -v glue-apps >/dev/null 2>&1; then
+                exec glue-apps --page updates
+            fi
+        ) &
+    fi
+    sleep "$INTERVAL"
+done

@@ -63,7 +63,7 @@ sign_pkgs() {
 # glue-keyring first: everything after it is signed with that key.
 # ctify, spotc (with librespot) and creader are optional apps of the repo,
 # not installed on the ISO.
-for pkg in glue-keyring glue-zsh glue-branding glue-settings glue-boot st-glue nvwm proton-ge-custom-bin \
+for pkg in glue-keyring glue-zsh glue-branding glue-settings glue-boot glue-security st-glue nvwm proton-ge-custom-bin \
            scx-scheds ananicy-cpp lib32-glew lib32-mangohud cage gluewc glueqs noctalia-shell gluemac \
            inter-font ttf-roboto-flex macshell \
            ttf-material-symbols-variable ttf-rubik-vf ttf-google-sans-flex ttf-readex-pro otf-space-grotesk \

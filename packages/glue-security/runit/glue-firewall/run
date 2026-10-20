@@ -1,0 +1,4 @@
+#!/bin/sh
+# glue-firewall (runit): load the table, then idle so runsv does not respawn
+nft -f /usr/share/glue-security/firewall.nft || exit 1
+exec chpst -b glue-firewall pause

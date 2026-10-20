@@ -1,0 +1,7 @@
+# glue-firewall - Glue Linux firewall (nftables table inet glue_firewall)
+type         = scripted
+command      = /usr/bin/nft -f /usr/share/glue-security/firewall.nft
+stop-command = /usr/bin/nft delete table inet glue_firewall
+restart      = false
+depends-on   = local.target
+before       = pre-network.target

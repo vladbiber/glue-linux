@@ -1,0 +1,34 @@
+#!/usr/bin/nft -f
+# glue-security firewall: drop unsolicited inbound, never filter outbound.
+# Only this table is touched, so Docker, libvirt and others keep theirs.
+# Open a port with a file in /etc/glue/firewall.d/, e.g. ssh.nft:
+#   add rule inet glue_firewall input tcp dport 22 accept
+
+table inet glue_firewall
+delete table inet glue_firewall
+
+table inet glue_firewall {
+	chain input {
+		type filter hook input priority filter; policy drop;
+
+		iif "lo" accept
+		ct state established,related accept
+		ct state invalid drop
+
+		# path MTU, unreachable, ping; IPv6 neighbour discovery and router adverts
+		meta l4proto icmp icmp type { destination-unreachable, time-exceeded, parameter-problem } accept
+		meta l4proto icmp icmp type echo-request limit rate 10/second accept
+		meta l4proto ipv6-icmp icmpv6 type { destination-unreachable, packet-too-big, time-exceeded, parameter-problem, nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert, mld-listener-query } accept
+		meta l4proto ipv6-icmp icmpv6 type echo-request limit rate 10/second accept
+
+		# DHCP client replies
+		udp sport 67 udp dport 68 accept
+		ip6 saddr fe80::/10 udp sport 547 udp dport 546 accept
+
+		# mDNS: printers, casting and .local names
+		ip daddr 224.0.0.251 udp dport 5353 accept
+		ip6 daddr ff02::fb udp dport 5353 accept
+	}
+}
+
+include "/etc/glue/firewall.d/*.nft"
