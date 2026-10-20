@@ -5,7 +5,7 @@
 # fails to attach on linux-cachyos 7.2 and the daemon then segfaults.
 pkgname=ananicy-cpp
 pkgver=1.2.0
-pkgrel=4
+pkgrel=5
 pkgdesc="Auto nice daemon with community rules (C++ rewrite), with dinit/runit/openrc services"
 arch=('x86_64')
 url="https://gitlab.com/ananicy-cpp/ananicy-cpp"
@@ -19,8 +19,9 @@ source=("git+https://gitlab.com/ananicy-cpp/ananicy-cpp.git#tag=v${pkgver}"
         'ananicy-cpp.openrc'
         'sorted-rules.patch'
         'greetd.rules'
-        'launchers.rules')
-sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+        'launchers.rules'
+        'steam.rules')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 prepare() {
   cd "$pkgname"
@@ -50,6 +51,7 @@ package() {
   install -dm755 "$pkgdir/etc/ananicy.d"
   install -Dm644 "$srcdir/greetd.rules" "$pkgdir/etc/ananicy.d/zz-glue/greetd.rules"
   install -Dm644 "$srcdir/launchers.rules" "$pkgdir/etc/ananicy.d/zz-glue/launchers.rules"
+  install -Dm644 "$srcdir/steam.rules" "$pkgdir/etc/ananicy.d/zz-glue/steam.rules"
 
   install -Dm644 "$srcdir/ananicy-cpp.dinit"     "$pkgdir/etc/dinit.d/ananicy-cpp"
   install -Dm755 "$srcdir/ananicy-cpp.runit-run" "$pkgdir/etc/runit/sv/ananicy-cpp/run"

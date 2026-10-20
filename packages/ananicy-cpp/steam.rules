@@ -1,0 +1,9 @@
+# cachyos-ananicy-rules makes steam a Launcher (nice 16, idle IO) and every
+# game it starts inherits that. Games run under reaper (Player-Audio there,
+# for the REAPER DAW) and, with the Steam runtime or Proton, srt-bwrap and
+# pv-adverb: those get best-effort IO so unruled games stop inheriting idle
+{ "name": "reaper", "type": "Player-Audio", "ioclass": "best-effort" }
+{ "name": "srt-bwrap", "nice": -4, "ioclass": "best-effort" }
+{ "name": "pv-adverb", "nice": -4, "ioclass": "best-effort" }
+# the Steam client's own web UI keeps what it had before: nice -4, idle IO
+{ "name": "steamwebhelper", "type": "Doc-View", "ioclass": "idle" }
