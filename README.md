@@ -241,5 +241,8 @@ Glue Linux is put together from the work of many projects:
   [m3shapes](https://github.com/soramanew/m3shapes) and
   [materialyoucolor](https://github.com/T-Dynamos/materialyoucolor-python),
   packaged in `[glue]` for the shells that need them
+- [Inter](https://github.com/rsms/inter) and
+  [Open Runde](https://github.com/lauridskern/open-runde) by Laurids Kern
+  (SIL OFL 1.1): the fonts of MacShell
 
 Each package keeps its upstream license; see `packages/*/PKGBUILD`.

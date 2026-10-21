@@ -5,8 +5,9 @@
 # gluemac and gluewc speak Hyprland's IPC for it.
 # MACSHELL_SRC=file:///src/gluemac-macshell builds an unpushed checkout (GLUE_LOCAL=1)
 pkgname=macshell
-pkgver=0.0.8.r0.0000000
-pkgrel=2
+_commit=48f73c94f7e54c2dce3206d3186875f52f139272
+pkgver=0.1.0.r163.48f73c9
+pkgrel=1
 pkgdesc="macOS Tahoe style menu bar, Dock and lock screen with Liquid Glass (Quickshell)"
 arch=('any')
 url="https://github.com/vladbiber/macshell"
@@ -18,6 +19,7 @@ depends=('quickshell' 'qt6-svg' 'qt6-shadertools' 'qt6-multimedia' 'qt6-declarat
          'util-linux' 'xdg-utils' 'pam' 'imagemagick')
 optdepends=('mpvpaper: video wallpapers'
             'ffmpeg: video wallpaper previews'
+            'openbsd-netcat: pauses video wallpapers hidden behind windows'
             'wf-recorder: screen recording'
             'gpu-screen-recorder: screen recording on the GPU'
             'hyprpicker: colour picker'
@@ -34,7 +36,7 @@ makedepends=('git')
 replaces=('gluemac-shell')
 conflicts=('gluemac-shell')
 backup=('etc/pam.d/maclock')
-source=("gluemac-macshell::git+${MACSHELL_SRC:-https://github.com/vladbiber/macshell.git}")
+source=("gluemac-macshell::git+${MACSHELL_SRC:-https://github.com/vladbiber/macshell.git}#commit=$_commit")
 sha256sums=('SKIP')
 
 pkgver() {
@@ -58,4 +60,5 @@ package() {
     install -Dm644 -t "$pkgdir/usr/share/doc/$pkgname" README.md glue/CHANGES.md
     install -Dm644 MacLock/README.md "$pkgdir/usr/share/doc/$pkgname/MACLOCK.md"
     install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+    install -Dm644 glue/OpenRunde-LICENSE.txt "$pkgdir/usr/share/licenses/$pkgname/OpenRunde-OFL.txt"
 }
