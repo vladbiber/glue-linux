@@ -2,5 +2,7 @@
 # scx (runit): sched_ext userspace CPU scheduler.
 # Scheduler and flags come from /etc/default/scx; SCX_FLAGS stays unquoted
 # so multiple flags split into separate arguments.
+# runit stage 1 leaves debugfs unmounted and scx_utils panics without it
+mountpoint -q /sys/kernel/debug || mount -t debugfs debugfs /sys/kernel/debug
 [ -r /etc/default/scx ] && . /etc/default/scx
 exec "/usr/bin/${SCX_SCHEDULER:-scx_lavd}" ${SCX_FLAGS:-}
