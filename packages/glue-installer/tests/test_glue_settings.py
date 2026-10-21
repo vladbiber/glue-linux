@@ -55,7 +55,8 @@ def _parse_sysctl(text: str) -> dict:
         if not line or line.startswith("#") or "=" not in line:
             continue
         key, _, value = line.partition("=")
-        out[key.strip()] = value.strip()
+        # a leading '-' only tells sysctl to ignore a failure
+        out[key.strip().lstrip("-")] = value.strip()
     return out
 
 

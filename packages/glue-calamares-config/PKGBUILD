@@ -3,7 +3,7 @@
 # generated selection pages, glueinstall/gluefstab job modules and branding.
 pkgname=glue-calamares-config
 pkgver=0.2.0
-pkgrel=17
+pkgrel=18
 pkgdesc="Glue Linux installer configuration for Calamares (sequence, pages, Glue job modules, branding)"
 arch=('any')
 url="https://github.com/vladbiber/glue-linux"
@@ -24,7 +24,7 @@ package() {
     # Glue job modules (python): module.desc + main.py; Calamares reads their
     # config from modules/<name>.conf (installed by the loop above)
     local mod
-    for mod in glueinstall gluefstab gluecrypt; do
+    for mod in glueinstall gluefstab gluecrypt gluemounts; do
         install -Dm644 "$startdir/modules/$mod/module.desc" "$cfg/modules/$mod/module.desc"
         install -Dm644 "$startdir/modules/$mod/main.py" "$cfg/modules/$mod/main.py"
     done

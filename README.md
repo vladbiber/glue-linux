@@ -52,7 +52,9 @@ Boot the ISO (Ventoy works). The live desktop opens **Glue Welcome**; press
 
 1. **Network:** shows whether you are online and opens the Wi-Fi window. The
    install downloads its packages, so it needs a connection.
-2. **Location, keyboard, partitions, user.** An existing EFI partition can be
+2. **Location, keyboard, partitions, user.** *Encrypt system* puts the root
+   partition in LUKS; the passphrase is asked at boot with your keyboard
+   layout. An existing EFI partition can be
    reused without formatting: when another system already boots with Limine
    from it, Glue adds its entries at the end of that menu and keeps a backup
    of the original `limine.conf`. Other operating systems found on the disks
@@ -123,7 +125,8 @@ sudo pacman -S ctify      # or: yay -S ctify
 
 - Secure Boot has to be turned off in the firmware settings.
 - The install downloads its packages, so it needs an internet connection.
-- Disk encryption (LUKS) is not offered by the installer yet.
+- With disk encryption only the root partition is encrypted; /boot (the EFI
+  partition) stays readable, because Limine cannot open LUKS.
 
 ## gluewc and glueqs
 

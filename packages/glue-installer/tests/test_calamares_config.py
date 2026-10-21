@@ -45,7 +45,7 @@ class TestSequence(unittest.TestCase):
     def test_exec_order_exact(self):
         self.assertEqual(_phase(_SETTINGS, "exec", 1), [
             "partition", "mount", "glueinstall", "fstab", "gluefstab", "locale",
-            "keyboard", "localecfg", "gluecrypt", "users", "umount"])
+            "keyboard", "localecfg", "gluecrypt", "users", "gluemounts", "umount"])
         self.assertEqual(tuple(_phase(_SETTINGS, "exec", 1)), EXEC)
         self.assertEqual(_phase(_SETTINGS, "show", 2), ["finished"])
 
@@ -391,7 +391,7 @@ class TestGluefstab(unittest.TestCase):
 class TestPackaging(unittest.TestCase):
     def test_pkgbuild_installs_modules_and_pages(self):
         text = (_CFG / "PKGBUILD").read_text()
-        for needle in ("settings.conf", "modules/*.conf", "glueinstall gluefstab gluecrypt",
+        for needle in ("settings.conf", "modules/*.conf", "glueinstall gluefstab gluecrypt gluemounts",
                        "module.desc", "main.py", "branding.desc", "'glue-installer'"):
             self.assertIn(needle, text)
         self.assertNotIn("Co-Authored", text)

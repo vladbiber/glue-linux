@@ -1,0 +1,7 @@
+# Glue Linux: lazily unmounts what artix-chroot left stacked over the target's
+# own mounts, so the umount job can take the target apart.
+---
+type: "job"
+name: "gluemounts"
+interface: "python"
+script: "main.py"

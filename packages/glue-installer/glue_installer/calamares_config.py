@@ -61,7 +61,7 @@ SHOW_AFTER = ("summary",)
 # and runs after basestrap so the `filesystem` package cannot conflict with an
 # earlier /etc/fstab); gluefstab adds only the Glue swapfile line right after.
 EXEC = ("partition", "mount", "glueinstall", "fstab", "gluefstab", "locale",
-        "keyboard", "localecfg", "gluecrypt", "users", "umount")
+        "keyboard", "localecfg", "gluecrypt", "users", "gluemounts", "umount")
 SHOW_FINISH = ("finished",)
 # Never in the sequence: bootloader/initramfs are glue-boot's, services and the
 # greeter are config_steps', packages come from basestrap in glueinstall.
@@ -78,6 +78,7 @@ _EXEC_COMMENTS = {
     "gluecrypt": "encrypted root only: initramfs again with the console keymap",
     "locale": "locale/keyboard/users after glueinstall: glibc, kbd, shells, groups",
     "users": "needs the target's passwd/group (video, audio, …) and /bin/bash",
+    "gluemounts": "drops mounts artix-chroot left stacked over the target",
 }
 _SETTINGS_FLAGS = (
     ("branding", "glue"), ("prompt-install", True), ("dont-chroot", False),

@@ -1,7 +1,7 @@
 # Maintainer: Glue Linux
 pkgname=glue-branding
 pkgver=1
-pkgrel=22
+pkgrel=23
 pkgdesc="Glue Linux branding, default wallpaper and boot theme"
 arch=('any')
 url="https://github.com/vladbiber/glue-linux"
@@ -20,11 +20,11 @@ source=('logo.txt' 'fastfetch.jsonc' 'term-neutral.sh'
         'wallpaper.png' 'glue-mac.jpg' 'WALLPAPER-CREDITS.md' 'glue-wallpaper-init'
         'alacritty.toml' 'termfont'
         'rofi.rasi' 'rofi-fullscreen-preview.rasi'
-        'glue-screencast-chooser' 'xdpw-config' 'glue-action')
+        'glue-screencast-chooser' 'xdpw-config' 'glue-action' 'plasma-welcomerc')
 sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
             '29986d12aa6b234ed72eead6d7fcfb1740ac847dc9812e92b446bfd7fe5ca4ca'
             'd80a336a426e48f84c38f76f903d3fa4eeb0fa6a5e1278bc1aa6a5f507778c9c'
-            'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+            'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
     # ----- fastfetch logo + config -----
@@ -72,6 +72,8 @@ package() {
     # screen sharing on gluewc: pick the only screen at once, rofi for several
     install -Dm755 "$srcdir/glue-screencast-chooser" "$pkgdir/usr/lib/glue/glue-screencast-chooser"
     install -Dm644 "$srcdir/xdpw-config" "$pkgdir/etc/xdg/xdg-desktop-portal-wlr/config"
+    # Glue Welcome greets new users; KDE's Welcome Center opened on top of it
+    install -Dm644 "$srcdir/plasma-welcomerc" "$pkgdir/etc/xdg/plasma-welcomerc"
     # the wallpaper pickers (glueqs, Noctalia) list ~/Pictures/Wallpapers
     install -dm755 "$pkgdir/etc/skel/Pictures/Wallpapers"
     ln -s /usr/share/backgrounds/glue/wallpaper.png \
