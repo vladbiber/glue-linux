@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Keyboard Layout
+Comment=Add keyboard layouts and choose the key that switches them
+Exec=glue-keyboard
+Icon=org.glue.Keyboard
+Terminal=false
+Type=Application
+Categories=Settings;HardwareSettings;
+Keywords=keyboard;layout;language;xkb;tastatura;
+StartupNotify=true

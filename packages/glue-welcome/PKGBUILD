@@ -1,8 +1,8 @@
 # Maintainer: Glue Linux
 pkgname=glue-welcome
 pkgver=0.3.0
-pkgrel=9
-pkgdesc="Glue Linux welcome window: keyboard shortcuts, system information and settings"
+pkgrel=10
+pkgdesc="Glue Linux welcome window: keyboard shortcuts, system information, settings and keyboard layouts"
 arch=('any')
 url="https://github.com/vladbiber/glue-linux"
 license=('GPL-3.0-only')
@@ -12,14 +12,17 @@ conflicts=('glue-hub')
 optdepends=('glue-calamares-config: Install button on the live ISO'
             'nm-connection-editor: Advanced button in Network'
             'lm_sensors: temperature on the System page'
-            'power-profiles-daemon: power mode switch')
-source=('glue-welcome' 'glue-network' 'glue-cs2-warmup')
-sha256sums=('SKIP' 'SKIP' 'SKIP')
+            'power-profiles-daemon: power mode switch'
+            'kbd: console keymap from glue-keyboard'
+            'xorg-setxkbmap: live layout change in X11 sessions')
+source=('glue-welcome' 'glue-network' 'glue-cs2-warmup' 'glue-keyboard')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
     install -Dm755 "$srcdir/glue-welcome" "$pkgdir/usr/bin/glue-welcome"
     install -Dm755 "$srcdir/glue-network" "$pkgdir/usr/bin/glue-network"
     install -Dm755 "$srcdir/glue-cs2-warmup" "$pkgdir/usr/bin/glue-cs2-warmup"
+    install -Dm755 "$srcdir/glue-keyboard" "$pkgdir/usr/bin/glue-keyboard"
     install -dm755 "$pkgdir/usr/lib/glue-welcome/glue_welcome"
     install -m644 "$startdir"/glue_welcome/*.py "$pkgdir/usr/lib/glue-welcome/glue_welcome/"
     install -Dm644 "$startdir/data/applications/org.glue.Welcome.desktop" \
@@ -36,6 +39,16 @@ package() {
         "$pkgdir/usr/share/icons/hicolor/scalable/apps/org.glue.Welcome.svg"
     install -Dm644 "$startdir/data/icons/org.glue.Network.svg" \
         "$pkgdir/usr/share/icons/hicolor/scalable/apps/org.glue.Network.svg"
+    install -Dm644 "$startdir/data/applications/org.glue.Keyboard.desktop" \
+        "$pkgdir/usr/share/applications/org.glue.Keyboard.desktop"
+    install -Dm644 "$startdir/data/icons/org.glue.Keyboard.svg" \
+        "$pkgdir/usr/share/icons/hicolor/scalable/apps/org.glue.Keyboard.svg"
+    install -Dm755 "$startdir/data/helpers/keyboard-apply" \
+        "$pkgdir/usr/lib/glue/keyboard-apply"
+    install -Dm644 "$startdir/data/polkit/org.glue.keyboard-apply.policy" \
+        "$pkgdir/usr/share/polkit-1/actions/org.glue.keyboard-apply.policy"
+    install -Dm644 "$startdir/data/profile.d/glue-keyboard.sh" \
+        "$pkgdir/etc/profile.d/glue-keyboard.sh"
     install -Dm644 "$startdir/../glue-installer/catalog/catalog.json" \
         "$pkgdir/usr/share/glue/catalog.json"
     install -Dm755 "$startdir/data/helpers/greeter-background" \

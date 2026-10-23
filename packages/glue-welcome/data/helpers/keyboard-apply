@@ -1,0 +1,17 @@
+#!/usr/bin/python3
+"""keyboard-apply LAYOUT VARIANT OPTIONS — run through pkexec by glue-keyboard."""
+import sys
+
+sys.path[:0] = ["/usr/lib/glue-welcome"]
+
+from glue_welcome import keyboard
+
+if len(sys.argv) != 4 or not sys.argv[1] or not keyboard.valid(*sys.argv[1:]):
+    print("usage: keyboard-apply LAYOUT VARIANT OPTIONS ([a-z0-9_:,()-] only)",
+          file=sys.stderr)
+    raise SystemExit(2)
+try:
+    keyboard.write_system(*sys.argv[1:])
+except (OSError, ValueError) as error:
+    print(f"keyboard-apply: {error}", file=sys.stderr)
+    raise SystemExit(1)

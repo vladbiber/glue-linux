@@ -88,7 +88,13 @@ class WelcomeWindow(ShellWindow):
     def build_pages(self):
         startup = Gtk.Switch(active=self.config.autostart, valign=Gtk.Align.CENTER)
         startup.connect("notify::active", lambda s, _p: self.set_autostart(s.get_active()))
+        layouts = Gtk.Button(label=_("Change layout…"), valign=Gtk.Align.CENTER,
+                             css_classes=["pill"])
+        layouts.connect("clicked", lambda _b: _spawn(["glue-keyboard"]))
         extra = ((_("Startup"), panel(panel_row(_("Show Welcome at login"), startup))),
+                 (_("Keyboard"), panel(panel_row(
+                     _("Keyboard layout"), layouts,
+                     _("Add layouts and choose the keys that switch them.")))),
                  (_("Login screen"), login_screen_panel(self)))
         return [("welcome", self._welcome_page()), ("system", system_page(self)),
                 ("settings", settings_page(self, extra))]

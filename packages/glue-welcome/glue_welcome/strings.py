@@ -134,4 +134,29 @@ RO = {
         "CS2 e setat să ruleze cu Proton. În Steam deschide Proprietăți CS2, Compatibilitate, "
         "debifează unealta forțată, apoi încearcă din nou.",
     "Preparing CS2 shaders": "Pregătesc shaderele CS2",
+    "Keyboard": "Tastatură",
+    "Keyboard layout": "Aranjament tastatură",
+    "Keyboard Layout": "Aranjament tastatură",
+    "Change layout…": "Schimbă aranjamentul…",
+    "Add layouts and choose the keys that switch them.":
+        "Adaugă aranjamente și alege tastele care le schimbă.",
+    "Keyboard layouts": "Aranjamente de tastatură",
+    "The first one is used at login. Switch between them with the keys below.":
+        "Primul e folosit la autentificare. Treci de la unul la altul cu tastele de mai jos.",
+    "This desktop has its own keyboard settings; they open from here.":
+        "Acest desktop are propriile setări de tastatură; le deschizi de aici.",
+    "Open keyboard settings": "Deschide setările tastaturii",
+    "Add a layout…": "Adaugă un aranjament…",
+    "Add a layout": "Adaugă un aranjament",
+    "Search: Romanian, German, French…": "Caută: Romanian, German, French…",
+    "Switch layouts with": "Schimbă aranjamentul cu",
+    "Default": "Implicit",
+    "Make default": "Fă-l implicit",
+    "Remove": "Elimină",
+    "Apply": "Aplică",
+    "Authorization was cancelled.": "Autorizarea a fost anulată.",
+    "Could not save the layout.": "Aranjamentul nu a putut fi salvat.",
+    "Saved for login. Set the same layouts in the desktop's keyboard settings.":
+        "Salvat pentru autentificare. Pune aceleași aranjamente și în setările de tastatură ale desktopului.",
+    "Saved. The new layouts work now.": "Salvat. Noile aranjamente merg de acum.",
 }
