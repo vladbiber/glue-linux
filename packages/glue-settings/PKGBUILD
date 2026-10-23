@@ -1,7 +1,7 @@
 # Maintainer: Glue Linux
 pkgname=glue-settings
 pkgver=1
-pkgrel=15
+pkgrel=16
 pkgdesc="Glue Linux performance defaults (CachyOS-Settings ported to Artix inits): sysctl, udev rules, modprobe, limits, THP oneshot, game-performance"
 arch=('any')
 url="https://github.com/vladbiber/glue-linux"
@@ -28,11 +28,11 @@ source=('70-glue.conf'
         'keep-modules' '10-glue-keep-modules.hook' '90-glue-keep-modules.hook'
         'elogind-finish' 'glue-timesync' '50-glue-timesync'
         'glue-flatpak-gl' '95-glue-flatpak-gl.hook'
-        'glue-regdom' '50-glue-wifi-powersave.conf' '50-glue-bluetooth.conf')
+        'glue-regdom' '50-glue-wifi-powersave.conf' '50-glue-bluetooth.conf' '60-glue-netlog')
 sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
             'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
             'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
-            'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+            'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
     # ----- sysctl (vendor dir; /etc stays free for the admin) -----
@@ -93,6 +93,8 @@ package() {
         "$pkgdir/usr/share/libalpm/hooks/95-glue-flatpak-gl.hook"
     install -Dm755 "$srcdir/50-glue-timesync" \
         "$pkgdir/etc/NetworkManager/dispatcher.d/50-glue-timesync"
+    install -Dm755 "$srcdir/60-glue-netlog" \
+        "$pkgdir/etc/NetworkManager/dispatcher.d/60-glue-netlog"
 
     # ----- Wi-Fi: country from the timezone, no power save -----
     install -Dm755 "$srcdir/glue-regdom" "$pkgdir/usr/bin/glue-regdom"

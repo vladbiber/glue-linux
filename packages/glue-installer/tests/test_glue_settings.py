@@ -318,6 +318,21 @@ class TestPackageContent(unittest.TestCase):
         self.assertRegex(wp, r"wireplumber\.settings = \{\s*"
                              r"bluetooth\.autoswitch-to-headset-profile = false\s*\}")
 
+    def test_netlog_records_link_changes_only(self):
+        self.assertIn("/etc/NetworkManager/dispatcher.d/60-glue-netlog",
+                      (_SETTINGS_DIR / "PKGBUILD").read_text())
+        with tempfile.TemporaryDirectory() as tmp:
+            log = Path(tmp, "net.log")
+            for event, gw in (("up", "192.168.1.1"), ("pre-up", "x"), ("dhcp4-change", "")):
+                subprocess.run(["sh", str(_SETTINGS_DIR / "60-glue-netlog"), "eth0", event],
+                               check=True, timeout=10,
+                               env={"PATH": "/usr/bin:/bin", "GLUE_NETLOG": str(log),
+                                    "IP4_GATEWAY": gw})
+            lines = [l for l in log.read_text().splitlines() if not l.startswith(" ")]
+        self.assertEqual(len(lines), 2)
+        self.assertIn("eth0 up gw=192.168.1.1", lines[0])
+        self.assertIn("eth0 dhcp4-change gw=-", lines[1])
+
     def test_no_systemd_anywhere_in_package(self):
         offenders = []
         for path in sorted(_SETTINGS_DIR.rglob("*")):
