@@ -79,7 +79,8 @@ class TestNoDiskPlanRegression(unittest.TestCase):
                     "artix-chroot", "/mnt", "sh", "-c",
                     "f=/usr/share/dbus-1/system-services/"
                     "org.freedesktop.ModemManager1.service; "
-                    '[ -e "$f" ] && mv -f "$f" "$f.glue-disabled"; true',
+                    '[ -e "$f" ] && mv -f "$f" "$f.glue-disabled"; '
+                    'rm -f /var/lib/pacman/sync/glue.*; true',
                 ],
                 description="Disable ModemManager D-Bus activation (console spam)",
             ),

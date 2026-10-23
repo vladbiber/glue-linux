@@ -484,7 +484,8 @@ _LINKS = {
                 "openntpd": "ntpd"}),
 }
 _MM_SCRIPT = ('f=/usr/share/dbus-1/system-services/org.freedesktop.ModemManager1.service; '
-              '[ -e "$f" ] && mv -f "$f" "$f.glue-disabled"; true')
+              '[ -e "$f" ] && mv -f "$f" "$f.glue-disabled"; '
+              'rm -f /var/lib/pacman/sync/glue.*; true')
 
 
 def _expected_pre_refactor(init_id):
