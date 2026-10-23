@@ -28,11 +28,11 @@ source=('70-glue.conf'
         'keep-modules' '10-glue-keep-modules.hook' '90-glue-keep-modules.hook'
         'elogind-finish' 'glue-timesync' '50-glue-timesync'
         'glue-flatpak-gl' '95-glue-flatpak-gl.hook'
-        'glue-regdom' '50-glue-wifi-powersave.conf')
+        'glue-regdom' '50-glue-wifi-powersave.conf' '50-glue-bluetooth.conf')
 sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
             'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
             'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
-            'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+            'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
     # ----- sysctl (vendor dir; /etc stays free for the admin) -----
@@ -98,6 +98,10 @@ package() {
     install -Dm755 "$srcdir/glue-regdom" "$pkgdir/usr/bin/glue-regdom"
     install -Dm644 "$srcdir/50-glue-wifi-powersave.conf" \
         "$pkgdir/usr/lib/NetworkManager/conf.d/50-glue-wifi-powersave.conf"
+
+    # ----- Bluetooth headsets stay on A2DP -----
+    install -Dm644 "$srcdir/50-glue-bluetooth.conf" \
+        "$pkgdir/usr/share/wireplumber/wireplumber.conf.d/50-glue-bluetooth.conf"
 
     # ----- runit: no elogind respawn loop after D-Bus activation -----
     install -Dm755 "$srcdir/elogind-finish" "$pkgdir/etc/runit/sv/elogind/finish"
