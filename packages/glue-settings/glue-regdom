@@ -1,0 +1,13 @@
+#!/bin/sh
+# glue-regdom: Wi-Fi regulatory country from the timezone (Europe/Bucharest -> RO).
+# Left on the world domain "00", 5 GHz is passive-scan only and the card
+# falls back to a crowded 2.4 GHz channel.
+zone=$(readlink "${GLUE_LOCALTIME:-/etc/localtime}" 2>/dev/null)
+zone=${zone#*zoneinfo/}
+zone=${zone#posix/}; zone=${zone#right/}
+[ -n "$zone" ] || exit 0
+cc=$(awk -v z="$zone" '$3 == z {print $1; exit}' "${GLUE_ZONETAB:-/usr/share/zoneinfo/zone.tab}" 2>/dev/null)
+case "$cc" in [A-Z][A-Z]) ;; *) exit 0 ;; esac
+[ "${GLUE_REGDOM_DRYRUN:-}" = 1 ] && { echo "$cc"; exit 0; }
+command -v iw >/dev/null 2>&1 && iw reg set "$cc"
+exit 0

@@ -3,6 +3,7 @@
 # does not respawn the script in a loop
 /usr/lib/glue/keep-modules clean
 # clock fix in the background, the network may come up later
+/usr/bin/glue-regdom
 setsid sh -c '/usr/bin/glue-timesync --wait 300; exec /usr/bin/glue-flatpak-gl' </dev/null >/dev/null 2>&1 &
 /usr/bin/glue-thp-tune
 exec sleep infinity

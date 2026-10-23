@@ -1,14 +1,14 @@
 # Maintainer: Glue Linux
 pkgname=glue-settings
 pkgver=1
-pkgrel=14
+pkgrel=15
 pkgdesc="Glue Linux performance defaults (CachyOS-Settings ported to Artix inits): sysctl, udev rules, modprobe, limits, THP oneshot, game-performance"
 arch=('any')
 url="https://github.com/vladbiber/glue-linux"
 license=('GPL-3.0-or-later')
 # hdparm: 69-hdparm.rules RUN; pciutils: setpci in pci-latency
-# curl: glue-timesync reads the HTTP Date header
-depends=('hdparm' 'pciutils' 'curl')
+# curl: glue-timesync reads the HTTP Date header; iw: glue-regdom
+depends=('hdparm' 'pciutils' 'curl' 'iw')
 optdepends=('power-profiles-daemon: profile switching for game-performance and glue-perf'
             'gamemode: gamemoderun picks up the Glue gamemode.ini; Steam games join it'
             'nvidia-utils: nvidia-powerd for the Dynamic Boost service')
@@ -27,11 +27,12 @@ source=('70-glue.conf'
         'glue-steam-precache' 'glue-game-watch' 'net-udev-replay'
         'keep-modules' '10-glue-keep-modules.hook' '90-glue-keep-modules.hook'
         'elogind-finish' 'glue-timesync' '50-glue-timesync'
-        'glue-flatpak-gl' '95-glue-flatpak-gl.hook')
+        'glue-flatpak-gl' '95-glue-flatpak-gl.hook'
+        'glue-regdom' '50-glue-wifi-powersave.conf')
 sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
             'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
             'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
-            'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+            'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
     # ----- sysctl (vendor dir; /etc stays free for the admin) -----
@@ -92,6 +93,11 @@ package() {
         "$pkgdir/usr/share/libalpm/hooks/95-glue-flatpak-gl.hook"
     install -Dm755 "$srcdir/50-glue-timesync" \
         "$pkgdir/etc/NetworkManager/dispatcher.d/50-glue-timesync"
+
+    # ----- Wi-Fi: country from the timezone, no power save -----
+    install -Dm755 "$srcdir/glue-regdom" "$pkgdir/usr/bin/glue-regdom"
+    install -Dm644 "$srcdir/50-glue-wifi-powersave.conf" \
+        "$pkgdir/usr/lib/NetworkManager/conf.d/50-glue-wifi-powersave.conf"
 
     # ----- runit: no elogind respawn loop after D-Bus activation -----
     install -Dm755 "$srcdir/elogind-finish" "$pkgdir/etc/runit/sv/elogind/finish"
