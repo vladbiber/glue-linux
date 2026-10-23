@@ -1,0 +1,19 @@
+#!/bin/sh
+# glue-autolock: locks a Wayland session after N idle minutes (the autolock
+# component, /etc/glue/autolock.conf). Video players, browsers playing video
+# and full screen windows hold an idle inhibitor, so watching never locks.
+# Started by glue-update-notify, which every WM login wrapper runs once the
+# compositor is up; X11 sessions and KDE/GNOME/Cinnamon use their own locker.
+CONF=${GLUE_AUTOLOCK_CONF:-/etc/glue/autolock.conf}
+
+[ -r "$CONF" ] || exit 0
+[ -n "${WAYLAND_DISPLAY:-}" ] || exit 0
+command -v swayidle >/dev/null 2>&1 || exit 0
+lock="${XDG_RUNTIME_DIR:-/tmp}/glue-autolock.lock"
+exec 9>"$lock"
+flock -n 9 || exit 0
+
+minutes=$(sed -n 's/^minutes=\([0-9][0-9]*\)$/\1/p' "$CONF" | head -n 1)
+[ "${minutes:-0}" -gt 0 ] || minutes=5
+exec swayidle -w timeout $((minutes * 60)) 'glue-action lock' \
+    before-sleep 'glue-action lock'

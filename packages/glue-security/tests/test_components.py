@@ -37,6 +37,8 @@ class RoundTrip(TargetCase):
 
     def test_every_component(self):
         for c in COMPONENTS:
+            if c.id == "fido2":  # enroll is interactive, enable only explains
+                continue
             with self.subTest(c.id):
                 before = snapshot(self.root)
                 self.round_trip(c.id)
@@ -257,3 +259,71 @@ class UpdatesNotifyTest(TargetCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AdblockTest(TargetCase):
+    POLICY = "etc/firefox/policies/policies.json"
+
+    def test_forces_ublock_and_lite(self):
+        import json
+        self.ok("enable", "adblock")
+        ext = json.loads(self.text(self.POLICY))["policies"]["ExtensionSettings"]
+        self.assertEqual(ext["uBlock0@raymondhill.net"]["installation_mode"], "force_installed")
+        for rel in ("etc/chromium/policies/managed/glue-adblock.json",
+                    "etc/opt/chrome/policies/managed/glue-adblock.json"):
+            forced = json.loads(self.text(rel))["ExtensionInstallForcelist"]
+            self.assertTrue(forced[0].startswith("ddkjiahejlhfcafbddmgiahcphecmpfh;"))
+
+    def test_keeps_an_existing_policy(self):
+        import json
+        self.f(self.POLICY).parent.mkdir(parents=True)
+        self.f(self.POLICY).write_text('{"policies": {"DisableTelemetry": true}}')
+        self.ok("enable", "adblock")
+        self.assertTrue(json.loads(self.text(self.POLICY))["policies"]["DisableTelemetry"])
+        self.ok("disable", "adblock")
+        self.assertEqual(json.loads(self.text(self.POLICY)),
+                         {"policies": {"DisableTelemetry": True}})
+
+
+class ServiceComponentsTest(TargetCase):
+    def test_service_files_for_every_init(self):
+        for svc, cmd in (("glue-snapshot", "/usr/lib/glue-security/snapshot-loop"),
+                         ("glue-antivirus", "/usr/bin/glue-antivirus")):
+            for rel in (f"dinit.d/{svc}", f"runit/{svc}/run", f"openrc/{svc}"):
+                self.assertIn(cmd, (PKG / rel).read_text(), rel)
+            self.assertIn(svc, (PKG / "PKGBUILD").read_text())
+
+    def test_enable_links_the_service(self):
+        self.ok("enable", "snapshots")
+        self.assertEqual(os.readlink(self.f("etc/dinit.d/boot.d/glue-snapshot")),
+                         "../glue-snapshot")
+        self.ok("enable", "antivirus")
+        self.assertTrue(self.f("etc/dinit.d/boot.d/glue-antivirus").is_symlink())
+
+
+class SuperExtrasTest(TargetCase):
+    def test_lid_poweroff_and_no_sleep(self):
+        self.ok("enable", "lid-poweroff")
+        self.assertIn("HandleLidSwitch=poweroff",
+                      self.text("etc/elogind/logind.conf.d/90-glue-lid-poweroff.conf"))
+        self.assertIn("AllowSuspend=no",
+                      self.text("etc/elogind/sleep.conf.d/90-glue-lid-poweroff.conf"))
+
+    def test_autolock_conf(self):
+        self.ok("enable", "autolock")
+        self.assertIn("minutes=5", self.text("etc/glue/autolock.conf"))
+
+    def test_autolock_script_respects_off_and_x11(self):
+        import subprocess
+        script = str(PKG / "glue-autolock")
+        env = dict(os.environ, GLUE_AUTOLOCK_CONF=str(self.root / "nope"),
+                   WAYLAND_DISPLAY="wayland-x")
+        self.assertEqual(subprocess.run(["sh", script], env=env).returncode, 0)
+        (self.root / "etc/glue/autolock.conf").write_text("minutes=5\n")
+        env = dict(os.environ, GLUE_AUTOLOCK_CONF=str(self.root / "etc/glue/autolock.conf"))
+        env.pop("WAYLAND_DISPLAY", None)
+        self.assertEqual(subprocess.run(["sh", script], env=env).returncode, 0)
+
+    def test_update_notify_starts_autolock_first(self):
+        text = (PKG / "glue-update-notify").read_text()
+        self.assertLess(text.index("glue-autolock &"), text.index('[ -e "$AUTOSTART" ] || exit 0'))

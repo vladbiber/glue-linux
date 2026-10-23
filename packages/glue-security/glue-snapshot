@@ -1,0 +1,70 @@
+#!/bin/sh
+# glue-snapshot: daily copies of every user's personal folders in a place only
+# root can write to, so ransomware running as the user cannot encrypt them.
+# Unchanged files are hard links to the previous copy and take no space.
+#
+#   glue-snapshot now            take one (skipped below MIN_FREE % free space)
+#   glue-snapshot due            take one if the last is older than 20 hours
+#   glue-snapshot list           list the copies
+#   glue-snapshot restore DATE   copy one back to ~/Restored-DATE (as the user)
+#
+# Test hooks: GLUE_SNAPSHOT_DIR, GLUE_SNAPSHOT_HOME, GLUE_SNAPSHOT_KEEP
+
+dir=${GLUE_SNAPSHOT_DIR:-/var/lib/glue-snapshots}
+homes=${GLUE_SNAPSHOT_HOME:-/home}
+keep=${GLUE_SNAPSHOT_KEEP:-7}
+min_free=15
+folders="Desktop Documents Pictures Music Videos Templates Public"
+
+free_pct() {
+    df -P "$dir" | awk 'NR==2 { gsub("%", "", $5); print 100 - $5 }'
+}
+
+take() {
+    mkdir -p "$dir" && chmod 700 "$dir" || exit 1
+    if [ "$(free_pct)" -lt "$min_free" ]; then
+        echo "glue-snapshot: less than $min_free% free disk space, skipped" >&2
+        exit 0
+    fi
+    stamp=$(date +%Y-%m-%d_%H%M)
+    last=$(ls -1 "$dir" 2>/dev/null | grep -v '\.partial$' | tail -n 1)
+    work="$dir/$stamp.partial"
+    for h in "$homes"/*/; do
+        user=$(basename "$h")
+        for f in $folders; do
+            [ -d "$h$f" ] || continue
+            mkdir -p "$work/$user"
+            link=
+            [ -n "$last" ] && [ -d "$dir/$last/$user/$f" ] && link="--link-dest=$dir/$last/$user/$f"
+            rsync -a --no-specials --no-devices $link "$h$f/" "$work/$user/$f/" || true
+        done
+    done
+    [ -d "$work" ] || exit 0
+    mv "$work" "$dir/$stamp"
+    ls -1 "$dir" | grep -v '\.partial$' | head -n "-$keep" | while read -r old; do
+        rm -rf -- "${dir:?}/$old"
+    done
+    echo "glue-snapshot: $dir/$stamp"
+}
+
+due() {
+    last=$(ls -1 "$dir" 2>/dev/null | grep -v '\.partial$' | tail -n 1)
+    if [ -n "$last" ] && [ -z "$(find "$dir/$last" -maxdepth 0 -mmin +1200)" ]; then
+        exit 0
+    fi
+    take
+}
+
+case "${1:-}" in
+now) take ;;
+due) due ;;
+list) ls -1 "$dir" 2>/dev/null | grep -v '\.partial$' ;;
+restore)
+    [ -n "${2:-}" ] && [ -d "$dir/$2" ] || { echo "usage: glue-snapshot restore DATE (see: glue-snapshot list)" >&2; exit 2; }
+    user=${SUDO_USER:-${PKEXEC_UID:+$(id -nu "$PKEXEC_UID")}}
+    [ -n "$user" ] && [ -d "$dir/$2/$user" ] || { echo "glue-snapshot: run it with sudo as the user to restore" >&2; exit 2; }
+    out="$homes/$user/Restored-$2"
+    rsync -a "$dir/$2/$user/" "$out/" && chown -R "$user:" "$out" && echo "Restored to $out"
+    ;;
+*) echo "usage: glue-snapshot now|due|list|restore DATE" >&2; exit 2 ;;
+esac

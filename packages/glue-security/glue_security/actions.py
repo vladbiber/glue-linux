@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Dict, List, Optional
 
 from .target import BOOT_CONF, CMDLINE_DROPIN, SecurityError, Target
@@ -19,6 +20,8 @@ CMDLINE_TOKENS = {
     "kernel-harden-alloc": ("slab_nomerge", "page_alloc.shuffle=1"),
     "lockdown": ("lockdown=integrity",),
     "nosmt": ("nosmt",),
+    "dma-protect": ("iommu=force", "intel_iommu=on", "efi=disable_early_pci_dma"),
+    "ram-wipe": ("init_on_free=1",),
 }
 # written by older versions (init-on-alloc component); dropped on rewrite
 LEGACY_TOKENS = ("init_on_alloc=1",)
@@ -80,6 +83,38 @@ USBGUARD_KEYS = (
     ("InsertedDevicePolicy", "apply-policy"),
     ("IPCAllowedGroups", "wheel"),
 )
+
+FIREFOX_POLICY = "etc/firefox/policies/policies.json"
+UBLOCK_ID = "uBlock0@raymondhill.net"
+UBLOCK_XPI = "https://addons.mozilla.org/firefox/downloads/latest/ublock-origin/latest.xpi"
+# Chrome dropped Manifest V2, so the Lite build is the one that still runs
+UBO_LITE = "ddkjiahejlhfcafbddmgiahcphecmpfh;https://clients2.google.com/service/update2/crx"
+CHROME_POLICIES = ("etc/chromium/policies/managed/glue-adblock.json",
+                   "etc/opt/chrome/policies/managed/glue-adblock.json")
+
+AUTOLOCK_CONF = "etc/glue/autolock.conf"
+LID_CONF = "etc/elogind/logind.conf.d/90-glue-lid-poweroff.conf"
+LID_TEXT = """\
+# glue-security: lid-poweroff
+[Login]
+HandleLidSwitch=poweroff
+HandleLidSwitchExternalPower=poweroff
+HandleSuspendKey=poweroff
+HandleHibernateKey=poweroff
+"""
+NOSLEEP_CONF = "etc/elogind/sleep.conf.d/90-glue-lid-poweroff.conf"
+NOSLEEP_TEXT = """\
+# glue-security: lid-poweroff
+[Sleep]
+AllowSuspend=no
+AllowHibernation=no
+AllowSuspendThenHibernate=no
+AllowHybridSleep=no
+"""
+
+FIDO2_DIR = "etc/glue/fido2"
+
+SERVICE_COMPONENTS = {"snapshots": "glue-snapshot", "antivirus": "glue-antivirus"}
 
 HARDENED = "linux-hardened"
 MIMEAPPS = "etc/xdg/mimeapps.list"
@@ -171,6 +206,14 @@ def packages(t: Target, cid: str) -> List[str]:
         return [HARDENED, f"{HARDENED}-headers"]
     if cid == "librewolf":
         return ["librewolf"]
+    if cid == "snapshots":
+        return ["rsync", "glue-security"]
+    if cid == "autolock":
+        return ["swayidle", "glue-security"]
+    if cid == "fido2":
+        return ["libfido2", "glue-security"]
+    if cid == "antivirus":
+        return ["clamav", "inotify-tools", "glue-security"]
     return []
 
 
@@ -200,6 +243,17 @@ def is_on(t: Target, cid: str) -> bool:
         if boot is None:
             return t.state().get("kernel_hardened") == "1"
         return t.parse_kv(boot).get("GLUE_BOOT_KERNEL") == HARDENED
+    if cid == "adblock":
+        ext = _firefox_policy(t).get("policies", {}).get("ExtensionSettings", {})
+        return UBLOCK_ID in ext
+    if cid in SERVICE_COMPONENTS:
+        return t.service_enabled(SERVICE_COMPONENTS[cid])
+    if cid == "autolock":
+        return t.exists(AUTOLOCK_CONF)
+    if cid == "fido2":
+        return any(t.path(FIDO2_DIR).glob("key-*.conf"))
+    if cid == "lid-poweroff":
+        return t.exists(LID_CONF)
     if cid == "librewolf":
         return t.installed("librewolf") and all(
             mime_defaults(t.read(rel) or "").get(m) == BROWSER_DESKTOP
@@ -208,6 +262,9 @@ def is_on(t: Target, cid: str) -> bool:
 
 
 def enable(t: Target, cid: str, force: bool = False) -> None:
+    # needs the key plugged in, touches and the disk passphrase
+    if cid == "fido2":
+        raise Refused("plug in the security key and run: sudo glue-fido2 enroll")
     if cid == "lockdown" and not force:
         dkms = t.dkms_packages()
         if dkms:
@@ -246,11 +303,26 @@ def enable(t: Target, cid: str, force: bool = False) -> None:
         _enable_usbguard(t)
     elif cid == "librewolf":
         _enable_browser(t)
+    elif cid == "adblock":
+        _enable_adblock(t)
+    elif cid in SERVICE_COMPONENTS:
+        t.enable_service(SERVICE_COMPONENTS[cid])
+    elif cid == "autolock":
+        t.write(AUTOLOCK_CONF, "# glue-security: autolock\nminutes=5\n")
+        if t.live:
+            t.note("automatic lock starts at the next login")
+    elif cid == "lid-poweroff":
+        t.write(LID_CONF, LID_TEXT)
+        t.write(NOSLEEP_CONF, NOSLEEP_TEXT)
+        if t.live:
+            t.note("closing the lid shuts down from the next restart")
     else:
         raise SecurityError(f"unknown component: {cid}")
 
 
 def disable(t: Target, cid: str) -> None:
+    if cid == "fido2":
+        raise Refused("run: sudo glue-fido2 remove all")
     if cid in SYSCTL_FILES:
         t.remove_sysctl(SYSCTL_FILES[cid][0])
         if cid == "sysctl-base" and t.live:
@@ -281,6 +353,19 @@ def disable(t: Target, cid: str) -> None:
         _disable_hardened(t)
     elif cid == "librewolf":
         _disable_browser(t)
+    elif cid == "adblock":
+        _disable_adblock(t)
+    elif cid == "autolock":
+        t.remove(AUTOLOCK_CONF)
+    elif cid == "lid-poweroff":
+        t.remove(LID_CONF)
+        t.remove(NOSLEEP_CONF)
+        if t.live:
+            t.note("sleep comes back after the next restart")
+    elif cid in SERVICE_COMPONENTS:
+        t.disable_service(SERVICE_COMPONENTS[cid])
+        if cid == "snapshots" and t.live:
+            t.note("the copies stay in /var/lib/glue-snapshots until you delete them")
     else:
         raise SecurityError(f"unknown component: {cid}")
 
@@ -386,3 +471,40 @@ def _disable_browser(t: Target) -> None:
         else:
             t.write(rel, text)
     t.save_var_json("browser-prev.json", {})
+
+
+# --------------------------------------------------------------- adblock
+def _firefox_policy(t: Target) -> dict:
+    try:
+        data = json.loads(t.read(FIREFOX_POLICY) or "{}")
+    except ValueError:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _write_firefox_policy(t: Target, data: dict) -> None:
+    t.write(FIREFOX_POLICY, json.dumps(data, indent=2) + "\n")
+
+
+def _enable_adblock(t: Target) -> None:
+    data = _firefox_policy(t)
+    policies = data.setdefault("policies", {})
+    ext = policies.setdefault("ExtensionSettings", {})
+    ext[UBLOCK_ID] = {"installation_mode": "force_installed", "install_url": UBLOCK_XPI}
+    _write_firefox_policy(t, data)
+    for rel in CHROME_POLICIES:
+        t.write(rel, json.dumps({"ExtensionInstallForcelist": [UBO_LITE]}, indent=2) + "\n")
+
+
+def _disable_adblock(t: Target) -> None:
+    data = _firefox_policy(t)
+    ext = data.get("policies", {}).get("ExtensionSettings", {})
+    ext.pop(UBLOCK_ID, None)
+    if not ext:
+        data.get("policies", {}).pop("ExtensionSettings", None)
+    if not data.get("policies"):
+        t.remove(FIREFOX_POLICY)
+    else:
+        _write_firefox_policy(t, data)
+    for rel in CHROME_POLICIES:
+        t.remove(rel)

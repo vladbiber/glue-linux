@@ -33,14 +33,15 @@ class ListTest(TargetCase):
 
     def test_level_membership(self):
         self.assertEqual(level_ids("basic"),
-                         {"firewall", "apparmor", "sysctl-base", "updates-notify"})
+                         {"firewall", "apparmor", "sysctl-base", "updates-notify", "adblock"})
         self.assertEqual(level_ids("hardened") - level_ids("basic"),
-                         {"ptrace", "mac-random", "kernel-harden-alloc"})
+                         {"ptrace", "mac-random", "kernel-harden-alloc", "snapshots"})
         self.assertEqual(level_ids("super") - level_ids("hardened"),
                          {"lockdown", "usbguard", "kernel-hardened",
-                          "userns-restrict", "librewolf"})
-        nosmt = next(c for c in COMPONENTS if c.id == "nosmt")
-        self.assertEqual(nosmt.levels, ())
+                          "userns-restrict", "librewolf", "autolock", "dma-protect",
+                          "ram-wipe", "lid-poweroff"})
+        for cid in ("nosmt", "antivirus"):
+            self.assertEqual(next(c for c in COMPONENTS if c.id == cid).levels, ())
 
     def test_list_human(self):
         code, out, _ = self.cli("list", root=False)
@@ -141,7 +142,8 @@ class LevelsDinit(LevelBase):
                          "usbguard", f"usbguard-{self.init}"} <= pkgs)
         self.assertEqual(self.text("etc/glue/cmdline.d/50-glue-security.conf").splitlines()[-1],
                          "lsm=landlock,lockdown,yama,integrity,apparmor,bpf "
-                         "slab_nomerge page_alloc.shuffle=1 lockdown=integrity")
+                         "slab_nomerge page_alloc.shuffle=1 lockdown=integrity "
+                         "iommu=force intel_iommu=on efi=disable_early_pci_dma init_on_free=1")
         self.assertIn("GLUE_BOOT_KERNEL=linux-hardened", self.text("etc/glue/boot.conf"))
         self.assertTrue(self.f(f"{self.enabled_dir()}/usbguard").is_symlink())
         self.assertIn("046d:c52b", self.text("etc/usbguard/rules.conf"))

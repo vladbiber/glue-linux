@@ -1,0 +1,136 @@
+#!/bin/sh
+# glue-fido2: unlock the encrypted root with a FIDO2 security key (YubiKey,
+# Nitrokey, SoloKey...) at boot. Each enrolled key gets its own LUKS keyslot
+# holding the key's hmac-secret for a credential made here; the passphrase
+# slot always stays, so a lost key only means typing the passphrase again.
+#
+#   glue-fido2 enroll [--pin]   add the plugged-in key (--pin: also ask its PIN)
+#   glue-fido2 remove SLOT|all  drop an enrolled key and its keyslot
+#   glue-fido2 status           enrolled keys, keyslots and the boot hook
+#
+# The initramfs hook (glue-fido2, before encrypt) derives the same secret and
+# hands it to the stock encrypt hook as /crypto_keyfile.bin; without the key,
+# or on any error, encrypt asks for the passphrase as before.
+#
+# Test hooks: GLUE_FIDO2_DIR, GLUE_BOOT_CONF, GLUE_MKINITCPIO_CONF,
+# GLUE_FIDO2_LUKS_DEV, GLUE_FIDO2_NO_INITRAMFS=1
+set -eu
+ME=glue-fido2
+DIR=${GLUE_FIDO2_DIR:-/etc/glue/fido2}
+BOOT_CONF=${GLUE_BOOT_CONF:-/etc/glue/boot.conf}
+MKCONF=${GLUE_MKINITCPIO_CONF:-/etc/mkinitcpio.conf}
+RP=glue-linux
+
+log() { printf '%s: %s\n' "$ME" "$*"; }
+die() { printf '%s: error: %s\n' "$ME" "$*" >&2; exit 1; }
+
+luks_dev() {
+    if [ -n "${GLUE_FIDO2_LUKS_DEV:-}" ]; then
+        echo "$GLUE_FIDO2_LUKS_DEV"
+        return
+    fi
+    uuid=$(sed -n 's/^GLUE_BOOT_CRYPT_UUID="\{0,1\}\([^"]*\)"\{0,1\}$/\1/p' "$BOOT_CONF" 2>/dev/null | head -n 1)
+    [ -n "$uuid" ] || die "no encrypted root in $BOOT_CONF (this system was installed without disk encryption)"
+    echo "/dev/disk/by-uuid/$uuid"
+}
+
+token() {
+    n=$(fido2-token -L 2>/dev/null | grep -c . || true)
+    [ "$n" -gt 0 ] || die "no security key found: plug it in and try again"
+    [ "$n" -eq 1 ] || die "$n security keys are plugged in: leave only the one to enroll"
+    fido2-token -L | sed -n '1s/:.*//p'
+}
+
+rand() { head -c 32 /dev/urandom | base64 -w 0; }
+
+hook_on() { grep -Eq '^HOOKS=.*[ (]glue-fido2[ )]' "$MKCONF"; }
+
+set_hook() {
+    if [ "$1" = on ]; then
+        hook_on && return 0
+        grep -Eq '^HOOKS=.*[ (]encrypt[ )]' "$MKCONF" || die "no encrypt hook in $MKCONF"
+        sed -i -E 's/^(HOOKS=.*[ (])(encrypt[ )])/\1glue-fido2 \2/' "$MKCONF"
+    else
+        hook_on || return 0
+        sed -i -E '/^HOOKS=/{s/ glue-fido2([ )])/\1/;s/\(glue-fido2 /(/}' "$MKCONF"
+    fi
+    [ "${GLUE_FIDO2_NO_INITRAMFS:-}" = 1 ] && return 0
+    log "rebuilding the initramfs"
+    mkinitcpio -P >/dev/null
+    # Secure Boot hashes the initramfs into limine.conf
+    if command -v glue-boot-update >/dev/null 2>&1; then glue-boot-update >/dev/null; fi
+}
+
+enroll() {
+    pin=0
+    [ "${1:-}" = --pin ] && pin=1
+    dev=$(luks_dev)
+    cryptsetup isLuks "$dev" || die "$dev is not a LUKS volume"
+    key=$(token)
+    umask 077
+    tmp=$(mktemp -d)
+    trap 'rm -rf "$tmp"' EXIT
+    printf '%s\n%s\n%s\n%s\n' "$(rand)" "$RP" "glue" "$(rand)" > "$tmp/cred.in"
+    log "touch the key to create its credential (enter the key's PIN if asked)"
+    fido2-cred -M -h -i "$tmp/cred.in" -o "$tmp/cred.out" "$key" || die "the key refused to create a credential"
+    cred=$(sed -n 5p "$tmp/cred.out")
+    [ -n "$cred" ] || die "the key returned no credential"
+    salt=$(rand)
+    opt=
+    [ "$pin" = 1 ] && opt="-t pin=true"
+    printf '%s\n%s\n%s\n%s\n' "$(rand)" "$RP" "$cred" "$salt" > "$tmp/assert.in"
+    log "touch the key again"
+    # shellcheck disable=SC2086
+    fido2-assert -G -h $opt -i "$tmp/assert.in" -o "$tmp/assert.out" "$key" || die "the key refused the hmac-secret request"
+    secret=$(sed -n 5p "$tmp/assert.out")
+    [ -n "$secret" ] || die "the key does not support hmac-secret"
+    printf '%s' "$secret" > "$tmp/key"
+    log "enter the disk encryption passphrase to add the key"
+    cryptsetup luksAddKey "$dev" "$tmp/key" || die "cryptsetup refused the passphrase"
+    slot=$(cryptsetup open --test-passphrase -v --key-file "$tmp/key" "$dev" 2>&1 |
+        sed -n 's/^Key slot \([0-9]*\) unlocked.*/\1/p')
+    [ -n "$slot" ] || die "the new keyslot does not open the disk"
+    mkdir -p "$DIR"
+    chmod 700 "$DIR"
+    printf 'RP=%s\nCRED=%s\nSALT=%s\nPIN=%s\n' "$RP" "$cred" "$salt" "$pin" > "$DIR/key-$slot.conf"
+    set_hook on
+    log "key enrolled in keyslot $slot; the passphrase keeps working"
+}
+
+remove() {
+    [ -n "${1:-}" ] || die "usage: glue-fido2 remove SLOT|all (see: glue-fido2 status)"
+    dev=$(luks_dev)
+    if [ "$1" = all ]; then
+        set -- $(ls "$DIR" 2>/dev/null | sed -n 's/^key-\([0-9]*\)\.conf$/\1/p')
+        [ $# -gt 0 ] || die "no key is enrolled"
+    fi
+    for slot in "$@"; do
+        case "$slot" in ''|*[!0-9]*) die "not a keyslot number: $slot" ;; esac
+        [ -f "$DIR/key-$slot.conf" ] || die "keyslot $slot is not a glue-fido2 key"
+        log "enter the disk encryption passphrase to remove keyslot $slot"
+        cryptsetup luksKillSlot "$dev" "$slot" || die "cryptsetup kept keyslot $slot"
+        rm -f "$DIR/key-$slot.conf"
+        log "keyslot $slot removed"
+    done
+    ls "$DIR"/key-*.conf >/dev/null 2>&1 || set_hook off
+}
+
+status() {
+    found=0
+    for f in "$DIR"/key-*.conf; do
+        [ -f "$f" ] || continue
+        found=1
+        slot=${f##*/key-}
+        printf 'keyslot %s%s\n' "${slot%.conf}" "$(grep -q '^PIN=1$' "$f" && echo ' (with PIN)' || true)"
+    done
+    [ "$found" = 1 ] || echo "no security key enrolled"
+    if hook_on; then echo "boot hook: on"; else echo "boot hook: off"; fi
+}
+
+[ "$(id -u)" = 0 ] || [ -n "${GLUE_FIDO2_DIR:-}" ] || die "run it as root (sudo glue-fido2 ...)"
+case "${1:-}" in
+enroll) shift; enroll "$@" ;;
+remove) shift; remove "$@" ;;
+status) status ;;
+*) echo "usage: glue-fido2 enroll [--pin] | remove SLOT|all | status" >&2; exit 2 ;;
+esac

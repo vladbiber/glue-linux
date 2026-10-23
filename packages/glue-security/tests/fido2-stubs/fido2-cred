@@ -1,0 +1,4 @@
+#!/bin/sh
+# test stub: fido2-cred -M -h -i IN -o OUT DEV
+while [ $# -gt 0 ]; do case "$1" in -i) in=$2; shift ;; -o) out=$2; shift ;; esac; shift; done
+{ sed -n 1,2p "$in"; echo packed; echo AUTHDATA; echo Q1JFRElELWdsdWU=; echo SIG; } > "$out"

@@ -1,0 +1,6 @@
+# glue-snapshot - Glue Linux daily copies of personal folders
+type         = process
+command      = /usr/lib/glue-security/snapshot-loop
+restart      = true
+depends-on   = local.target
+logfile      = /var/log/glue-snapshot.log

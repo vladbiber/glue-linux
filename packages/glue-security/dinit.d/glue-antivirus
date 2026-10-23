@@ -1,0 +1,6 @@
+# glue-antivirus - Glue Linux download scanner (ClamAV)
+type         = process
+command      = /usr/bin/glue-antivirus
+restart      = true
+depends-on   = local.target
+logfile      = /var/log/glue-antivirus.log

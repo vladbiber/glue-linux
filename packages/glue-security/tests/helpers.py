@@ -36,6 +36,7 @@ REPO_PACKAGES = {
     "usbguard", "usbguard-dinit", "usbguard-runit", "usbguard-openrc",
     "linux-hardened", "linux-hardened-headers", "librewolf",
     "pacman-contrib", "libnotify", "glue-security",
+    "rsync", "clamav", "inotify-tools", "swayidle", "libfido2",
 }
 
 

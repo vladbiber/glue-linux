@@ -1,0 +1,45 @@
+#!/usr/bin/ash
+# glue-fido2: turn an enrolled FIDO2 key into /crypto_keyfile.bin for the
+# encrypt hook that runs next. Anything missing or failing leaves no keyfile,
+# and encrypt asks for the passphrase as usual (a wrong keyfile too).
+
+run_hook() {
+    local dir=${GLUE_FIDO2_DIR:-/etc/glue/fido2} out=${GLUE_FIDO2_KEYFILE:-/crypto_keyfile.bin}
+    local dev= n=0 f opt secret tmo=
+    # --foreground: the PIN prompt needs the console, a new process group cannot read it
+    command -v timeout >/dev/null 2>&1 && tmo="timeout --foreground 20"
+    [ -f "$out" ] && return 0
+    ls "$dir"/key-*.conf >/dev/null 2>&1 || return 0
+    command -v fido2-assert >/dev/null 2>&1 || return 0
+    modprobe -a -q usbhid hid-generic >/dev/null 2>&1
+    # USB keys can take a moment to show up
+    while [ "$n" -lt 3 ]; do
+        dev=$(fido2-token -L 2>/dev/null | sed -n '1s/:.*//p')
+        [ -n "$dev" ] && break
+        sleep 1
+        n=$((n + 1))
+    done
+    [ -n "$dev" ] || return 0
+    echo "Touch your security key to unlock (or wait to type the passphrase)"
+    for f in "$dir"/key-*.conf; do
+        CRED= SALT= PIN= RP=
+        . "$f"
+        [ -n "$CRED" ] && [ -n "$SALT" ] || continue
+        opt=
+        [ "$PIN" = 1 ] && opt="-t pin=true"
+        printf '%s\n%s\n%s\n%s\n' "$(head -c 32 /dev/urandom | base64)" "${RP:-glue-linux}" \
+            "$CRED" "$SALT" > "${TMPDIR:-/tmp}/glue-fido2.in"
+        # shellcheck disable=SC2086
+        if $tmo fido2-assert -G -h $opt -i "${TMPDIR:-/tmp}/glue-fido2.in" \
+                -o "${TMPDIR:-/tmp}/glue-fido2.out" "$dev" 2>/dev/null; then
+            secret=$(sed -n 5p "${TMPDIR:-/tmp}/glue-fido2.out")
+            if [ -n "$secret" ]; then
+                (umask 077; printf '%s' "$secret" > "$out")
+                break
+            fi
+        fi
+    done
+    rm -f "${TMPDIR:-/tmp}/glue-fido2.in" "${TMPDIR:-/tmp}/glue-fido2.out"
+}
+
+# vim: set ft=sh ts=4 sw=4 et:

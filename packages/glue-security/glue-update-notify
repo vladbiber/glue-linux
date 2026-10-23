@@ -7,6 +7,9 @@ AUTOSTART=/etc/xdg/autostart/glue-update-notify.desktop
 INTERVAL=${GLUE_UPDATE_NOTIFY_INTERVAL:-21600}
 FIRST_DELAY=${GLUE_UPDATE_NOTIFY_DELAY:-120}
 
+# the idle lock rides along: every WM wrapper already starts this script
+command -v glue-autolock >/dev/null 2>&1 && { glue-autolock & }
+
 [ -e "$AUTOSTART" ] || exit 0
 command -v checkupdates >/dev/null 2>&1 || exit 0
 command -v notify-send >/dev/null 2>&1 || exit 0

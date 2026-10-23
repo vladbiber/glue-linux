@@ -1,0 +1,24 @@
+#!/bin/bash
+
+build() {
+    local f
+
+    map add_module 'usbhid' 'hid-generic' 'hid?'
+    map add_binary 'fido2-assert' 'fido2-token'
+    # busybox has no timeout applet
+    add_binary 'timeout'
+    for f in /etc/glue/fido2/key-*.conf; do
+        [[ -f "$f" ]] && add_file "$f"
+    done
+
+    add_runscript
+}
+
+help() {
+    cat <<HELPEOF
+Unlocks the encrypted root with a FIDO2 security key enrolled by glue-fido2.
+Put it right before encrypt. Without the key, the passphrase prompt follows.
+HELPEOF
+}
+
+# vim: set ft=sh ts=4 sw=4 et:

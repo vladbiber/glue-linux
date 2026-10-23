@@ -1,0 +1,9 @@
+#!/bin/sh
+# test stub: hmac-secret = sha256(cred + salt), FIDO_FAIL=1 fails, FIDO_WRONG=1 lies
+[ "${FIDO_FAIL:-}" = 1 ] && exit 1
+pin=0
+while [ $# -gt 0 ]; do case "$1" in -i) in=$2; shift ;; -o) out=$2; shift ;; -t) [ "$2" = pin=true ] && pin=1; shift ;; esac; shift; done
+cred=$(sed -n 3p "$in"); salt=$(sed -n 4p "$in")
+secret=$(printf '%s%s%s%s' "$cred" "$salt" "$pin" "${FIDO_WRONG:-}" | sha256sum | cut -c1-43)
+[ -n "${FIDO_LOG:-}" ] && echo "assert pin=$pin cred=$cred" >> "$FIDO_LOG"
+{ sed -n 1,2p "$in"; echo AUTHDATA; echo SIG; echo "$secret"; } > "$out"

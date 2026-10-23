@@ -1,0 +1,12 @@
+#!/usr/bin/openrc-run
+# glue-snapshot - Glue Linux daily copies of personal folders
+description="Glue Linux daily copies of personal folders"
+command="/usr/lib/glue-security/snapshot-loop"
+command_background=true
+pidfile="/run/glue-snapshot.pid"
+output_log="/var/log/glue-snapshot.log"
+error_log="/var/log/glue-snapshot.log"
+
+depend() {
+    need localmount
+}

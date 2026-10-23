@@ -1,0 +1,78 @@
+#!/bin/bash
+# glue-antivirus: scans every file that lands in a Downloads folder with
+# ClamAV. No resident scanner: clamscan runs only when files arrive (files
+# that arrive together share one scan), so RAM is used only while it runs.
+# A virus is moved to the quarantine and NAME.blocked.txt is left in its place.
+#
+#   glue-antivirus             watch every /home/*/Downloads (the service)
+#   glue-antivirus check FILE… scan now
+#
+# Test hooks: GLUE_AV_HOME, GLUE_AV_QUARANTINE, GLUE_AV_SCAN (scanner command)
+
+homes=${GLUE_AV_HOME:-/home}
+quar=${GLUE_AV_QUARANTINE:-/var/lib/glue-antivirus/quarantine}
+scan=${GLUE_AV_SCAN:-clamscan}
+
+block() {
+    local f=$1 name=$2 dest owner
+    mkdir -p "$quar" && chmod 700 "$quar"
+    dest="$quar/$(date +%Y%m%d%H%M%S)-$(basename "$f")"
+    mv -- "$f" "$dest" && chmod 000 "$dest" || return
+    owner=$(stat -c %U "$(dirname "$f")")
+    printf 'Glue Linux blocked this download: it contains %s.\nIt was moved to %s.\n' \
+        "$name" "$dest" > "$f.blocked.txt"
+    chown "$owner:" "$f.blocked.txt" 2>/dev/null
+    echo "glue-antivirus: $f: $name -> $dest"
+}
+
+# exit status: 0 clean, 1 virus found (moved), 2 scanner error
+check() {
+    local files=() f out rc line
+    for f in "$@"; do
+        case "$f" in *.blocked.txt|*.part|*.crdownload|*.download) continue ;; esac
+        [ -f "$f" ] && files+=("$f")
+    done
+    [ ${#files[@]} -gt 0 ] || return 0
+    out=$($scan --no-summary --infected --stdout -- "${files[@]}" 2>/dev/null)
+    rc=$?
+    [ "$rc" = 1 ] || return "$rc"
+    while IFS= read -r line; do
+        case "$line" in *" FOUND") ;; *) continue ;; esac
+        line=${line% FOUND}
+        block "${line%: *}" "${line##*: }"
+    done <<< "$out"
+    return 1
+}
+
+if [ "${1:-}" = check ]; then
+    shift
+    check "$@"
+    exit $?
+fi
+
+# signatures: retried until the network is up, then every 6 hours
+( while :; do
+    until freshclam --quiet; do sleep 300; done
+    sleep 21600
+done ) &
+
+while :; do
+    dirs=()
+    for d in "$homes"/*/Downloads; do
+        [ -d "$d" ] && dirs+=("$d")
+    done
+    if [ ${#dirs[@]} -eq 0 ]; then
+        sleep 300
+        continue
+    fi
+    # new users' folders are picked up when inotifywait restarts every hour
+    timeout 3600 inotifywait -m -q -e close_write -e moved_to --format '%w%f' "${dirs[@]}" |
+        while :; do
+            batch=()
+            IFS= read -r f || break
+            batch+=("$f")
+            # whatever else arrives within 3 seconds joins this scan
+            while IFS= read -r -t 3 f; do batch+=("$f"); done
+            check "${batch[@]}"
+        done
+done

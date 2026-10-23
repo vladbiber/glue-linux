@@ -1,0 +1,4 @@
+#!/bin/sh
+# test stub: one key plugged in unless FIDO_NOKEY=1
+[ "${FIDO_NOKEY:-}" = 1 ] && exit 0
+echo "/dev/hidraw9: vendor=0x1050, product=0x0407 (Yubico YubiKey OTP+FIDO+CCID)"

@@ -1,7 +1,7 @@
 # Maintainer: Glue Linux
 pkgname=glue-security
 pkgver=1
-pkgrel=1
+pkgrel=4
 pkgdesc="Glue Linux security levels (basic, hardened, super): firewall, AppArmor, sysctl, USBGuard, hardened kernel and more"
 arch=('any')
 url="https://github.com/vladbiber/glue-linux"
@@ -11,10 +11,17 @@ depends=('python' 'nftables' 'util-linux')
 optdepends=('pacman-contrib: checkupdates for the update reminder'
             'libnotify: notify-send for the update reminder'
             'glue-boot: kernel command line for AppArmor, lockdown, nosmt'
-            'networkmanager: private Wi-Fi address')
+            'networkmanager: private Wi-Fi address'
+            'rsync: ransomware protection (glue-snapshot)'
+            'clamav: antivirus for downloads'
+            'inotify-tools: antivirus for downloads'
+            'swayidle: automatic screen lock'
+            'libfido2: unlock the disk with a security key (glue-fido2)')
 source=('glue-security' 'firewall.nft'
-        'glue-update-notify' 'glue-update-notify.desktop')
-sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP')
+        'glue-update-notify' 'glue-update-notify.desktop'
+        'glue-snapshot' 'snapshot-loop' 'glue-antivirus' 'glue-autolock'
+        'glue-fido2')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 check() {
     cd "$startdir"
@@ -35,6 +42,22 @@ package() {
     # linked into /etc/xdg/autostart by `glue-security enable updates-notify`
     install -Dm644 "$srcdir/glue-update-notify.desktop" \
         "$pkgdir/usr/share/glue-security/glue-update-notify.desktop"
+
+    install -Dm755 "$srcdir/glue-snapshot" "$pkgdir/usr/bin/glue-snapshot"
+    install -Dm755 "$srcdir/snapshot-loop" "$pkgdir/usr/lib/glue-security/snapshot-loop"
+    install -Dm755 "$srcdir/glue-antivirus" "$pkgdir/usr/bin/glue-antivirus"
+    install -Dm755 "$srcdir/glue-autolock" "$pkgdir/usr/bin/glue-autolock"
+    install -Dm755 "$srcdir/glue-fido2" "$pkgdir/usr/bin/glue-fido2"
+    install -Dm644 "$startdir/initcpio/install/glue-fido2" "$pkgdir/usr/lib/initcpio/install/glue-fido2"
+    install -Dm644 "$startdir/initcpio/hooks/glue-fido2" "$pkgdir/usr/lib/initcpio/hooks/glue-fido2"
+
+    # ----- glue-snapshot and glue-antivirus services for all three inits -----
+    local svc
+    for svc in glue-snapshot glue-antivirus; do
+        install -Dm644 "$startdir/dinit.d/$svc" "$pkgdir/etc/dinit.d/$svc"
+        install -Dm755 "$startdir/runit/$svc/run" "$pkgdir/etc/runit/sv/$svc/run"
+        install -Dm755 "$startdir/openrc/$svc" "$pkgdir/etc/init.d/$svc"
+    done
 
     # ----- glue-firewall for all three inits -----
     install -Dm644 "$startdir/dinit.d/glue-firewall" "$pkgdir/etc/dinit.d/glue-firewall"

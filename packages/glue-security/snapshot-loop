@@ -1,0 +1,8 @@
+#!/bin/sh
+# glue-snapshot service: first check 10 minutes after boot, then hourly;
+# a copy is taken when the last one is older than 20 hours
+sleep 600
+while :; do
+    nice -n 19 ionice -c 3 /usr/bin/glue-snapshot due
+    sleep 3600
+done

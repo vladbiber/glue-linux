@@ -1,0 +1,3 @@
+#!/bin/sh
+# glue-snapshot - Glue Linux daily copies of personal folders (runit)
+exec /usr/lib/glue-security/snapshot-loop 2>&1

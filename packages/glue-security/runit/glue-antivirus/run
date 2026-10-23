@@ -1,0 +1,3 @@
+#!/bin/sh
+# glue-antivirus - Glue Linux download scanner (ClamAV) (runit)
+exec /usr/bin/glue-antivirus 2>&1

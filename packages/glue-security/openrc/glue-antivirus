@@ -1,0 +1,12 @@
+#!/usr/bin/openrc-run
+# glue-antivirus - Glue Linux download scanner (ClamAV)
+description="Glue Linux download scanner (ClamAV)"
+command="/usr/bin/glue-antivirus"
+command_background=true
+pidfile="/run/glue-antivirus.pid"
+output_log="/var/log/glue-antivirus.log"
+error_log="/var/log/glue-antivirus.log"
+
+depend() {
+    need localmount
+}
