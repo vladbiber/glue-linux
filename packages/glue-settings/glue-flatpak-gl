@@ -1,0 +1,42 @@
+#!/bin/sh
+# glue-flatpak-gl: Flatpak apps (Sober, Steam, Bottles…) only start on NVIDIA
+# when the runtime's GL extension matches the loaded driver. After a driver
+# update (pacman hook) this fetches the matching extension at the next boot,
+# for the system and every user installation; retried until it succeeds.
+PENDING=${GLUE_FLATPAK_GL_PENDING:-/var/lib/glue/flatpak-gl-pending}
+VERSION_FILE=${GLUE_NVIDIA_VERSION:-/sys/module/nvidia/version}
+HOMES=${GLUE_FLATPAK_GL_HOME:-/home}
+
+[ -e "$PENDING" ] || exit 0
+command -v flatpak >/dev/null 2>&1 || { rm -f "$PENDING"; exit 0; }
+ver=$(cat "$VERSION_FILE" 2>/dev/null)
+case "$ver" in
+''|*[!0-9.]*) exit 0 ;;
+esac
+ext=nvidia-$(echo "$ver" | tr . -)
+failed=0
+
+fetch() { # fetch SCOPE [user]
+    for kind in GL GL32; do
+        ref=org.freedesktop.Platform.$kind.$ext
+        if [ -n "${2:-}" ]; then
+            runuser -u "$2" -- flatpak info --user "$ref" >/dev/null 2>&1 && continue
+            runuser -u "$2" -- flatpak install --user -y --noninteractive flathub "$ref" \
+                >/dev/null 2>&1 || [ "$kind" = GL32 ] || failed=1
+        else
+            flatpak info --system "$ref" >/dev/null 2>&1 && continue
+            flatpak install --system -y --noninteractive flathub "$ref" \
+                >/dev/null 2>&1 || [ "$kind" = GL32 ] || failed=1
+        fi
+    done
+}
+
+[ -n "$(flatpak list --system --app --columns=application 2>/dev/null)" ] && fetch system
+for h in "$HOMES"/*/; do
+    user=$(basename "$h")
+    [ -d "$h.local/share/flatpak/app" ] || continue
+    [ -n "$(ls -A "$h.local/share/flatpak/app" 2>/dev/null)" ] || continue
+    fetch user "$user"
+done
+[ "$failed" = 0 ] && rm -f "$PENDING"
+exit 0

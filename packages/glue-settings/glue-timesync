@@ -1,0 +1,81 @@
+#!/bin/sh
+# glue-timesync: set the clock from the HTTP Date header of two independent
+# servers, then write it to the RTC. Plain HTTP on purpose: with a dead CMOS
+# battery the clock is years off, every TLS certificate looks "not yet valid"
+# and pacman-key rejects keys "created in the future".
+#
+# Usage: glue-timesync [--wait SECONDS] [--require]
+#   --wait     keep retrying until the network answers (default: one try)
+#   --require  exit 1 when the clock could not be checked and looks wrong
+#
+# Test hooks: GLUE_TIMESYNC_URLS, GLUE_TIMESYNC_NOW, GLUE_TIMESYNC_DRYRUN=1
+
+urls=${GLUE_TIMESYNC_URLS:-"http://www.google.com http://cloudflare.com http://artixlinux.org http://mirror.cachyos.org"}
+# below this the clock is wrong no matter what (older than this release)
+floor=1790000000
+max_drift=120
+agree=60
+wait=0
+require=0
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+    --wait) wait=${2:-0}; shift ;;
+    --require) require=1 ;;
+    *) echo "usage: glue-timesync [--wait SECONDS] [--require]" >&2; exit 2 ;;
+    esac
+    shift
+done
+case "$wait" in ''|*[!0-9]*) echo "glue-timesync: --wait needs seconds" >&2; exit 2 ;; esac
+
+now() { echo "${GLUE_TIMESYNC_NOW:-$(date -u +%s)}"; }
+
+fetch() {
+    hdr=$(curl -sI --max-time 5 "$1" 2>/dev/null | tr -d '\r' |
+        sed -n 's/^[Dd][Aa][Tt][Ee]: *//p' | head -n 1)
+    [ -n "$hdr" ] || return 1
+    date -u -d "$hdr" +%s 2>/dev/null
+}
+
+# epoch agreed on by two servers, or nothing
+remote_time() {
+    first=
+    for u in $urls; do
+        t=$(fetch "$u") || continue
+        if [ -z "$first" ]; then
+            first=$t
+            continue
+        fi
+        d=$((t - first))
+        [ "${d#-}" -le "$agree" ] && { echo "$t"; return 0; }
+        first=$t
+    done
+    return 1
+}
+
+deadline=$(($(date +%s) + wait))
+while :; do
+    if t=$(remote_time); then
+        drift=$((t - $(now)))
+        if [ "${drift#-}" -le "$max_drift" ]; then
+            exit 0
+        fi
+        if [ "${GLUE_TIMESYNC_DRYRUN:-}" = 1 ]; then
+            echo "would set clock to $t (off by ${drift}s)"
+            exit 0
+        fi
+        date -u -s "@$t" >/dev/null || exit 1
+        command -v hwclock >/dev/null 2>&1 && hwclock --systohc --utc 2>/dev/null
+        echo "glue-timesync: clock was off by ${drift}s, set from the network"
+        exit 0
+    fi
+    [ "$(date +%s)" -lt "$deadline" ] || break
+    sleep 5
+done
+
+if [ "$require" = 1 ] && [ "$(now)" -lt "$floor" ]; then
+    echo "glue-timesync: the clock says $(date -u -d "@$(now)" '+%Y-%m-%d') and no time server answered." >&2
+    echo "Connect to the internet (or set the date in the BIOS) and try again." >&2
+    exit 1
+fi
+exit 0

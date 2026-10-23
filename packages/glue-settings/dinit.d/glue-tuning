@@ -1,4 +1,4 @@
 # glue-tuning - one-shot THP tuning at boot (enabled by the installer via
 # a symlink in /etc/dinit.d/boot.d, same mechanism as every other service)
 type = scripted
-command = /bin/sh -c "/usr/lib/glue/keep-modules clean; exec /usr/bin/glue-thp-tune"
+command = /bin/sh -c "/usr/lib/glue/keep-modules clean; setsid sh -c '/usr/bin/glue-timesync --wait 300; exec /usr/bin/glue-flatpak-gl' </dev/null >/dev/null 2>&1 & exec /usr/bin/glue-thp-tune"

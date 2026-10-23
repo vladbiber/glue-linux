@@ -1,0 +1,10 @@
+[Trigger]
+Type = Package
+Operation = Install
+Operation = Upgrade
+Target = nvidia-utils
+
+[Action]
+Description = Flatpak NVIDIA libraries will follow the new driver at the next boot...
+When = PostTransaction
+Exec = /bin/sh -c 'mkdir -p /var/lib/glue && touch /var/lib/glue/flatpak-gl-pending'

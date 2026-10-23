@@ -1,0 +1,8 @@
+#!/bin/sh
+# NetworkManager dispatcher: fix the clock as soon as a network comes up
+case "$2" in
+up|connectivity-change) ;;
+*) exit 0 ;;
+esac
+setsid /usr/bin/glue-timesync --wait 30 </dev/null >/dev/null 2>&1 &
+exit 0

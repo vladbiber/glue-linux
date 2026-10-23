@@ -9,6 +9,7 @@ depend() {
 start() {
     ebegin "Applying Glue THP tuning"
     /usr/lib/glue/keep-modules clean
+    setsid sh -c '/usr/bin/glue-timesync --wait 300; exec /usr/bin/glue-flatpak-gl' </dev/null >/dev/null 2>&1 &
     /usr/bin/glue-thp-tune
     eend $?
 }
