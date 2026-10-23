@@ -276,6 +276,48 @@ class TestPackageContent(unittest.TestCase):
                     p.kill()
                     p.wait()
 
+    def _regdom(self, zone, zonetab="/usr/share/zoneinfo/zone.tab"):
+        with tempfile.TemporaryDirectory() as tmp:
+            lt = Path(tmp, "localtime")
+            lt.symlink_to(f"../usr/share/zoneinfo/{zone}")
+            tab = Path(tmp, "zone.tab")
+            tab.write_text("# comment\nRO\t+4425+02606\tEurope/Bucharest\n"
+                           "US\t+404251-0740023\tAmerica/New_York\n"
+                           "DE\t+5230+01322\tEurope/Berlin\n")
+            return subprocess.run(
+                ["sh", str(_SETTINGS_DIR / "glue-regdom")],
+                capture_output=True, text=True, timeout=10,
+                env={"PATH": "/usr/bin:/bin", "GLUE_LOCALTIME": str(lt),
+                     "GLUE_ZONETAB": str(tab), "GLUE_REGDOM_DRYRUN": "1"})
+
+    def test_regdom_country_from_timezone(self):
+        for zone, cc in (("Europe/Bucharest", "RO\n"), ("America/New_York", "US\n"),
+                         ("posix/Europe/Berlin", "DE\n"), ("UTC", ""), ("Etc/UTC", "")):
+            res = self._regdom(zone)
+            self.assertEqual((res.returncode, res.stdout), (0, cc), zone)
+
+    def test_regdom_runs_first_in_glue_tuning(self):
+        for svc in (_SETTINGS_DIR / "dinit.d" / "glue-tuning",
+                    _SETTINGS_DIR / "runit" / "glue-tuning" / "run",
+                    _SETTINGS_DIR / "openrc" / "glue-tuning"):
+            text = svc.read_text()
+            self.assertIn("/usr/bin/glue-regdom", text, svc)
+            self.assertLess(text.index("/usr/bin/glue-regdom"),
+                            text.index("/usr/bin/glue-thp-tune"), svc)
+
+    def test_wifi_powersave_and_bluetooth_defaults(self):
+        pkgbuild = (_SETTINGS_DIR / "PKGBUILD").read_text()
+        self.assertIn("'iw'", pkgbuild)
+        self.assertIn("/usr/lib/NetworkManager/conf.d/50-glue-wifi-powersave.conf", pkgbuild)
+        self.assertIn("/usr/share/wireplumber/wireplumber.conf.d/50-glue-bluetooth.conf",
+                      pkgbuild)
+        nm = (_SETTINGS_DIR / "50-glue-wifi-powersave.conf").read_text()
+        self.assertIn("[connection]\n", nm)
+        self.assertIn("wifi.powersave = 2", nm)
+        wp = (_SETTINGS_DIR / "50-glue-bluetooth.conf").read_text()
+        self.assertRegex(wp, r"wireplumber\.settings = \{\s*"
+                             r"bluetooth\.autoswitch-to-headset-profile = false\s*\}")
+
     def test_no_systemd_anywhere_in_package(self):
         offenders = []
         for path in sorted(_SETTINGS_DIR.rglob("*")):
