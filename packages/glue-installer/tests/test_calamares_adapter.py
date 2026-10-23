@@ -130,7 +130,7 @@ class TestForbiddenAndOrder(unittest.TestCase):
             kinds = []
             for s in result.steps:
                 text = " ".join(getattr(s, "argv", ()))
-                if text.startswith("pacman-key"):
+                if text.startswith(("pacman-key", "glue-timesync")):
                     kinds.append("keyring")
                 elif text.startswith("basestrap"):
                     kinds.append("bootstrap")
@@ -325,8 +325,9 @@ class TestGlueinstallModule(unittest.TestCase):
                                      rootPassword="hunter2")}
         result, ran, cala = self._run(gs, {"log_file": "/tmp/x.log", "pacman_conf": "/nope"})
         self.assertIsNone(result)
-        self.assertEqual(ran[0].argv[0], "pacman-key")
-        self.assertEqual(ran[3].argv[0], "basestrap")
+        self.assertEqual(ran[0].argv[0], "glue-timesync")
+        self.assertEqual(ran[1].argv[0], "pacman-key")
+        self.assertEqual(ran[4].argv[0], "basestrap")
         self.assertIn("glue-boot-update --deploy", ran[-1].argv[-1])
         self.assertEqual(cala.job.progress[-1], 1.0)
         self.assertEqual(cala.job.progress, sorted(cala.job.progress))

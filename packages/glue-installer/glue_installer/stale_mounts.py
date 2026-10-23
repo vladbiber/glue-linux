@@ -54,3 +54,26 @@ def stacked_mounts(entries: Iterable[Tuple[int, int, str]], root: str) -> List[s
               if under(path) and path != root and stacked(mid)
               and not (parent in by_id and stacked(parent))]
     return [path for _mid, path in sorted(picked, reverse=True)]
+
+
+# Calamares mounts every target under a fresh /tmp/calamares-root-XXXX
+LEFTOVER_PREFIX = "/tmp/calamares-root-"
+
+
+def leftover_roots(entries: Iterable[Tuple[int, int, str]],
+                   prefix: str = LEFTOVER_PREFIX) -> List[str]:
+    """Target roots a failed earlier run left mounted (the partition job
+    cannot rewrite a disk with mounted partitions: sfdisk --append fails)."""
+    roots = {path for _mid, _parent, path in entries
+             if path.startswith(prefix) and "/" not in path[len(prefix):]}
+    return sorted(roots)
+
+
+def disk_swaps(proc_swaps: str) -> List[str]:
+    """Swap devices on real disks from /proc/swaps; zram stays on."""
+    out = []
+    for line in proc_swaps.splitlines()[1:]:
+        f = line.split()
+        if f and f[0].startswith("/dev/") and not f[0].startswith("/dev/zram"):
+            out.append(f[0])
+    return out

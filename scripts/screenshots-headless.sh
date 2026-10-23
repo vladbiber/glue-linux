@@ -2,7 +2,7 @@
 # screenshots-headless.sh - real 1920x1080 catalog screenshots of the Glue
 # sessions, taken headless inside the build container.
 #
-#   sh scripts/screenshots-headless.sh [glueqs|noctalia|caelestia|nvwm|all]
+#   sh scripts/screenshots-headless.sh [glueqs|noctalia|caelestia|macshell|nvwm|all]
 #
 # Host side: one `docker run --rm --privileged -v /dev/dri:/dev/dri` of
 # glue-build (GLUE_SCREENSHOT_IMAGE, entrypoint overridden) PER TARGET, with
@@ -41,7 +41,7 @@
 # patch, packages/caelestia-shell/glue, is what the shots must show).
 #
 # Output: packages/glue-installer/catalog/screenshots/
-#   gluewc-glueqs-*.png  gluewc-noctalia-*.png  gluewc-caelestia-*.png  nvwm.png
+#   gluewc-glueqs-*.png  gluewc-noctalia-*.png  gluewc-caelestia-*.png  macshell-*.png  nvwm.png
 # Each is verified to be a 1920x1080 PNG with > 1000 unique colours.
 set -eu
 
@@ -51,7 +51,7 @@ MIN_COLORS=1000
 MAX_BYTES=$((3 * 1024 * 1024))
 TIMEOUT=60                       # seconds to wait for sockets / windows
 IMAGE="${GLUE_SCREENSHOT_IMAGE:-glue-build}"
-TARGETS_ALL="glueqs noctalia caelestia nvwm"
+TARGETS_ALL="glueqs noctalia caelestia macshell nvwm"
 
 log() { printf '[screenshots] %s\n' "$*" >&2; }
 die() { log "ERROR: $*"; exit 1; }
@@ -74,8 +74,10 @@ files_for() {
         caelestia) echo gluewc-caelestia-bar.png gluewc-caelestia-overview.png \
                        gluewc-caelestia-launcher.png gluewc-caelestia-dashboard.png \
                        gluewc-caelestia-sidebar.png gluewc-caelestia-session.png ;;
+        macshell) echo macshell-desktop.png macshell-spotlight.png \
+                       macshell-control-center.png macshell-settings.png ;;
         nvwm)     echo nvwm.png ;;
-        *) die "unknown target '$1' (glueqs|noctalia|caelestia|nvwm|all)" ;;
+        *) die "unknown target '$1' (glueqs|noctalia|caelestia|macshell|nvwm|all)" ;;
     esac
 }
 
@@ -213,6 +215,16 @@ inside_main() {
             GLUE_FROM_TREE=1 install_local caelestia-shell
             build_injectors
             ;;
+        macshell)
+            install_local gluewc
+            install_local cage
+            # the [glue] fonts MacShell depends on, then the packaged shell
+            install_local inter-font
+            install_local ttf-roboto-flex
+            install_local macshell
+            pacman -S --noconfirm --needed grim wlr-randr libnotify papirus-icon-theme
+            build_injectors
+            ;;
         nvwm)
             install_local nvwm
             pacman -S --noconfirm --needed xorg-server-xvfb xorg-xwininfo feh
@@ -222,6 +234,9 @@ inside_main() {
     export XDG_RUNTIME_DIR=/tmp/xdg-run
     rm -rf "$XDG_RUNTIME_DIR"; mkdir -m 700 "$XDG_RUNTIME_DIR"
     rm -rf /root/.config/gluewc /root/.local/state/gluewc /tmp/ff
+    # MacShell from /etc/xdg only: no stale user copy, no saved bar layout
+    rm -rf /root/.config/quickshell /root/.config/macshell /root/.local/state/macshell* \
+        /root/.cache/quickshell /root/Pictures/Wallpapers
     # gluewc creates only the last level of its state dir (the workspaces file
     # the bar's workspace widget and the overview dock read)
     mkdir -p /root/.local/state
@@ -387,8 +402,9 @@ wayland_socket_ready() { # [taken socket name]: the first other one wins
 }
 
 # input and captures go to cage (CAGE_DISPLAY), everything else to gluewc
-snap() { # snap NAME -> gluewc-TARGET-NAME.png
+snap() { # snap NAME -> gluewc-TARGET-NAME.png (macshell-NAME.png)
     local f="$OUTDIR/gluewc-$TARGET-$1.png"
+    [ "$TARGET" = macshell ] && f="$OUTDIR/macshell-$1.png"
     WAYLAND_DISPLAY=$CAGE_DISPLAY grim -o HEADLESS-1 "$f" || die "grim failed ($1)"
     log "capture: $f"
 }
@@ -518,6 +534,29 @@ noctalia_extras() {
     $ipc panel-close; sleep 1
 }
 
+# off the bottom edge, or the Dock stays up with a tooltip
+macshell_park() {
+    WAYLAND_DISPLAY=$CAGE_DISPLAY vptr line 0.5 0.999 0.505 0.5 8 >/dev/null 2>&1 || true
+    sleep 2
+}
+
+# MacShell's quickshell IPC (glue-macshell ipc = qs -c MacShell ipc call)
+macshell_extras() {
+    local ipc="qs -c MacShell ipc call"
+    $ipc spotlight toggle
+    sleep 2
+    key f i r e
+    sleep 2; snap spotlight
+    key Escape; sleep 2
+    $ipc controlcenter open
+    sleep 3; snap control-center
+    key Escape; sleep 1
+    $ipc controlcenter close >/dev/null 2>&1 || true
+    sleep 2
+    $ipc settings open
+    sleep 4; snap settings
+}
+
 gluewc_clients_ready() { # at least 2 clients on the output (alacritty + firefox)
     local line total=0 n
     line=$(gluewc-msg status 2>/dev/null | head -n1) || return 1
@@ -613,6 +652,7 @@ session_main() {
         glueqs)   shell_cmd="glueqs" ;;
         noctalia) shell_cmd="noctalia" ;;
         caelestia) shell_cmd="caelestia shell" ;;
+        macshell) shell_cmd="glue-macshell" ;;
     esac
     shell_log=/tmp/shell.log
     $shell_cmd >"$shell_log" 2>&1 &
@@ -622,6 +662,8 @@ session_main() {
         poll "$TIMEOUT" "glueqs 'Configuration Loaded'" grep -q "Configuration Loaded" "$shell_log"
     elif [ "$target" = caelestia ]; then
         poll "$TIMEOUT" "caelestia IPC" qs -c caelestia ipc show
+    elif [ "$target" = macshell ]; then
+        poll "$TIMEOUT" "MacShell IPC" qs -c MacShell ipc show
     else
         poll "$TIMEOUT" "noctalia IPC" noctalia msg status
     fi
@@ -633,12 +675,24 @@ session_main() {
         glueqs)   poll "$TIMEOUT" "glueqs setwallpaper" qs -c glueqs ipc call glueqs setwallpaper "$WALLDIR/stillwater.png" ;;
         noctalia) poll "$TIMEOUT" "noctalia wallpaper set" noctalia msg wallpaper-set "$WALLDIR/stillwater.png" ;;
         caelestia) poll "$TIMEOUT" "caelestia wallpaper" caelestia wallpaper -f "$WALLPAPER" ;;
+        # glue-macshell put glue-mac.jpg up through awww already
+        macshell) ;;
     esac
     sleep 4   # wallpaper decode + fade
     launch_clients wayland
     poll "$TIMEOUT" "alacritty + firefox under gluewc" gluewc_clients_ready
     sleep 8   # fastfetch output + firefox first paint
     log "gluewc-msg status: $(gluewc-msg status 2>&1 | head -n1)"
+    if [ "$target" = macshell ]; then
+        # the Dock hides behind tiled windows ("smart"): the bottom edge brings it up
+        WAYLAND_DISPLAY=$CAGE_DISPLAY vptr line 0.5 0.6 0.5 0.999 8 sleep 1500 >/dev/null 2>&1 || true
+        snap desktop
+        macshell_park
+        macshell_extras
+        tail -n 5 "$shell_log" >&2 || true
+        tail -n 20 /root/.local/state/macshell.log >&2 || true
+        return 0
+    fi
     snap bar
     # overview: a real tap on Super, exactly what the keypress handler waits for
     key Super

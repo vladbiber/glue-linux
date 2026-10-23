@@ -67,6 +67,7 @@ var pages = {
           "Wine for Windows programs",
           "Graphics drivers for your card, installed automatically",
           "MangoHud, GameMode and Gamescope for FPS and smoother play",
+          "Record the screen, clips and replays with GPU Screen Recorder (Alt+Z)",
           "PlayStation, Switch, Steam and Xbox controllers, also over Bluetooth",
           "A CPU scheduler and process priorities tuned for games"
         ]
@@ -86,6 +87,31 @@ var pages = {
         "id": "no-gaming",
         "name": "No, keep it light",
         "description": "A smaller, lighter system. You can still install Steam or other launchers later from Glue Apps.",
+        "badge": "",
+        "points": []
+      }
+    ]
+  },
+  "glueoffice": {
+    "title": "Do you want an office suite?",
+    "subtitle": "Documents, spreadsheets and presentations that open and save Microsoft Office files.",
+    "default": "no-office",
+    "items": [
+      {
+        "id": "office",
+        "name": "Yes, install ONLYOFFICE",
+        "description": "Looks and works like Microsoft Office: the same ribbon tabs as Word, Excel and PowerPoint.",
+        "badge": "About 300 MB",
+        "points": [
+          "Documents, spreadsheets and presentations in one app",
+          "Opens and saves .docx, .xlsx and .pptx files with their layout intact",
+          "Free and open source, works offline"
+        ]
+      },
+      {
+        "id": "no-office",
+        "name": "No, not now",
+        "description": "You can install ONLYOFFICE or LibreOffice later from Glue Apps.",
         "badge": "",
         "points": []
       }
@@ -132,8 +158,10 @@ var pages = {
           "AppArmor keeps apps inside their limits",
           "Kernel protections with zero cost",
           "Security update notices",
+          "Blocks phishing pages and malicious ads (uBlock Origin in the browser)",
           "Zero impact on games",
-          "Better protected out of the box than Arch, Artix or Linux Mint"
+          "Better protected out of the box than Arch, Artix or Linux Mint",
+          "Antivirus for downloads (ClamAV): one switch in Settings"
         ]
       },
       {
@@ -146,6 +174,7 @@ var pages = {
           "Apps cannot read each other's memory",
           "A random Wi-Fi MAC address for every network",
           "Kernel memory laid out so bugs are harder to exploit",
+          "Ransomware protection: daily copies of your documents and photos that only the system can change",
           "Under 1-2% slower in games (estimate)",
           "Breaks: game trainers and Cheat Engine"
         ]
@@ -156,8 +185,12 @@ var pages = {
         "description": "Maximum protection for sensitive work. Not for gaming.",
         "badge": "",
         "points": [
+          "Encrypt the disk too: tick Encrypt system on the Partitions page (go Back). Without it a stolen laptop can be read",
+          "Secure Boot is set up automatically on UEFI computers",
           "Hardened kernel with kernel lockdown",
           "USBGuard: new USB devices stay blocked until you allow them",
+          "Shuts down when you close the lid, so the encryption key never stays in memory; the screen locks after 5 idle minutes, never during a video",
+          "Freed memory wiped, Thunderbolt/USB-C memory attacks blocked",
           "LibreWolf instead of Firefox",
           "10-30% slower; Steam, Flatpak apps and anti-cheat games may stop working",
           "No hibernation; with an NVIDIA card kernel lockdown is skipped"

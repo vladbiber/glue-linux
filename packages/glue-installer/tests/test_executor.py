@@ -431,19 +431,24 @@ class TestIntegration(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 class TestKeyringSteps(unittest.TestCase):
-    def test_three_run_command_steps(self):
+    def test_four_run_command_steps(self):
         steps = keyring_steps()
-        self.assertEqual(len(steps), 3)
+        self.assertEqual(len(steps), 4)
         for s in steps:
             self.assertIsInstance(s, RunCommand)
 
     def test_init_before_populate(self):
-        steps = keyring_steps()
+        steps = keyring_steps()[1:]
         self.assertEqual(steps[0].argv, ["pacman-key", "--init"])
         self.assertEqual(
             steps[1].argv, ["pacman-key", "--populate", "artix", "cachyos"]
         )
         self.assertEqual(steps[2].argv, ["pacman-key", "--populate", "glue"])
+
+    def test_clock_fixed_before_keyring(self):
+        # regression: RTC in 2013 -> "key created in the future", populate fails
+        self.assertEqual(keyring_steps()[0].argv,
+                         ["glue-timesync", "--wait", "60", "--require"])
 
     def test_pure_and_deterministic(self):
         self.assertEqual(keyring_steps(), keyring_steps())

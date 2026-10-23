@@ -1159,6 +1159,16 @@
       "default": true
     },
     {
+      "id": "office",
+      "name": "Office (looks like Microsoft Office)",
+      "description": "ONLYOFFICE Desktop Editors: documents, spreadsheets and presentations with the same ribbon tabs as Word, Excel and PowerPoint, and close .docx/.xlsx/.pptx compatibility. Free and open source. About 300 MB to download.",
+      "packages": [
+        "onlyoffice-bin"
+      ],
+      "services": [],
+      "default": false
+    },
+    {
       "id": "bluetooth",
       "name": "Bluetooth Support",
       "description": "Installs the Bluetooth stack (BlueZ) and Blueman for easy pairing.",
@@ -1226,7 +1236,9 @@
       "lib32-gtk3",
       "lib32-libva",
       "lib32-ocl-icd",
-      "lib32-libjpeg-turbo"
+      "lib32-libjpeg-turbo",
+      "gpu-screen-recorder",
+      "gpu-screen-recorder-ui"
     ],
     "services": [
       "ananicy-cpp"

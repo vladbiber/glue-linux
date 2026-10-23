@@ -1,13 +1,15 @@
 # Maintainer: Glue Linux
 pkgname=glue-installer
 pkgver=1
-pkgrel=50
+pkgrel=51
 pkgdesc="Glue Linux TUI installer (Python curses, catalog-driven)"
 arch=('any')
 url="https://github.com/vladbiber/glue-linux"
 license=('MIT')
 depends=('python' 'artools-base' 'gptfdisk' 'dosfstools' 'e2fsprogs'
-         'grub' 'efibootmgr' 'util-linux')
+         'grub' 'efibootmgr' 'util-linux'
+         # glue-timesync: clock from the network before the keyring step
+         'glue-settings')
 optdepends=('chafa: previews session screenshots in the TUI (P key)')
 # glue-install launcher and pacman.conf are staged next to this PKGBUILD
 # by scripts/make-iso.sh - makepkg won't resolve ../../ relative source paths.

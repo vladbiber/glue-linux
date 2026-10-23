@@ -38,6 +38,8 @@ GS_PREFIX = "packagechooser_"
 GAMING_ON = "gaming"
 GAMING_OFF = "no-gaming"
 GAMING_XBOX = "gaming-xbox"
+OFFICE_ON = "office"
+OFFICE_OFF = "no-office"
 SECUREBOOT_ON = "secureboot"
 SECUREBOOT_OFF = "no-secureboot"
 # Security page item id -> selection security_level
@@ -53,14 +55,15 @@ QML_PAGES = (("gluenetwork", "gluenetwork", "Network"),
 SESSIONS_KEY = GS_PREFIX + "gluesessions"
 
 # one-choice QML pages (ChoicePage.qml) in the order the user sees them
-PAGE_IDS = ("gluekernel", "glueinit", "gluegaming", "gluesecureboot", "gluesecurity")
+PAGE_IDS = ("gluekernel", "glueinit", "gluegaming", "glueoffice", "gluesecureboot",
+            "gluesecurity")
 SHOW_BEFORE = ("welcome", NETWORK_STEP, "locale", "keyboard", "partition", "users",
                DESKTOP_STEP)
 SHOW_AFTER = ("summary",)
 # Standard fstab is kept (it knows UUIDs, options, crypttab, btrfs subvolumes
 # and runs after basestrap so the `filesystem` package cannot conflict with an
 # earlier /etc/fstab); gluefstab adds only the Glue swapfile line right after.
-EXEC = ("partition", "mount", "glueinstall", "fstab", "gluefstab", "locale",
+EXEC = ("gluecleanup", "partition", "mount", "glueinstall", "fstab", "gluefstab", "locale",
         "keyboard", "localecfg", "gluecrypt", "users", "gluemounts", "umount")
 SHOW_FINISH = ("finished",)
 # Never in the sequence: bootloader/initramfs are glue-boot's, services and the
@@ -79,6 +82,7 @@ _EXEC_COMMENTS = {
     "locale": "locale/keyboard/users after glueinstall: glibc, kbd, shells, groups",
     "users": "needs the target's passwd/group (video, audio, …) and /bin/bash",
     "gluemounts": "drops mounts artix-chroot left stacked over the target",
+    "gluecleanup": "a failed earlier try left its target mounted: free the disk",
 }
 _SETTINGS_FLAGS = (
     ("branding", "glue"), ("prompt-install", True), ("dont-chroot", False),
@@ -161,6 +165,7 @@ def build_pages(catalog) -> List[Page]:
                 "Wine for Windows programs",
                 "Graphics drivers for your card, installed automatically",
                 "MangoHud, GameMode and Gamescope for FPS and smoother play",
+                "Record the screen, clips and replays with GPU Screen Recorder (Alt+Z)",
                 "PlayStation, Switch, Steam and Xbox controllers, also over Bluetooth",
                 "A CPU scheduler and process priorities tuned for games"]))
     gaming.items.append(Item(
@@ -176,6 +181,23 @@ def build_pages(catalog) -> List[Page]:
         "A smaller, lighter system. You can still install Steam or other "
         "launchers later from Glue Apps."))
     gaming.default = GAMING_OFF
+
+    office = Page("glueoffice", "Office", "required",
+                  title="Do you want an office suite?",
+                  subtitle="Documents, spreadsheets and presentations that open "
+                           "and save Microsoft Office files.")
+    office.items.append(Item(
+        OFFICE_ON, "Yes, install ONLYOFFICE",
+        "Looks and works like Microsoft Office: the same ribbon tabs as Word, "
+        "Excel and PowerPoint.",
+        badge="About 300 MB",
+        points=["Documents, spreadsheets and presentations in one app",
+                "Opens and saves .docx, .xlsx and .pptx files with their layout intact",
+                "Free and open source, works offline"]))
+    office.items.append(Item(
+        OFFICE_OFF, "No, not now",
+        "You can install ONLYOFFICE or LibreOffice later from Glue Apps."))
+    office.default = OFFICE_OFF
 
     secure = Page("gluesecureboot", "Secure Boot", "required",
                   title="Set up Secure Boot?",
@@ -197,7 +219,7 @@ def build_pages(catalog) -> List[Page]:
                 "Other Linux systems on this computer only start from the menu "
                 "while Secure Boot is off, unless they are signed with these keys"]))
     secure.default = SECUREBOOT_OFF
-    pages = [kernel, init, gaming, secure, security_page()]
+    pages = [kernel, init, gaming, office, secure, security_page()]
     assert tuple(p.id for p in pages) == PAGE_IDS
     return pages
 
@@ -216,6 +238,7 @@ def security_page() -> Page:
                 "AppArmor keeps apps inside their limits",
                 "Kernel protections with zero cost",
                 "Security update notices",
+                "Blocks phishing pages and malicious ads (uBlock Origin in the browser)",
                 "Zero impact on games",
                 "Better protected out of the box than Arch, Artix or Linux Mint"]))
     page.items.append(Item(
@@ -225,16 +248,26 @@ def security_page() -> Page:
                 "Apps cannot read each other's memory",
                 "A random Wi-Fi MAC address for every network",
                 "Kernel memory laid out so bugs are harder to exploit",
+                "Ransomware protection: daily copies of your documents and photos "
+                "that only the system can change",
                 "Under 1-2% slower in games (estimate)",
                 "Breaks: game trainers and Cheat Engine"]))
     page.items.append(Item(
         "security-super", "Super hardened",
         "Maximum protection for sensitive work. Not for gaming.",
-        points=["Hardened kernel with kernel lockdown",
+        points=["Encrypt the disk too: tick Encrypt system on the Partitions page "
+                "(go Back). Without it a stolen laptop can be read",
+                "Secure Boot is set up automatically on UEFI computers",
+                "Hardened kernel with kernel lockdown",
                 "USBGuard: new USB devices stay blocked until you allow them",
+                "Shuts down when you close the lid, so the encryption key never "
+                "stays in memory; the screen locks after 5 idle minutes, never "
+                "during a video",
+                "Freed memory wiped, Thunderbolt/USB-C memory attacks blocked",
                 "LibreWolf instead of Firefox",
                 "10-30% slower; Steam, Flatpak apps and anti-cheat games may stop working",
                 "No hibernation; with an NVIDIA card kernel lockdown is skipped"]))
+    page.items[0].points.append("Antivirus for downloads (ClamAV): one switch in Settings")
     page.default = "security-basic"
     return page
 
@@ -295,6 +328,9 @@ def selection_from_globalstorage(gs: Mapping, catalog) -> Dict[str, object]:
     if gaming:
         sel["gaming"] = gaming[0] in (GAMING_ON, GAMING_XBOX)
         sel["xbox_dongle"] = gaming[0] == GAMING_XBOX
+    office = _picked(gs, pages["glueoffice"])
+    if office:
+        sel["office"] = office[0] == OFFICE_ON
     secure = _picked(gs, pages["gluesecureboot"])
     if secure:
         sel["secure_boot"] = secure[0] == SECUREBOOT_ON

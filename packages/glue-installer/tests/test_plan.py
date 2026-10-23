@@ -1128,7 +1128,7 @@ if __name__ == "__main__":
 _BAR_WAYLAND = {
     "upower", "power-profiles-daemon", "brightnessctl", "playerctl",
     "wl-clipboard", "xdg-desktop-portal", "xdg-desktop-portal-wlr",
-    "xdg-desktop-portal-gtk", "libnotify",
+    "xdg-desktop-portal-gtk", "libnotify", "slurp",
 }
 _BAR_X11 = {"upower", "brightnessctl", "playerctl", "libnotify"}
 

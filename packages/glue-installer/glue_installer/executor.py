@@ -71,9 +71,16 @@ def keyring_steps() -> List[Step]:
     signature with the HOST keyring, so without this populate step every
     online install fails with:
         error: cachyos: key "882DCFE4...DB35A47" is unknown
-    Both commands are idempotent; --init is a no-op on an initialized keyring.
+    The pacman-key commands are idempotent; --init is a no-op on an
+    initialized keyring.
     """
     return [
+        # a dead CMOS battery leaves the clock years behind: gpg then rejects
+        # every key as "created in the future" and TLS mirrors fail
+        RunCommand(
+            argv=["glue-timesync", "--wait", "60", "--require"],
+            description="Set the clock from the network",
+        ),
         RunCommand(
             argv=["pacman-key", "--init"],
             description="Initialize host pacman keyring",

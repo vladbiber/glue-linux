@@ -1,0 +1,7 @@
+# Glue Linux: before partitioning, releases what a failed earlier install left
+# mounted or active, so the disk can be rewritten on the second try.
+---
+type: "job"
+name: "gluecleanup"
+interface: "python"
+script: "main.py"

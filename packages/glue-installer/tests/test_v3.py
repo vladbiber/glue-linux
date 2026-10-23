@@ -219,3 +219,13 @@ class TestGamingShaderCache(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+
+class TestGamingScreenRecorder(unittest.TestCase):
+    def test_recorder_in_gaming_no_preinstalled_apps(self):
+        catalog = load_catalog(_CATALOG_PATH)
+        on = resolve_plan(catalog, Selection("linux-cachyos", "dinit", [], {}, [], True, False))
+        self.assertIn("gpu-screen-recorder-ui", on.packages)
+        self.assertNotIn("vesktop-bin", on.packages)
+        self.assertFalse(any(f.path == "/etc/glue/flatpak-preinstall" for f in on.files))

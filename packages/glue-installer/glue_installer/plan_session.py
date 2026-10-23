@@ -26,6 +26,8 @@ _WM_COMMON = frozenset({"upower", "brightnessctl", "playerctl", "libnotify"})
 _WM_WAYLAND = frozenset({
     "power-profiles-daemon", "wl-clipboard",
     "xdg-desktop-portal", "xdg-desktop-portal-wlr", "xdg-desktop-portal-gtk",
+    # screen sharing (Discord, OBS, browsers): click the monitor to share
+    "slurp",
 })
 
 

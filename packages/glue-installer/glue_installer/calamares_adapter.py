@@ -46,7 +46,7 @@ SHELLS = {"glueqs": "glueqs", "noctalia": "noctalia", "noctalia-shell": "noctali
 # Selection keys this adaptor reads; anything else (users, passwords…) is
 # Calamares' business and is never touched or logged.
 SELECTION_KEYS = ("kernel", "init", "sessions", "shell", "gaming", "scheduler",
-                  "app_store", "bluetooth", "swap_mode", "hibernate", "secure_boot",
+                  "app_store", "bluetooth", "office", "swap_mode", "hibernate", "secure_boot",
                   "security_level")
 SWAPFILE = "/swapfile"
 # Calamares did the partitioning: bootloader_steps only checks the device is
@@ -102,7 +102,7 @@ def parse_selection(d: Mapping, catalog=None) -> Selection:
     Keys: kernel (catalog id, default linux-cachyos), init (dinit|runit|
     openrc), sessions (list of catalog session ids), shell (glueqs|
     noctalia[-shell], only for sessions offering several shells), gaming (bool),
-    scheduler (scx_lavd|scx_bpfland|none), app_store/bluetooth/xbox_dongle (bool
+    scheduler (scx_lavd|scx_bpfland|none), app_store/bluetooth/xbox_dongle/office (bool
     support toggles), swap_mode (auto|zram|none), hibernate (bool), secure_boot
     (bool), security_level (basic|hardened|super). Unknown keys are
     ignored (never read). With a catalog, kernel/sessions/shell are checked
@@ -129,10 +129,14 @@ def parse_selection(d: Mapping, catalog=None) -> Selection:
         support.append("bluetooth")
     if _bool(d, "xbox_dongle", False):
         support.append("xbox-dongle")
+    if _bool(d, "office", False):
+        support.append("office")
     swap_mode = _choice(d, "swap_mode", SWAP_MODES, "auto")
     hibernate = _bool(d, "hibernate", False)
-    secure_boot = _bool(d, "secure_boot", False)
     security_level = _choice(d, "security_level", LEVELS, "basic")
+    # Super hardened always prepares Secure Boot (keys + signed Limine); with
+    # the firmware not in Setup Mode it only prints how to finish
+    secure_boot = _bool(d, "secure_boot", False) or security_level == "super"
 
     shell_choice = {}
     if catalog is not None:
@@ -345,6 +349,9 @@ def compile_adapter(
                             crypt_name=crypt_root.name)
     if selection.secure_boot and firmware != "uefi":
         warnings.append("Secure Boot skipped: this computer started in BIOS mode")
+    if selection.security_level == "super" and crypt_root is None:
+        warnings.append("Super hardened without disk encryption: whoever has the "
+                        "computer can read its files")
 
     boot_packages = bootloader_packages(disk_plan, secure_boot=boot_spec.secure_boot)
     if crypt_root is not None:

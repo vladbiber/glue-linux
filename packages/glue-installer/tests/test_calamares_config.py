@@ -44,7 +44,7 @@ def _phase(settings, name, index):
 class TestSequence(unittest.TestCase):
     def test_exec_order_exact(self):
         self.assertEqual(_phase(_SETTINGS, "exec", 1), [
-            "partition", "mount", "glueinstall", "fstab", "gluefstab", "locale",
+            "gluecleanup", "partition", "mount", "glueinstall", "fstab", "gluefstab", "locale",
             "keyboard", "localecfg", "gluecrypt", "users", "gluemounts", "umount"])
         self.assertEqual(tuple(_phase(_SETTINGS, "exec", 1)), EXEC)
         self.assertEqual(_phase(_SETTINGS, "show", 2), ["finished"])
@@ -57,7 +57,8 @@ class TestSequence(unittest.TestCase):
                          + pages + ["summary"])
         self.assertEqual((NETWORK_STEP, DESKTOP_STEP),
                          ("notesqml@gluenetwork", "notesqml@gluedesktop"))
-        self.assertEqual(PAGE_IDS, ("gluekernel", "glueinit", "gluegaming", "gluesecureboot",
+        self.assertEqual(PAGE_IDS, ("gluekernel", "glueinit", "gluegaming", "glueoffice",
+                                    "gluesecureboot",
                                     "gluesecurity"))
         self.assertEqual([i["id"] for i in _SETTINGS["instances"]],
                          ["gluenetwork", "gluedesktop"] + list(PAGE_IDS))
@@ -250,6 +251,27 @@ class TestSelectionFromGlobalstorage(unittest.TestCase):
         parsed = parse_selection({**sel, "shell": "glueqs"}, _CATALOG)
         self.assertEqual(parsed.support_ids, ["app-store", "bluetooth", "xbox-dongle"])
 
+    def test_office_page_adds_onlyoffice(self):
+        gs = {SESSIONS_KEY: "gluewc", GS_PREFIX + "glueoffice": "office"}
+        sel = selection_from_globalstorage(gs, _CATALOG)
+        self.assertTrue(sel["office"])
+        parsed = parse_selection({**sel, "shell": "glueqs"}, _CATALOG)
+        self.assertIn("office", parsed.support_ids)
+        office = next(s for s in _CATALOG.support if s.id == "office")
+        self.assertEqual(list(office.packages), ["onlyoffice-bin"])
+        gs[GS_PREFIX + "glueoffice"] = "no-office"
+        sel = selection_from_globalstorage(gs, _CATALOG)
+        self.assertNotIn("office", parse_selection({**sel, "shell": "glueqs"}, _CATALOG).support_ids)
+
+    def test_super_turns_on_secure_boot(self):
+        gs = {SESSIONS_KEY: "gluewc", GS_PREFIX + "gluesecurity": "security-super",
+              GS_PREFIX + "gluesecureboot": "no-secureboot"}
+        sel = selection_from_globalstorage(gs, _CATALOG)
+        self.assertTrue(parse_selection({**sel, "shell": "glueqs"}, _CATALOG).secure_boot)
+        gs[GS_PREFIX + "gluesecurity"] = "security-basic"
+        sel = selection_from_globalstorage(gs, _CATALOG)
+        self.assertFalse(parse_selection({**sel, "shell": "glueqs"}, _CATALOG).secure_boot)
+
     def test_defaults_and_empty_pages(self):
         gs = {SESSIONS_KEY: "gluewc", GS_PREFIX + "gluekernel": "linux-cachyos",
               GS_PREFIX + "glueinit": "dinit", GS_PREFIX + "gluegaming": "no-gaming"}
@@ -391,7 +413,7 @@ class TestGluefstab(unittest.TestCase):
 class TestPackaging(unittest.TestCase):
     def test_pkgbuild_installs_modules_and_pages(self):
         text = (_CFG / "PKGBUILD").read_text()
-        for needle in ("settings.conf", "modules/*.conf", "glueinstall gluefstab gluecrypt gluemounts",
+        for needle in ("settings.conf", "modules/*.conf", "glueinstall gluefstab gluecrypt gluemounts gluecleanup",
                        "module.desc", "main.py", "branding.desc", "'glue-installer'"):
             self.assertIn(needle, text)
         self.assertNotIn("Co-Authored", text)
