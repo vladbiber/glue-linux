@@ -265,9 +265,9 @@ def config_steps(
             "artix-chroot", t, "sh", "-c",
             'f=/usr/share/dbus-1/system-services/org.freedesktop.ModemManager1.service; '
             '[ -e "$f" ] && mv -f "$f" "$f.glue-disabled"; '
-            # the live file:// [glue] db has no .sig; the first online sync
-            # would pair it with the server's .sig and refuse every update
-            'rm -f /var/lib/pacman/sync/glue.*; true',
+            # the live file:// [glue] db has no .sig; dated 1970 so the first
+            # online sync refetches it with its .sig (later steps still need it)
+            'touch -c -d @0 /var/lib/pacman/sync/glue.db /var/lib/pacman/sync/glue.files; true',
         ],
         description="Disable ModemManager D-Bus activation (console spam)",
     ))
