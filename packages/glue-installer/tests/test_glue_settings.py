@@ -314,6 +314,11 @@ class TestPackageContent(unittest.TestCase):
         nm = (_SETTINGS_DIR / "50-glue-wifi-powersave.conf").read_text()
         self.assertIn("[connection]\n", nm)
         self.assertIn("wifi.powersave = 2", nm)
+        self.assertIn("/usr/lib/NetworkManager/conf.d/50-glue-connectivity.conf", pkgbuild)
+        conn = (_SETTINGS_DIR / "50-glue-connectivity.conf").read_text()
+        self.assertIn("[connectivity]\n", conn)
+        self.assertRegex(conn, r"(?m)^interval=30$")
+        self.assertNotIn("uri=", conn)
         wp = (_SETTINGS_DIR / "50-glue-bluetooth.conf").read_text()
         self.assertRegex(wp, r"wireplumber\.settings = \{\s*"
                              r"bluetooth\.autoswitch-to-headset-profile = false\s*\}")

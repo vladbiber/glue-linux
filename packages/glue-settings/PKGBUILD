@@ -1,7 +1,7 @@
 # Maintainer: Glue Linux
 pkgname=glue-settings
 pkgver=1
-pkgrel=16
+pkgrel=17
 pkgdesc="Glue Linux performance defaults (CachyOS-Settings ported to Artix inits): sysctl, udev rules, modprobe, limits, THP oneshot, game-performance"
 arch=('any')
 url="https://github.com/vladbiber/glue-linux"
@@ -28,11 +28,13 @@ source=('70-glue.conf'
         'keep-modules' '10-glue-keep-modules.hook' '90-glue-keep-modules.hook'
         'elogind-finish' 'glue-timesync' '50-glue-timesync'
         'glue-flatpak-gl' '95-glue-flatpak-gl.hook'
-        'glue-regdom' '50-glue-wifi-powersave.conf' '50-glue-bluetooth.conf' '60-glue-netlog')
+        'glue-regdom' '50-glue-wifi-powersave.conf' '50-glue-bluetooth.conf' '60-glue-netlog'
+        '50-glue-connectivity.conf')
 sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
             'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
             'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
-            'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+            'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
+            'SKIP')
 
 package() {
     # ----- sysctl (vendor dir; /etc stays free for the admin) -----
@@ -100,6 +102,8 @@ package() {
     install -Dm755 "$srcdir/glue-regdom" "$pkgdir/usr/bin/glue-regdom"
     install -Dm644 "$srcdir/50-glue-wifi-powersave.conf" \
         "$pkgdir/usr/lib/NetworkManager/conf.d/50-glue-wifi-powersave.conf"
+    install -Dm644 "$srcdir/50-glue-connectivity.conf" \
+        "$pkgdir/usr/lib/NetworkManager/conf.d/50-glue-connectivity.conf"
 
     # ----- Bluetooth headsets stay on A2DP -----
     install -Dm644 "$srcdir/50-glue-bluetooth.conf" \
