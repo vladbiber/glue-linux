@@ -323,6 +323,13 @@ class TestPackageContent(unittest.TestCase):
         self.assertRegex(wp, r"wireplumber\.settings = \{\s*"
                              r"bluetooth\.autoswitch-to-headset-profile = false\s*\}")
 
+    def test_cs2_audio_gets_a_larger_buffer(self):
+        self.assertIn("/usr/share/pipewire/pipewire-pulse.conf.d/50-glue-games.conf",
+                      (_SETTINGS_DIR / "PKGBUILD").read_text())
+        conf = (_SETTINGS_DIR / "50-glue-games.conf").read_text()
+        self.assertIn('application.process.binary = "cs2"', conf)
+        self.assertRegex(conf, r"pulse\.min\.req = 2880/48000")
+
     def test_netlog_records_link_changes_only(self):
         self.assertIn("/etc/NetworkManager/dispatcher.d/60-glue-netlog",
                       (_SETTINGS_DIR / "PKGBUILD").read_text())
