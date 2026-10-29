@@ -19,8 +19,9 @@ GAME_COMMS = ("cs2", "cs2.exe")
 NATIVE_COMM = "cs2"
 # CS2's own compiler threads; DXVK's when D3D11 runs under Proton
 PIPELINE_THREADS = ("Async Pipeline", "dxvk-shader")
-# casual with bots: an idle player gets auto-joined, dies and spectates the fights
-GAME_ARGS = ("-novid", "-nojoy", "+game_type", "0", "+game_mode", "0")
+# casual with bots: an idle player gets auto-joined, dies and spectates the fights;
+# no sound, the compile stalls the game for seconds and it only crackles
+GAME_ARGS = ("-novid", "-nojoy", "-nosound", "+game_type", "0", "+game_mode", "0")
 # warm-up writes nothing the player keeps: video/convar files are put back afterwards
 USER_CFG_GLOB = "userdata/*/730/local/cfg/*"
 

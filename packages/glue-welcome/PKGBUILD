@@ -1,7 +1,7 @@
 # Maintainer: Glue Linux
 pkgname=glue-welcome
 pkgver=0.3.0
-pkgrel=10
+pkgrel=11
 pkgdesc="Glue Linux welcome window: keyboard shortcuts, system information, settings and keyboard layouts"
 arch=('any')
 url="https://github.com/vladbiber/glue-linux"

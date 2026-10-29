@@ -342,6 +342,7 @@ class TestProc(unittest.TestCase):
         self.assertEqual(argv[:3], ["steam", "-applaunch", "730"])
         self.assertEqual(argv[-2:], ["+map", "de_dust2"])
         self.assertNotIn("-insecure", argv)
+        self.assertIn("-nosound", argv)
         for bad in ("de_dust2;quit", "+exec x", "", "../x"):
             with self.assertRaises(ValueError):
                 cs2_warmup.launch_argv(["steam"], bad)
