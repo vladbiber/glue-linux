@@ -1,0 +1,40 @@
+# Maintainer: Glue Linux
+# Artix world's xdg-desktop-portal-wlr with the upstream fix for screen
+# sharing on wlr-screencopy compositors (gluewc, gluemac): 0.8.4 drives the
+# PipeWire graph itself but never asks for the next frame on that path, so
+# every share froze on its first frame. Drop once a release carries c0255d7.
+pkgname=xdg-desktop-portal-wlr
+pkgver=0.8.4
+pkgrel=1.1
+pkgdesc='xdg-desktop-portal backend for wlroots'
+arch=('x86_64')
+url="https://github.com/emersion/xdg-desktop-portal-wlr"
+license=('MIT')
+depends=('glibc' 'grim' 'libdrm' 'libinih' 'libpipewire' 'mesa' 'pipewire'
+         'pipewire-session-manager' 'slurp' 'libelogind' 'wayland' 'xdg-desktop-portal')
+makedepends=('meson' 'scdoc' 'wayland-protocols')
+provides=('xdg-desktop-portal-impl')
+source=("$url/archive/v$pkgver/$pkgname-$pkgver.tar.gz"
+        screencopy-trigger-process.patch
+        wlr-portals.conf)
+sha512sums=('05c4ec1148aec480f38d83cfe99be19144315e9848584664956dd56e36c07792df90807d0e674318dda87be012c0ecdea58f49e54a5401aba4f8673c63714221'
+            'a771673f6cca8ec43f203b521e50e5b7a56ab157f060b754ec6e51dc38be13ff99c2c4ed178b60689616570dc70280b4835bee97740cfb808d6f858ea8a8d48d'
+            '71f3383c3f62100dc669c519d107614a4566e808deddf66a179dd2bf175dc272a2390965cf38cd11dc4f0db0dc5cc7104712805034b9bced5874d62b03a579c2')
+
+prepare() {
+  cd "$pkgname-$pkgver"
+  patch -Np1 -i "$srcdir/screencopy-trigger-process.patch"
+}
+
+build() {
+  cd "$pkgname-$pkgver"
+  arch-meson -Dsd-bus-provider=libelogind -Dsystemd=disabled build
+  ninja -C build
+}
+
+package() {
+  cd "$pkgname-$pkgver"
+  DESTDIR="$pkgdir" ninja -C build install
+  install -vDm644 -t "$pkgdir/usr/share/licenses/$pkgname" LICENSE
+  install -vDm644 -t "$pkgdir/usr/share/xdg-desktop-portal" "$srcdir/wlr-portals.conf"
+}

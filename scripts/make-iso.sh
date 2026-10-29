@@ -68,7 +68,7 @@ for pkg in glue-keyring glue-zsh glue-branding glue-settings glue-boot glue-secu
            inter-font ttf-roboto-flex macshell \
            ttf-material-symbols-variable ttf-rubik-vf ttf-google-sans-flex ttf-readex-pro otf-space-grotesk \
            swappy libcava qt6-m3shapes python-materialyoucolor matugen caelestia-cli caelestia-shell \
-           wlogout ii-vynx glue-hyprland \
+           wlogout ii-vynx glue-hyprland xdg-desktop-portal-wlr \
            glue-apps glue-welcome glue-installer glue-calamares-config \
            librespot spotc ctify creader; do
     # GLUE_PKGS="a b" rebuilds only those; the rest come from the persisted repo

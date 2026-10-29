@@ -1,0 +1,112 @@
+From 33e83b2556f3f0369e332877f9664d476ad20333 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <iluceno@suse.de>
+Date: Tue, 11 Aug 2026 19:12:13 +0200
+Subject: [PATCH 1/2] screencast: Factor out wlr_frame_done
+
+Four locations end a capture cycle with the same enqueue-then-finish
+pair.
+---
+ src/screencast/wlr_screencopy.c | 19 +++++++++++--------
+ 1 file changed, 11 insertions(+), 8 deletions(-)
+
+diff --git a/src/screencast/wlr_screencopy.c b/src/screencast/wlr_screencopy.c
+index 81beb9e..4cb5d24 100644
+--- a/src/screencast/wlr_screencopy.c
++++ b/src/screencast/wlr_screencopy.c
+@@ -32,6 +32,13 @@ static void wlr_frame_finish(struct xdpw_screencast_instance *cast) {
+ 	logprint(TRACE, "wlroots: frame destroyed");
+ }
+ 
++// Ends the current capture cycle: hand the buffer back to PipeWire and drop
++// the wlr frame.
++static void wlr_frame_done(struct xdpw_screencast_instance *cast) {
++	xdpw_pwr_enqueue_buffer(cast);
++	wlr_frame_finish(cast);
++}
++
+ static void wlr_frame_buffer_done(void *data,
+ 		struct zwlr_screencopy_frame_v1 *frame);
+ 
+@@ -137,16 +144,14 @@ static void wlr_frame_buffer_done(void *data,
+ 
+ 	if (!cast->current_frame.xdpw_buffer) {
+ 		logprint(WARN, "wlroots: no current buffer");
+-		xdpw_pwr_enqueue_buffer(cast);
+-		wlr_frame_finish(cast);
++		wlr_frame_done(cast);
+ 		return;
+ 	}
+ 
+ 	if (!check_constraints(&cast->current_constraints, cast->current_frame.xdpw_buffer)) {
+ 		logprint(DEBUG, "wlroots: buffer constraints changed");
+ 		pwr_update_stream_param(cast);
+-		xdpw_pwr_enqueue_buffer(cast);
+-		wlr_frame_finish(cast);
++		wlr_frame_done(cast);
+ 		return;
+ 	}
+ 
+@@ -199,8 +204,7 @@ static void wlr_frame_ready(void *data, struct zwlr_screencopy_frame_v1 *frame,
+ 	cast->current_frame.completed = true;
+ 	logprint(TRACE, "wlroots: timestamp %"PRIu64":%"PRIu32, cast->current_frame.tv_sec, cast->current_frame.tv_nsec);
+ 
+-	xdpw_pwr_enqueue_buffer(cast);
+-	wlr_frame_finish(cast);
++	wlr_frame_done(cast);
+ }
+ 
+ static void wlr_frame_failed(void *data,
+@@ -212,8 +216,7 @@ static void wlr_frame_failed(void *data,
+ 
+ 	logprint(TRACE, "wlroots: failed event handler");
+ 
+-	xdpw_pwr_enqueue_buffer(cast);
+-	wlr_frame_finish(cast);
++	wlr_frame_done(cast);
+ }
+ 
+ static const struct zwlr_screencopy_frame_v1_listener wlr_frame_listener = {
+-- 
+2.52.0
+
+
+From 55f5d3859b441d2f82806c0abc5de846642891e4 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <iluceno@suse.de>
+Date: Tue, 11 Aug 2026 19:12:36 +0200
+Subject: [PATCH 2/2] screencast: Trigger the graph from the wlr-screencopy
+ backend
+
+The stream is connected with PW_STREAM_FLAG_DRIVER, so .process only
+runs in reply to pw_stream_trigger_process(). Only ext_image_copy calls
+it; wlr-screencopy never does, so capture delivers the frame primed at
+PW_STREAM_STATE_STREAMING and then stalls forever. The retry timer does
+not help: it is armed only when a dequeue fails.
+
+Affects compositors that expose zwlr_screencopy_manager_v1 but not
+ext-image-copy-capture-v1, i.e. wlroots <= 0.18.
+
+Fixes: c613a8bc7 ("screencast: drive the Pipewire graph by ourselves")
+---
+ src/screencast/wlr_screencopy.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/screencast/wlr_screencopy.c b/src/screencast/wlr_screencopy.c
+index 4cb5d24..693ca4c 100644
+--- a/src/screencast/wlr_screencopy.c
++++ b/src/screencast/wlr_screencopy.c
+@@ -33,10 +33,11 @@ static void wlr_frame_finish(struct xdpw_screencast_instance *cast) {
+ }
+ 
+ // Ends the current capture cycle: hand the buffer back to PipeWire and drop
+-// the wlr frame.
++// the wlr frame. We drive the graph, so ask for the next cycle ourselves.
+ static void wlr_frame_done(struct xdpw_screencast_instance *cast) {
+ 	xdpw_pwr_enqueue_buffer(cast);
+ 	wlr_frame_finish(cast);
++	pw_stream_trigger_process(cast->stream);
+ }
+ 
+ static void wlr_frame_buffer_done(void *data,
+-- 
+2.52.0
+
