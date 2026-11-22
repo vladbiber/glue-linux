@@ -1,6 +1,6 @@
 # Maintainer: vladbiber <https://github.com/vladbiber>
 pkgname=glue-apps
-pkgver=0.4.0
+pkgver=0.4.1
 pkgrel=1
 pkgdesc="Install apps from Pacman, Flatpak, the AUR or AppImage and keep the whole system up to date"
 arch=('any')
