@@ -1,6 +1,6 @@
 # Maintainer: vladbiber <https://github.com/vladbiber>
 pkgname=glue-apps
-pkgver=0.3.6
+pkgver=0.4.0
 pkgrel=1
 pkgdesc="Install apps from Pacman, Flatpak, the AUR or AppImage and keep the whole system up to date"
 arch=('any')
@@ -15,7 +15,11 @@ optdepends=('flatpak: apps from Flathub'
             'paru: apps from the AUR'
             'archlinux-appstream-data: icons and screenshots for Pacman apps on Arch and CachyOS'
             'artixlinux-appstream-data: icons and screenshots for Pacman apps on Artix'
-            'fuse2: run AppImages without unpacking them first')
+            'fuse2: run AppImages without unpacking them first'
+            'wine: run Windows programs'
+            'wine-mono: .NET for Windows programs'
+            'wine-gecko: web views in Windows programs'
+            'umu-launcher: run Windows games with Proton')
 conflicts=('glue-hub')
 replaces=('glue-hub')
 backup=('etc/glue/apps.conf')
