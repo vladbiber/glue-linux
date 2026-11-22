@@ -6,7 +6,7 @@ pkgdesc="Very light X11 window manager that looks and works like Windows 11, wit
 arch=('x86_64')
 url="https://github.com/vladbiber/gluewin"
 license=('MIT')
-depends=('libx11' 'libxft' 'libxrender' 'libxext' 'libxrandr' 'libpng' 'libjpeg-turbo' 'libwebp' 'xorg-xinit' 'xorg-setxkbmap' 'dbus'
+depends=('libx11' 'libxft' 'libxrender' 'libxext' 'libxrandr' 'libpng' 'libjpeg-turbo' 'libwebp' 'xorg-xinit' 'xorg-setxkbmap' 'xorg-xrandr' 'dbus'
          'xwallpaper' 'brightnessctl' 'wireplumber' 'networkmanager' 'alacritty')
 optdepends=('bluez-utils: Bluetooth page and quick toggle'
             'pavucontrol: advanced sound settings'
